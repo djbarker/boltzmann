@@ -36,7 +36,7 @@ class NumbaModel:
         self.qs = qs
         self.js = js
         self.os = qs[:, 0] + qs[:, 1] * counts[0]  # downstream offset
-        self.qs_f32 = np.copy(qs.astype(np.float32))
+        self.qs_f32 = qs.astype(np.float32).copy()
 
 
 @jitclass(
@@ -82,11 +82,12 @@ class PeriodicDomain:
 
 @numba.njit(
     [
-        void(int32[:], float32[:, :]),
-        void(int32[:], float32[:]),
-        void(int32[:], int32[:, :]),
-        void(int32[:], int32[:]),
-    ]
+        void(int32[:], float32[:, ::1]),
+        void(int32[:], float32[::1]),
+        void(int32[:], int32[:, ::1]),
+        void(int32[:], int32[::1]),
+    ],
+    parallel=True,
 )
 def copy_periodic(counts: np.ndarray, arr: np.ndarray) -> None:
     assert np.prod(counts) == arr.shape[0]
@@ -158,8 +159,7 @@ def sub_to_idx(counts: np.ndarray, xidx: int, yidx: int) -> int:
 
 
 @numba.njit(
-    void(float32[:, :], float32[:], float32[:, :], float32, jc_arg(NumbaModel))
-    # parallel = True
+    void(float32[:, ::1], float32[:], float32[:, ::1], float32, jc_arg(NumbaModel)), parallel=True
 )
 def calc_equilibrium(
     v: np.ndarray,
@@ -183,8 +183,8 @@ def calc_equilibrium(
     #             - (3.0 / 2.0) * vv / params.cs**2
     #         )
     #     )
-    # for idx in numba.prange(v.shape[0]):
-    for idx in range(v.shape[0]):
+    for idx in numba.prange(v.shape[0]):
+        # for idx in range(v.shape[0]):
         vv = np.sum(v[idx, :] ** 2)
         for i in range(9):
             w = model.ws[i]
@@ -201,10 +201,10 @@ def calc_equilibrium(
 
 @numba.njit(
     [
-        void(float32[:, :], float32[:, :], int32[:], int32[:], jc_arg(NumbaModel)),
-        void(int32[:, :], int32[:, :], int32[:], int32[:], jc_arg(NumbaModel)),
+        void(float32[:, ::1], float32[:, ::1], int32[:], int32[:], jc_arg(NumbaModel)),
+        void(int32[:, ::1], int32[:, ::1], int32[:], int32[:], jc_arg(NumbaModel)),
     ],
-    parallel=False,
+    parallel=True,
 )
 def stream(
     f_to: np.ndarray,
@@ -216,8 +216,8 @@ def stream(
     assert np.prod(counts) == f_to.shape[0]
     assert np.prod(counts) == f_from.shape[0]
 
-    # for yidx in numba.prange(1, counts[1] - 1):
-    for yidx in range(1, counts[1] - 1):
+    for yidx in numba.prange(1, counts[1] - 1):
+        # for yidx in range(1, counts[1] - 1):
         for xidx in range(1, counts[0] - 1):
             idx = sub_to_idx(counts, xidx, yidx)
             for i in range(9):
@@ -240,24 +240,24 @@ def stream(
 @numba.njit(
     void(
         int64,
-        float32[:, :],
+        float32[:, ::1],
         float32[:],
         float32[:],
-        float32[:, :],
-        float32[:, :],
+        float32[:, ::1],
+        float32[:, ::1],
         int32[:],
         int32[:],
         jc_arg(Params),
         jc_arg(PeriodicDomain),
         jc_arg(NumbaModel),
     ),
-    # parallel=True,
+    parallel=True,
 )
 def loop_for(
     iters: int,
     v,
     rho,
-    curl,
+    _curl,
     f,
     feq,
     is_wall,
@@ -295,27 +295,15 @@ def loop_for(
         stream(feq, f, is_wall, counts, model)
 
         # swap
-        tmp = np.copy(f)
-        f[:] = feq[:]
-        feq[:] = tmp[:]
         # f, feq = feq, f
+        # TODO: not sure why but just swapping vars causes issues with numba
+        f[:] = feq[:]
 
         # macroscopic
         rho[:] = np.sum(f, -1)
         v_ = f @ model.qs_f32
 
         # numba parallel does not like broadcast... sad.
-        v[:] = update_vel[:, None] * v_ * cs / rho[:, None] + (1 - update_vel[:, None]) * v
-        # for vdim in numba.prange(2):
-        #     v[:, vdim] = update_vel * v_[:, vdim] * cs / rho + (1 - update_vel) * v[:, vdim]
-
-        # for yidx in numba.prange(1, counts[1] - 1):
-        for yidx in range(1, counts[1] - 1):
-            for xidx in range(1, counts[0] - 1):
-                idx = yidx * counts[0] + xidx
-                curl[idx] = (
-                    v[idx + counts[0], 1] - v[idx - counts[0], 1] - (v[idx + 1, 0] - v[idx - 1, 0])
-                ) / (2 * params.dx)
-
-    # return v, rho, curl, f
-    # return f, feq
+        # v[:] = update_vel[:, None] * v_ * cs / rho[:, None] + (1 - update_vel[:, None]) * v
+        for vdim in numba.prange(2):
+            v[:, vdim] = update_vel * v_[:, vdim] * cs / rho + (1 - update_vel) * v[:, vdim]
