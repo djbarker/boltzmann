@@ -15,26 +15,32 @@ log = logging.getLogger(__name__)
 
 basic_config(log)
 
-log.info("Compiling...")
-
-from boltzmann.impl2 import *
 
 # %% Params
 
 # dom = DomainMeta.with_extent_and_counts(extent=[[-1, 1], [-1, 1.1]], counts=[200, 220])
-dom = DomainMeta.with_extent_and_counts(extent=[[-2, 2], [-1, 1]], counts=[400, 200])
-fld = FluidMeta(mu=0.01, rho=100)
-sim = SimulationMeta(domain=dom, fluid=fld, dt=0.01)
+dom = DomainMeta.with_extent_and_counts(extent=[[-2, 2], [-1, 1]], counts=[600, 300])
+fld = FluidMeta(mu=0.001, rho=100)
+sim = SimulationMeta(domain=dom, fluid=fld, dt=0.025)
 # sim = SimulationMeta(domain=dom, fluid=fld, dt=0.001)
 
 log.info(f"{dom.dx=}, {dom.extent=}, {dom.counts=}, cells={np.prod(dom.counts):,d}")
 log.info(f"{fld.mu=}, {fld.rho=}, {fld.nu=}")
 log.info(f"{sim.tau=}, {sim.c=}")
 
+if sim.tau < 0.51:
+    log.warning(f"Small value for tau! [tau={sim.tau}]")
+
+# %% Compile
+
+log.info("Compiling using Numba...")
+
+from boltzmann.impl2 import *
+
+# make numba objects
 pidx = PeriodicDomain(dom.counts)
 params = Params(sim.dt, dom.dx, sim.c, sim.tau)
 d2q9 = NumbaModel(D2Q9.ws, D2Q9.qs, D2Q9.js, pidx.counts)
-
 
 # %% Initialize arrays
 
@@ -42,7 +48,7 @@ f = make_array(pidx, 9)
 v = make_array(pidx, 2)
 cell = make_array(pidx, dtype=np.int32)
 rho = make_array(pidx, fill=fld.rho)
-# rho *= 1 + 0.01 * np.random.uniform(size=rho.shape)
+rho *= 1 + 0.001 * np.random.uniform(size=rho.shape)
 curl = make_array(pidx)
 feq = np.zeros_like(f)
 
@@ -61,7 +67,8 @@ cell[:] = CellType.BC_WALL.value * (((xx - -1.0) ** 2 + (yy - 0.0) ** 2) < 0.2**
 # v[:, 150:-150, 0] = sim.c * 0.1
 
 cell[make_slice_y1d(pidx, 1)] = CellType.FIXED_VELOCITY.value
-v[:, 0] = sim.c * 0.1
+v[:, 0] = sim.c * 0.1 * (1 - np.exp(-((yy / 0.4) ** 2) - ((xx - -1) / 0.4) ** 2))
+v[make_slice_y1d(pidx, 1), 0] = sim.c * 0.1
 # v[make_slice_y1d(pidx, 200, 90, 110)] = sim.c * 0.099
 
 # v[((xx - -1.5) ** 2 + (yy - 0.0) ** 2) < 0.2**2.0, 0] = sim.c * 0.1
@@ -85,12 +92,27 @@ def write_vti(
     params: Params,
     v: np.ndarray,
     rho: np.ndarray,
-    curl: np.ndarray,
     cell: np.ndarray,
     f: np.ndarray,
 ):
 
     counts = pidx.counts
+
+    # calc curl
+    curl = np.zeros_like(rho)
+    for yidx in range(1, counts[1] - 1):
+        for xidx in range(1, counts[0] - 1):
+            idx = yidx * counts[0] + xidx
+
+            # NOTE: Assumes zero wall velocity.
+            # fmt: off
+            vy1 = v[idx - counts[0], 1] * (cell[idx - counts[0]] != CellType.BC_WALL.value)
+            vy2 = v[idx + counts[0], 1] * (cell[idx + counts[0]] != CellType.BC_WALL.value)
+            vx1 = v[idx -         1, 1] * (cell[idx -         1] != CellType.BC_WALL.value)
+            vx2 = v[idx +         1, 1] * (cell[idx +         1] != CellType.BC_WALL.value)
+            # fmt: on
+
+            curl[idx] = ((vy2 - vy1) - (vx2 - vx1)) / (2 * params.dx)
 
     # need 3d vectors for vtk
     def _to3d(v: np.ndarray):
@@ -100,43 +122,42 @@ def write_vti(
             return v
 
     # reshape data for writing
-    v_T = np.reshape(_to3d(v), list(counts) + [3])
-    rho_T = np.reshape(rho, list(counts))
-    curl_T = np.reshape(curl, list(counts))
-    cell_T = np.reshape(cell, list(counts))
-    f_T = np.reshape(f, list(counts) + [9])
+    v_ = unflatten(pidx, _to3d(v))
+    rho_ = unflatten(pidx, rho)
+    curl_ = unflatten(pidx, curl)
+    cell_ = unflatten(pidx, cell)
+    f_ = unflatten(pidx, f)
 
     # v_T[cell_T == CellType.BC_WALL.value, :] = np.nan
     # rho_T[cell_T == CellType.BC_WALL.value] = np.nan
     # curl_T[cell_T == CellType.BC_WALL.value] = np.nan
 
     # cut off periodic part
-    # xidx = np.arange(1, counts[0] - 1, 1, dtype=np.int32)
-    # yidx = np.arange(1, counts[1] - 1, 1, dtype=np.int32)
-    # idx = np.array(list(product(xidx, yidx)), dtype=np.int32)
+    # v_ = v_[1:-1, 1:-1, :]
+    # rho_ = rho_[1:-1, 1:-1]
+    # curl_ = curl_[1:-1, 1:-1]
+    # cell_ = cell_[1:-1, 1:-1]
+    # f_ = f_[1:-1, 1:-1, :]
 
-    # v_T = v_T[idx, :]
-    # rho_T = rho_T[idx]
-    # curl_T = curl_T[idx]
-    # cell_T = cell_T[idx]
+    # counts = counts - 2
 
     image_data = vtk.vtkImageData()
     nx, ny = list(counts)
     image_data.SetDimensions(nx, ny, 1)
 
-    rho_data = vtk_np.numpy_to_vtk(num_array=rho_T.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
+    rho_data = vtk_np.numpy_to_vtk(num_array=rho_.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
     rho_data.SetName("Density")
     rho_data.SetNumberOfComponents(1)
 
-    vel_data = vtk_np.numpy_to_vtk(num_array=v_T.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
+    vel_data = vtk_np.numpy_to_vtk(num_array=v_.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
     vel_data.SetName("Velocity")
     vel_data.SetNumberOfComponents(3)
 
-    curl_data = vtk_np.numpy_to_vtk(num_array=curl_T.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
+    curl_data = vtk_np.numpy_to_vtk(num_array=curl_.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
     curl_data.SetName("Vorticity")
     curl_data.SetNumberOfComponents(1)
 
-    wall_data = vtk_np.numpy_to_vtk(num_array=cell_T.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
+    wall_data = vtk_np.numpy_to_vtk(num_array=cell_.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
     wall_data.SetName("CellType")
     wall_data.SetNumberOfComponents(1)
 
@@ -146,10 +167,10 @@ def write_vti(
     p_data.AddArray(curl_data)
     p_data.AddArray(wall_data)
 
-    f_data = vtk_np.numpy_to_vtk(num_array=f_T.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
-    f_data.SetName(f"F")
-    f_data.SetNumberOfComponents(9)
-    p_data.AddArray(f_data)
+    # f_data = vtk_np.numpy_to_vtk(num_array=f_.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
+    # f_data.SetName(f"F")
+    # f_data.SetNumberOfComponents(9)
+    # p_data.AddArray(f_data)
 
     p_data.SetActiveAttribute("Velocity", vtk.VTK_ATTRIBUTE_MODE_DEFAULT)
 
@@ -160,7 +181,7 @@ def write_vti(
 
 
 # write out the zeroth timestep
-write_vti("out/example2_{out_i:06d}.vti".format(out_i=0), pidx, params, v, rho, curl, cell, f)
+write_vti("out/example2_{out_i:06d}.vti".format(out_i=0), pidx, params, v, rho, cell, f)
 
 # %% Main Loop
 
@@ -169,7 +190,7 @@ out_dt = 0.1
 # out_dt = sim.dt
 out_i = 1
 out_t = out_dt
-max_i = 300
+max_i = 1000
 
 batch_i = int((out_dt + 1e-8) // sim.dt)
 
@@ -187,7 +208,7 @@ for out_i in range(1, max_i):
 
     loop_for(batch_i, v, rho, curl, f, feq, is_wall, update_vel, params, pidx, d2q9)
 
-    perf_batch = perf_batch.add_events(np.prod(dom.counts) * batch_i).tock()
+    perf_batch = perf_batch.tock(events=np.prod(dom.counts) * batch_i)
     perf_total = perf_total + perf_batch
 
     mlups_batch = perf_batch.events / (1e6 * perf_batch.seconds)
@@ -195,7 +216,5 @@ for out_i in range(1, max_i):
 
     log.info(prog_msg(out_i=out_i, out_t=out_t, mlups_batch=mlups_batch, mlups_total=mlups_total))
 
-    write_vti(
-        "out/example2_{out_i:06d}.vti".format(out_i=out_i), pidx, params, v, rho, curl, cell, f
-    )
+    write_vti("out/example2_{out_i:06d}.vti".format(out_i=out_i), pidx, params, v, rho, cell, f)
     out_t += out_dt

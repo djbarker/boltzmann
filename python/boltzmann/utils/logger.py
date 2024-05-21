@@ -79,7 +79,8 @@ class PerfTimer:
     start: datetime.datetime
     events: int
 
-    def tock(self) -> PerfInfo:
+    def tock(self, *, events: int = 0) -> PerfInfo:
+        self.add_events(events)
         delta = datetime.datetime.now() - self.start
         return PerfInfo(self.events, delta.seconds * 1e6 + delta.microseconds)
 
