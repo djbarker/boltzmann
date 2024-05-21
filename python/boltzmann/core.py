@@ -4,7 +4,7 @@ import numba
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Sequence
+from typing import Sequence, Protocol
 
 
 ExtentT = np.ndarray | Sequence[Sequence[float]]
@@ -25,6 +25,21 @@ def to_counts(counts: CountsT) -> np.ndarray:
     counts = np.squeeze(np.array(counts))
     assert np.ndim(counts) == 1, f"Expected 1d array for counts! [{counts.shape=!r}]"
     return counts
+
+
+DimsT = list[int] | int | None
+
+
+def to_dims(dims: DimsT) -> list[int]:
+    match dims:
+        case None:
+            return []
+        case int():
+            return [dims]
+        case list():
+            return dims
+        case _:
+            raise TypeError(f"Expected None, int or list[int] for dims. [{dims=}]")
 
 
 class DomainMeta:
@@ -78,20 +93,11 @@ class DomainMeta:
 
     def make_array(
         self,
-        dims: list[int] | int | None = None,
+        dims: DimsT = None,
         dtype: np.dtype = np.float32,
         fill: float | int = 0.0,
     ) -> np.ndarray:
-        match dims:
-            case None:
-                dims = []
-            case int():
-                dims = [dims]
-            case list():
-                pass
-            case _:
-                raise TypeError(f"Expected None, int or list[int] for dims. [{dims=}]")
-
+        dims = to_dims(dims)
         dims = list(self.counts + 2) + dims  # + 2 for periodic BCs
         return np.full(dims, fill, dtype)
 

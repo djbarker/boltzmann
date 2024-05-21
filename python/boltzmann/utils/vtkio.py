@@ -3,7 +3,7 @@ import numpy as np
 import vtk
 import vtk.util.numpy_support as vtk_np
 
-from core import DomainMeta
+from boltzmann.core import DomainMeta, CellType
 
 
 def write_vti(
@@ -23,10 +23,14 @@ def write_vti(
             return v
 
     # transpose data for writing
-    v_T = np.transpose(_to3d(v), (1, 0, 2))
-    rho_T = rho.T
-    curl_T = curl.T
-    cell_T = cell.T
+    v_T = np.copy(np.transpose(_to3d(v), (1, 0, 2)))
+    rho_T = np.copy(rho.T)
+    curl_T = np.copy(curl.T)
+    cell_T = np.copy(cell.T)
+
+    v_T[cell_T == CellType.BC_WALL.value, :] = np.nan
+    rho_T[cell_T == CellType.BC_WALL.value] = np.nan
+    curl_T[cell_T == CellType.BC_WALL.value] = np.nan
 
     # cut off periodic part
     v_T = v_T[1:-1, 1:-1]
