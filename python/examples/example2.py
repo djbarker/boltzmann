@@ -19,16 +19,16 @@ basic_config(log)
 # %% Params
 
 # dom = DomainMeta.with_extent_and_counts(extent=[[-1, 1], [-1, 1.1]], counts=[200, 220])
-dom = DomainMeta.with_extent_and_counts(extent=[[-2, 2], [-1, 1]], counts=[600, 300])
-fld = FluidMeta(mu=0.001, rho=100)
-sim = SimulationMeta(domain=dom, fluid=fld, dt=0.025)
+dom = DomainMeta.with_extent_and_counts(extent=[[-0.2, 0.2], [-0.1, 0.1]], counts=[500, 250])
+fld = FluidMeta(mu=0.001, rho=1000)
+sim = SimulationMeta(domain=dom, fluid=fld, dt=0.005)
 # sim = SimulationMeta(domain=dom, fluid=fld, dt=0.001)
 
 log.info(f"{dom.dx=}, {dom.extent=}, {dom.counts=}, cells={np.prod(dom.counts):,d}")
 log.info(f"{fld.mu=}, {fld.rho=}, {fld.nu=}")
 log.info(f"{sim.tau=}, {sim.c=}")
 
-if sim.tau < 0.51:
+if sim.tau < 0.6:
     log.warning(f"Small value for tau! [tau={sim.tau}]")
 
 # %% Compile
@@ -52,13 +52,15 @@ rho *= 1 + 0.001 * np.random.uniform(size=rho.shape)
 curl = make_array(pidx)
 feq = np.zeros_like(f)
 
-xx, yy = np.meshgrid(dom.x, dom.y)
+x = np.pad(dom.x, (1, 1), mode="edge")
+y = np.pad(dom.y, (1, 1), mode="edge")
+xx, yy = np.meshgrid(x, y)
 
 xx = xx.flatten()
 yy = yy.flatten()
 
 # --- Cylinder
-cell[:] = CellType.BC_WALL.value * (((xx - -1.0) ** 2 + (yy - 0.0) ** 2) < 0.2**2.0)
+cell[:] = CellType.BC_WALL.value * (((xx - -0.1) ** 2 + (yy - 0.0) ** 2) < 0.01**2.0)
 
 # --- In-flow jet
 # cell[1, :150] = CellType.BC_WALL.value
@@ -67,7 +69,7 @@ cell[:] = CellType.BC_WALL.value * (((xx - -1.0) ** 2 + (yy - 0.0) ** 2) < 0.2**
 # v[:, 150:-150, 0] = sim.c * 0.1
 
 cell[make_slice_y1d(pidx, 1)] = CellType.FIXED_VELOCITY.value
-v[:, 0] = sim.c * 0.1 * (1 - np.exp(-((yy / 0.4) ** 2) - ((xx - -1) / 0.4) ** 2))
+v[:, 0] = sim.c * 0.1 * (1 - np.exp(-((yy / 0.04) ** 2) - ((xx - -0.1) / 0.04) ** 2))
 v[make_slice_y1d(pidx, 1), 0] = sim.c * 0.1
 # v[make_slice_y1d(pidx, 200, 90, 110)] = sim.c * 0.099
 
@@ -81,6 +83,9 @@ update_vel = (cell == CellType.FLUID.value).astype(np.int32)
 # initial f is equilibrium for desired values of v and rho
 calc_equilibrium(v, rho, f, np.float32(params.cs), d2q9)
 feq[:] = f[:]
+
+# ensure cell types match across boundary
+pidx.copy_periodic(cell)
 
 
 # %% Define VTK out
@@ -108,8 +113,8 @@ def write_vti(
             # fmt: off
             vy1 = v[idx - counts[0], 1] * (cell[idx - counts[0]] != CellType.BC_WALL.value)
             vy2 = v[idx + counts[0], 1] * (cell[idx + counts[0]] != CellType.BC_WALL.value)
-            vx1 = v[idx -         1, 1] * (cell[idx -         1] != CellType.BC_WALL.value)
-            vx2 = v[idx +         1, 1] * (cell[idx +         1] != CellType.BC_WALL.value)
+            vx1 = v[idx -         1, 0] * (cell[idx -         1] != CellType.BC_WALL.value)
+            vx2 = v[idx +         1, 0] * (cell[idx +         1] != CellType.BC_WALL.value)
             # fmt: on
 
             curl[idx] = ((vy2 - vy1) - (vx2 - vx1)) / (2 * params.dx)

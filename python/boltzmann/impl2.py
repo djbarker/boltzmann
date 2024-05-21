@@ -155,11 +155,14 @@ def sub_to_idx(counts: np.ndarray, xidx: int, yidx: int) -> int:
         xidx = counts[0] + xidx
     if yidx < 0:
         yidx = counts[1] + yidx
+    # xidx = xidx % counts[0]
+    # yidx = yidx % counts[1]
     return yidx * counts[0] + xidx
 
 
 @numba.njit(
-    void(float32[:, ::1], float32[:], float32[:, ::1], float32, jc_arg(NumbaModel)), parallel=True
+    void(float32[:, ::1], float32[:], float32[:, ::1], float32, jc_arg(NumbaModel)),
+    parallel=True,
 )
 def calc_equilibrium(
     v: np.ndarray,
@@ -286,7 +289,6 @@ def loop_for(
 
         # collide
         f += (feq - f) / params.tau
-        # f += (feq - f) / 0.6
 
         # periodic
         copy_periodic(counts, f)

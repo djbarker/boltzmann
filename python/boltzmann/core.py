@@ -61,9 +61,7 @@ class DomainMeta:
 
     def get_dim(self, dim: int) -> np.ndarray:
         assert dim <= self.dims, f"Invalid dim! [{dim=}, {self.dims=}]"
-        return np.linspace(
-            self.extent[dim, 0] - self.dx, self.extent[dim, 1] + self.dx, self.counts[dim] + 2
-        )
+        return np.linspace(self.extent[dim, 0], self.extent[dim, 1], self.counts[dim])
 
     @property
     def x(self) -> np.ndarray:
