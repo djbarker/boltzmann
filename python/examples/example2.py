@@ -48,7 +48,7 @@ f = make_array(pidx, 9)
 v = make_array(pidx, 2)
 cell = make_array(pidx, dtype=np.int32)
 rho = make_array(pidx, fill=fld.rho)
-# rho *= 1 + 0.001 * np.random.uniform(size=rho.shape)
+rho *= 1 + 0.001 * np.random.uniform(size=rho.shape)
 curl = make_array(pidx)
 feq = np.zeros_like(f)
 
@@ -91,16 +91,7 @@ pidx.copy_periodic(cell)
 # %% Define VTK out
 
 
-def write_vti(
-    path: str,
-    pidx: PeriodicDomain,
-    params: NumbaParams,
-    v: np.ndarray,
-    rho: np.ndarray,
-    cell: np.ndarray,
-    f: np.ndarray,
-):
-
+def calc_curl(pidx: PeriodicDomain, v: np.ndarray, rho: np.ndarray) -> np.ndarray:
     counts = pidx.counts
 
     # calc curl
@@ -112,13 +103,29 @@ def write_vti(
 
             # NOTE: Assumes zero wall velocity.
             # fmt: off
-            vy1 = v[idx - counts[0], 1] * (cell[idx - counts[0]] != CellType.BC_WALL.value)
-            vy2 = v[idx + counts[0], 1] * (cell[idx + counts[0]] != CellType.BC_WALL.value)
-            vx1 = v[idx -         1, 0] * (cell[idx -         1] != CellType.BC_WALL.value)
-            vx2 = v[idx +         1, 0] * (cell[idx +         1] != CellType.BC_WALL.value)
+            dydx1 = v[idx - counts[0], 0] * (cell[idx - counts[0]] != CellType.BC_WALL.value)
+            dydx2 = v[idx + counts[0], 0] * (cell[idx + counts[0]] != CellType.BC_WALL.value)
+            dxdy1 = v[idx -         1, 1] * (cell[idx -         1] != CellType.BC_WALL.value)
+            dxdy2 = v[idx +         1, 1] * (cell[idx +         1] != CellType.BC_WALL.value)
             # fmt: on
 
-            curl[idx] = ((vy2 - vy1) - (vx2 - vx1)) / (2 * params.dx)
+            curl[idx] = ((dydx2 - dydx1) - (dxdy2 - dxdy1)) / (2 * params.dx)
+
+    return curl
+
+
+def write_vti(
+    path: str,
+    pidx: PeriodicDomain,
+    params: NumbaParams,
+    v: np.ndarray,
+    rho: np.ndarray,
+    curl: np.ndarray,
+    cell: np.ndarray,
+    f: np.ndarray,
+):
+
+    counts = pidx.counts
 
     # need 3d vectors for vtk
     def _to3d(v: np.ndarray):
@@ -134,9 +141,9 @@ def write_vti(
     cell_ = unflatten(pidx, cell)
     f_ = unflatten(pidx, f)
 
-    # v_T[cell_T == CellType.BC_WALL.value, :] = np.nan
-    # rho_T[cell_T == CellType.BC_WALL.value] = np.nan
-    # curl_T[cell_T == CellType.BC_WALL.value] = np.nan
+    # v_[cell_ == CellType.BC_WALL.value, :] = np.nan
+    # rho_[cell_ == CellType.BC_WALL.value] = np.nan
+    # curl_[cell_ == CellType.BC_WALL.value] = np.nan
 
     # cut off periodic part
     # v_ = v_[1:-1, 1:-1, :]
@@ -186,11 +193,71 @@ def write_vti(
     writer.Write()
 
 
-# write out the zeroth timestep
-pref = "example2"
-write_vti(f"out/{pref}_{0:06d}.vti", pidx, params, v, rho, cell, f)
+# %% Write PNGs
+
+
+def write_png(path: str, vort: np.ndarray, rho: np.ndarray, vel: np.ndarray, show: bool = False):
+    pass  # some Qt error with numba :(
+
+
+#     vmag = np.sqrt(np.sum(vel**2, axis=-1))
+
+#     vort = np.squeeze(vort)
+#     rho = np.squeeze(rho)
+#     vel = np.squeeze(vel)
+
+#     fig = plt.figure(figsize=(8, 4.5))
+#     ax1 = fig.add_subplot(2, 2, 1)
+#     ax2 = fig.add_subplot(2, 2, 2)
+#     ax3 = fig.add_subplot(2, 2, 3)
+#     # ax4 = fig.add_subplot(2, 2, 4)
+
+#     def _config_axes(ax):
+#         ax.tick_params(direction="in", which="both", top=True, right=True)
+#         ax.minorticks_on()
+#         ax.set_xticklabels([])
+#         ax.set_yticklabels([])
+
+#     _config_axes(ax1)
+#     _config_axes(ax2)
+#     _config_axes(ax3)
+#     # _config_axes(ax4)
+
+#     e = [-0.2, 0.2, -0.1, 0.1]
+
+#     x = np.linspace(e[0], e[1], rho.shape[1])
+#     y = np.linspace(e[2], e[3], rho.shape[0])
+#     xx, yy = np.meshgrid(x, y)
+
+#     vmin, vmax = 2e-6, 2.6e-2
+#     ax1.imshow(vmag, vmin=vmin, vmax=vmax, cmap=plt.cm.Spectral_r, origin="lower", extent=e)
+#     # ax1.contour(xx, yy, vmag, np.linspace(vmin, vmax, 8), colors="k", linewidths=0.5)
+#     ax1.set_title("Velocity", fontsize=8)
+
+#     vmin, vmax = -4, 4
+#     ax2.imshow(vort, vmin=vmin, vmax=vmax, cmap=plt.cm.RdBu, origin="lower", extent=e)
+#     # ax2.contour(xx, yy, vort, np.linspace(vmin, vmax, 8), colors="k", linewidths=0.5)
+#     ax2.set_title("Vorticity", fontsize=8)
+
+#     vmin, vmax = 975, 1025
+#     ax3.imshow(rho, vmin=vmin, vmax=vmax, cmap=plt.cm.plasma, origin="lower", extent=e)
+#     # ax3.contour(xx, yy, rho, np.linspace(vmin, vmax, 8), colors="k", linewidths=0.5)
+#     ax3.set_title("Density", fontsize=8)
+#     fig.tight_layout()
+
+#     if not show:
+#         fig.savefig(path, dpi=300)
+#         fig.clear()
+#         plt.close()
+
 
 # %% Main Loop
+
+# write out the zeroth timestep
+pref = "example2"
+curl = calc_curl(pidx, v, rho)
+write_vti(f"out/{pref}_{0:06d}.vti", pidx, params, v, rho, curl, cell, f)
+write_png(f"tmp/{pref}_{0:06d}.png", curl, rho, v)
 
 t = 0.0
 out_dt = 0.1
@@ -217,8 +284,12 @@ for out_i in range(1, max_i):
     mlups_batch = perf_batch.events / (1e6 * perf_batch.seconds)
     mlups_total = perf_total.events / (1e6 * perf_total.seconds)
 
-    log.info(prog_msg(out_i=out_i, out_t=out_t, mlups_batch=mlups_batch, mlups_total=mlups_total))
+    curl = calc_curl(pidx, v, rho)
+    write_vti(
+        f"out/{pref}_{out_i:06d}.vti".format(out_i=out_i), pidx, params, v, rho, curl, cell, f
+    )
+    write_png(f"tmp/{pref}_{out_i:06d}.png", curl, rho, v)
 
-    write_vti(f"out/{pref}_{out_i:06d}.vti".format(out_i=out_i), pidx, params, v, rho, cell, f)
+    log.info(prog_msg(out_i=out_i, out_t=out_t, mlups_batch=mlups_batch, mlups_total=mlups_total))
 
     out_t += out_dt
