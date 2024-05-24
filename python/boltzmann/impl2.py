@@ -48,7 +48,7 @@ class NumbaModel:
         "counts": numba.int32[:],
     }
 )
-class Params:
+class NumbaParams:
     def __init__(
         self,
         dt: float,
@@ -245,12 +245,11 @@ def stream(
         int64,
         float32[:, ::1],
         float32[:],
-        float32[:],
         float32[:, ::1],
         float32[:, ::1],
         int32[:],
         int32[:],
-        jc_arg(Params),
+        jc_arg(NumbaParams),
         jc_arg(PeriodicDomain),
         jc_arg(NumbaModel),
     ),
@@ -260,12 +259,11 @@ def loop_for(
     iters: int,
     v,
     rho,
-    _curl,
     f,
     feq,
     is_wall,
     update_vel,
-    params: Params,
+    params: NumbaParams,
     pidx: PeriodicDomain,
     model: NumbaModel,
 ):
@@ -288,7 +286,8 @@ def loop_for(
             raise ValueError(f"non finite value in feq")
 
         # collide
-        f += (feq - f) / params.tau
+        # f += (feq - f) / params.tau
+        f[:] = feq[:]
 
         # periodic
         copy_periodic(counts, f)
@@ -309,3 +308,153 @@ def loop_for(
         # v[:] = update_vel[:, None] * v_ * cs / rho[:, None] + (1 - update_vel[:, None]) * v
         for vdim in numba.prange(2):
             v[:, vdim] = update_vel * v_[:, vdim] * cs / rho + (1 - update_vel) * v[:, vdim]
+
+
+@numba.njit(
+    [
+        # fmt: off
+        void(float32[:, ::1], float32[:, ::1], int32[:], int32[:], int32[:], jc_arg(NumbaParams), jc_arg(NumbaModel), 
+             float32[:, :], float32[:],
+             ),
+        # fmt: on
+    ],
+    parallel=True,
+)
+def stream_and_collide(
+    f_to: np.ndarray,
+    f_from: np.ndarray,
+    is_wall: np.ndarray,
+    update_vel: np.ndarray,
+    counts: np.ndarray,
+    params: NumbaParams,
+    model: NumbaModel,
+    v_o: np.ndarray,
+    rho_o: np.ndarray,
+):
+    assert f_to is not f_from
+    assert np.prod(counts) == f_to.shape[0]
+    assert np.prod(counts) == f_from.shape[0]
+
+    cs = params.cs
+    qs = np.ascontiguousarray(model.qs_f32.T)
+
+    for yidx in numba.prange(1, counts[1] - 1):
+        for xidx in range(1, counts[0] - 1):
+            idx = sub_to_idx(counts, xidx, yidx)
+
+            # fmt: off
+            update_f = ( 1 
+                 * (1 - is_wall[idx])  # not wall
+                #  * update_vel[idx]  # not fixed velocity
+            )
+            # fmt: on
+
+            # stream
+            for i in range(9):
+                q = model.qs[i]
+                j = model.js[i]
+                # o = model.os[i]
+                # idx_up = idx - o
+                idx_up = sub_to_idx(counts, xidx - q[0], yidx - q[1])
+                # fmt: off
+                f_to[idx, i] = (
+                    (
+                          f_from[idx_up, i] * (1 - is_wall[idx_up])  # stream
+                        + f_from[idx,    j] * (0 + is_wall[idx_up])  # bounceback
+                                   ) * (0 + update_f)
+                    + f_from[idx, i] * (1 - update_f)
+                )
+                # fmt: on
+
+            # macroscopic
+            rho = np.sum(f_to[idx, :])
+            # v_from = np.dot(qs, f_from[idx, :])
+            v_from = np.copy(v_o[idx, :] * rho / cs)
+            v_to = np.dot(qs, f_to[idx, :])
+
+            # TODO: no need for the v_from stuff here, just skip equil & collide for !update_vel (or !update_f?).
+
+            v = update_vel[idx] * v_to + (1 - update_vel[idx]) * v_from
+            v = v * cs / rho
+            vv = np.sum(v * v)
+
+            v_o[idx, :] = v
+            rho_o[idx] = rho
+
+            for i in range(9):
+                # equilibrate
+                w = model.ws[i]
+                q = model.qs[i]
+                qv = np.sum(q * v)
+
+                feq = (
+                    rho
+                    * w
+                    * (1 + 3.0 * qv / cs**1 + 4.5 * qv**2 / cs**2 - (3.0 / 2.0) * vv / cs**2)
+                )
+
+                # collide
+                # f_to[idx, i] = f_from[idx, i] + (feq - f_from[idx, i]) / params.tau
+                f_to[idx, i] = f_to[idx, i] + (feq - f_to[idx, i]) / params.tau
+                # f_to[idx, i] = feq
+
+
+@numba.njit(
+    void(
+        int64,
+        float32[:, ::1],
+        float32[:],
+        float32[:, ::1],
+        float32[:, ::1],
+        int32[:],
+        int32[:],
+        jc_arg(NumbaParams),
+        jc_arg(PeriodicDomain),
+        jc_arg(NumbaModel),
+    ),
+    parallel=True,
+)
+def loop_for_2(
+    iters: int,
+    v,
+    rho,
+    f,
+    feq,
+    is_wall,
+    update_vel,
+    params: NumbaParams,
+    pidx: PeriodicDomain,
+    model: NumbaModel,
+):
+
+    cs = params.cs
+    counts = pidx.counts
+
+    assert f is not feq
+    assert np.prod(counts) == f.shape[0]
+    assert np.prod(counts) == feq.shape[0]
+    assert np.prod(counts) == v.shape[0]
+    assert np.prod(counts) == rho.shape[0]
+
+    for _ in range(iters):
+
+        pidx.copy_periodic(f)
+        stream_and_collide(feq, f, is_wall, update_vel, counts, params, model, v, rho)
+
+        # # collide
+        # # f += (feq - f) / params.tau
+        # f[:] = feq[:]
+
+        # swap
+        # f, feq = feq, f
+        # TODO: not sure why but just swapping vars causes issues with numba
+        f[:] = feq[:]
+
+    # # calc macroscopic
+    # rho[:] = np.sum(f, -1)
+    # v_ = f @ model.qs_f32
+
+    # # foo numba parallel does not like broadcast... sad.
+    # # v[:] = update_vel[:, None] * v_ * cs / rho[:, None] + (1 - update_vel[:, None]) * v
+    # for vdim in numba.prange(2):
+    #     v[:, vdim] = update_vel * v_[:, vdim] * cs / rho + (1 - update_vel) * v[:, vdim]

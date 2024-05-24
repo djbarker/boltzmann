@@ -39,7 +39,7 @@ from boltzmann.impl2 import *
 
 # make numba objects
 pidx = PeriodicDomain(dom.counts)
-params = Params(sim.dt, dom.dx, sim.c, sim.tau)
+params = NumbaParams(sim.dt, dom.dx, sim.c, sim.tau)
 d2q9 = NumbaModel(D2Q9.ws, D2Q9.qs, D2Q9.js, pidx.counts)
 
 # %% Initialize arrays
@@ -48,7 +48,7 @@ f = make_array(pidx, 9)
 v = make_array(pidx, 2)
 cell = make_array(pidx, dtype=np.int32)
 rho = make_array(pidx, fill=fld.rho)
-rho *= 1 + 0.001 * np.random.uniform(size=rho.shape)
+# rho *= 1 + 0.001 * np.random.uniform(size=rho.shape)
 curl = make_array(pidx)
 feq = np.zeros_like(f)
 
@@ -94,7 +94,7 @@ pidx.copy_periodic(cell)
 def write_vti(
     path: str,
     pidx: PeriodicDomain,
-    params: Params,
+    params: NumbaParams,
     v: np.ndarray,
     rho: np.ndarray,
     cell: np.ndarray,
@@ -104,6 +104,7 @@ def write_vti(
     counts = pidx.counts
 
     # calc curl
+    pidx.copy_periodic(v)
     curl = np.zeros_like(rho)
     for yidx in range(1, counts[1] - 1):
         for xidx in range(1, counts[0] - 1):
@@ -186,7 +187,8 @@ def write_vti(
 
 
 # write out the zeroth timestep
-write_vti("out/example2_{out_i:06d}.vti".format(out_i=0), pidx, params, v, rho, cell, f)
+pref = "example2"
+write_vti(f"out/{pref}_{0:06d}.vti", pidx, params, v, rho, cell, f)
 
 # %% Main Loop
 
@@ -201,17 +203,13 @@ batch_i = int((out_dt + 1e-8) // sim.dt)
 
 log.info(f"{batch_i:,d} iters/output")
 
-# # call once to run jit ...
-# loop_for(0, v, rho, curl, f, feq, is_wall, update_vel, params, pidx, d2q9)
-# write_vti("out/example2_{out_i:06d}.vti".format(out_i=0), pidx, params, v, rho, curl, cell, f)
-
 prog_msg = "Wrote out_i={out_i} out_t={out_t:.3f}, mlups_batch={mlups_batch:.2f}, mlups_total={mlups_total:.2f}\r".format
 perf_total = PerfInfo()
 
 for out_i in range(1, max_i):
     perf_batch = tick()
 
-    loop_for(batch_i, v, rho, curl, f, feq, is_wall, update_vel, params, pidx, d2q9)
+    loop_for_2(batch_i, v, rho, f, feq, is_wall, update_vel, params, pidx, d2q9)
 
     perf_batch = perf_batch.tock(events=np.prod(dom.counts) * batch_i)
     perf_total = perf_total + perf_batch
@@ -221,5 +219,6 @@ for out_i in range(1, max_i):
 
     log.info(prog_msg(out_i=out_i, out_t=out_t, mlups_batch=mlups_batch, mlups_total=mlups_total))
 
-    write_vti("out/example2_{out_i:06d}.vti".format(out_i=out_i), pidx, params, v, rho, cell, f)
+    write_vti(f"out/{pref}_{out_i:06d}.vti".format(out_i=out_i), pidx, params, v, rho, cell, f)
+
     out_t += out_dt

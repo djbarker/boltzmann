@@ -281,7 +281,7 @@ def test_loop():
     cnt = np.array([3, 3])
     dom = PeriodicDomain(cnt)
     mdl = NumbaModel(D2Q9.ws, D2Q9.qs, D2Q9.js, dom.counts)
-    prm = Params(0.01, 0.1, 10, 0.6)  # made up params
+    prm = NumbaParams(0.01, 0.1, 10, 0.6)  # made up params
 
     r = make_array(dom, fill=1)
     c = make_array(dom)
