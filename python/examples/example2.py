@@ -19,14 +19,14 @@ basic_config(log)
 # %% Params
 
 # dom = DomainMeta.with_extent_and_counts(extent=[[-1, 1], [-1, 1.1]], counts=[200, 220])
-dom = DomainMeta.with_extent_and_counts(extent=[[-0.2, 0.2], [-0.1, 0.1]], counts=[500, 250])
+dom = DomainMeta.with_extent_and_counts(extent=[[-0.2, 0.2], [-0.1, 0.1]], counts=[1000, 500])
 fld = FluidMeta(mu=0.001, rho=1000)
-sim = SimulationMeta(domain=dom, fluid=fld, dt=0.005)
+sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs=0.16)
 # sim = SimulationMeta(domain=dom, fluid=fld, dt=0.001)
 
 log.info(f"{dom.dx=}, {dom.extent=}, {dom.counts=}, cells={np.prod(dom.counts):,d}")
 log.info(f"{fld.mu=}, {fld.rho=}, {fld.nu=}")
-log.info(f"{sim.tau=}, {sim.c=}")
+log.info(f"{sim.tau=}, {sim.c=}, {sim.dt=}")
 
 if sim.tau < 0.6:
     log.warning(f"Small value for tau! [tau={sim.tau}]")

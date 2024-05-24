@@ -121,6 +121,11 @@ class SimulationMeta:
 
         assert 0.5 < self.tau, f"Invalid relaxation time! [tau={self.tau}]"
 
+    @staticmethod
+    def with_cs(domain: DomainMeta, fluid: FluidMeta, cs: float) -> "SimulationMeta":
+        dt = domain.dx / cs
+        return SimulationMeta(domain, fluid, dt)
+
 
 # Cell types
 class CellType(Enum):
