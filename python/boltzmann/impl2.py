@@ -434,25 +434,14 @@ def loop_for_2(
     assert np.prod(counts) == v.shape[0]
     assert np.prod(counts) == rho.shape[0]
 
-    for _ in range(iters):
+    for i in range(iters):
 
-        pidx.copy_periodic(f)
-        stream_and_collide(feq, f, is_wall, update_vel, counts, params, model, v, rho)
+        if i % 2 == 0:
+            pidx.copy_periodic(f)
+            stream_and_collide(feq, f, is_wall, update_vel, counts, params, model, v, rho)
+        else:
+            pidx.copy_periodic(feq)
+            stream_and_collide(f, feq, is_wall, update_vel, counts, params, model, v, rho)
 
-        # # collide
-        # # f += (feq - f) / params.tau
-        # f[:] = feq[:]
-
-        # swap
-        # f, feq = feq, f
-        # TODO: not sure why but just swapping vars causes issues with numba
+    if iters % 2 != 0:
         f[:] = feq[:]
-
-    # # calc macroscopic
-    # rho[:] = np.sum(f, -1)
-    # v_ = f @ model.qs_f32
-
-    # # foo numba parallel does not like broadcast... sad.
-    # # v[:] = update_vel[:, None] * v_ * cs / rho[:, None] + (1 - update_vel[:, None]) * v
-    # for vdim in numba.prange(2):
-    #     v[:, vdim] = update_vel * v_[:, vdim] * cs / rho + (1 - update_vel) * v[:, vdim]
