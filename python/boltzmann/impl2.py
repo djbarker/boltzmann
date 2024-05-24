@@ -345,9 +345,12 @@ def stream_and_collide(
             # fmt: off
             update_f = ( 1 
                  * (1 - is_wall[idx])  # not wall
-                #  * update_vel[idx]  # not fixed velocity
+                 * update_vel[idx]  # not fixed velocity
             )
             # fmt: on
+
+            if update_f < 1:
+                continue
 
             # stream
             for i in range(9):
@@ -361,20 +364,15 @@ def stream_and_collide(
                     (
                           f_from[idx_up, i] * (1 - is_wall[idx_up])  # stream
                         + f_from[idx,    j] * (0 + is_wall[idx_up])  # bounceback
-                                   ) * (0 + update_f)
-                    + f_from[idx, i] * (1 - update_f)
+                                   )
                 )
                 # fmt: on
 
             # macroscopic
             rho = np.sum(f_to[idx, :])
-            # v_from = np.dot(qs, f_from[idx, :])
-            v_from = np.copy(v_o[idx, :] * rho / cs)
             v_to = np.dot(qs, f_to[idx, :])
 
-            # TODO: no need for the v_from stuff here, just skip equil & collide for !update_vel (or !update_f?).
-
-            v = update_vel[idx] * v_to + (1 - update_vel[idx]) * v_from
+            v = v_to
             v = v * cs / rho
             vv = np.sum(v * v)
 
