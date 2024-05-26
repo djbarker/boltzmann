@@ -3,7 +3,6 @@ An implementation which uses numba.
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 from typing import Type
 
@@ -155,8 +154,6 @@ def sub_to_idx(counts: np.ndarray, xidx: int, yidx: int) -> int:
         xidx = counts[0] + xidx
     if yidx < 0:
         yidx = counts[1] + yidx
-    # xidx = xidx % counts[0]
-    # yidx = yidx % counts[1]
     return yidx * counts[0] + xidx
 
 
@@ -171,23 +168,7 @@ def calc_equilibrium(
     cs: float,
     model: NumbaModel,
 ) -> np.ndarray:
-    # vv = np.sum(v * v, -1)
-    # for i in numba.prange(9):
-    #     w = model.ws[i]
-    #     q = model.qs_f32[i]
-    #     qv = np.sum(q * v, -1)
-    #     feq[:, i] = (
-    #         rho
-    #         * w
-    #         * (
-    #             1
-    #             + 3.0 * qv / params.cs**1
-    #             + 4.5 * qv**2 / params.cs**2
-    #             - (3.0 / 2.0) * vv / params.cs**2
-    #         )
-    #     )
     for idx in numba.prange(v.shape[0]):
-        # for idx in range(v.shape[0]):
         vv = np.sum(v[idx, :] ** 2)
         for i in range(9):
             w = model.ws[i]
@@ -226,8 +207,6 @@ def stream(
             for i in range(9):
                 q = model.qs[i]
                 j = model.js[i]
-                # o = model.os[i]
-                # idx_up = idx - o
                 idx_up = sub_to_idx(counts, xidx - q[0], yidx - q[1])
                 # fmt: off
                 f_to[idx, i] = (
@@ -286,8 +265,7 @@ def loop_for(
             raise ValueError(f"non finite value in feq")
 
         # collide
-        # f += (feq - f) / params.tau
-        f[:] = feq[:]
+        f += (feq - f) / params.tau
 
         # periodic
         copy_periodic(counts, f)
@@ -353,11 +331,10 @@ def stream_and_collide(
                 continue
 
             # stream
-            for i in range(9):
+            f_to[idx, 0] = f_from[idx, 0]
+            for i in range(1, 9):
                 q = model.qs[i]
                 j = model.js[i]
-                # o = model.os[i]
-                # idx_up = idx - o
                 idx_up = sub_to_idx(counts, xidx - q[0], yidx - q[1])
                 # fmt: off
                 f_to[idx, i] = (
@@ -392,9 +369,7 @@ def stream_and_collide(
                 )
 
                 # collide
-                # f_to[idx, i] = f_from[idx, i] + (feq - f_from[idx, i]) / params.tau
                 f_to[idx, i] = f_to[idx, i] + (feq - f_to[idx, i]) / params.tau
-                # f_to[idx, i] = feq
 
 
 @numba.njit(
@@ -416,8 +391,8 @@ def loop_for_2(
     iters: int,
     v,
     rho,
-    f,
-    feq,
+    f1,
+    f2,
     is_wall,
     update_vel,
     params: NumbaParams,
@@ -425,23 +400,23 @@ def loop_for_2(
     model: NumbaModel,
 ):
 
-    cs = params.cs
     counts = pidx.counts
 
-    assert f is not feq
-    assert np.prod(counts) == f.shape[0]
-    assert np.prod(counts) == feq.shape[0]
+    assert f1 is not f2
+    assert np.prod(counts) == f1.shape[0]
+    assert np.prod(counts) == f2.shape[0]
     assert np.prod(counts) == v.shape[0]
     assert np.prod(counts) == rho.shape[0]
 
     for i in range(iters):
 
         if i % 2 == 0:
-            pidx.copy_periodic(f)
-            stream_and_collide(feq, f, is_wall, update_vel, counts, params, model, v, rho)
+            pidx.copy_periodic(f1)
+            stream_and_collide(f2, f1, is_wall, update_vel, counts, params, model, v, rho)
         else:
-            pidx.copy_periodic(feq)
-            stream_and_collide(f, feq, is_wall, update_vel, counts, params, model, v, rho)
+            pidx.copy_periodic(f2)
+            stream_and_collide(f1, f2, is_wall, update_vel, counts, params, model, v, rho)
 
+    # make sure output always ends in f1
     if iters % 2 != 0:
-        f[:] = feq[:]
+        f1[:] = f2[:]

@@ -1,5 +1,4 @@
 import numpy as np
-import numba
 
 
 from dataclasses import dataclass, field
@@ -110,6 +109,9 @@ class FluidMeta:
         self.nu = self.mu / self.rho
 
 
+FluidMeta.WATER = FluidMeta(mu=0.001, rho=1000)
+
+
 class SimulationMeta:
 
     def __init__(self, domain: DomainMeta, fluid: FluidMeta, dt: float):
@@ -131,7 +133,7 @@ class SimulationMeta:
 class CellType(Enum):
     FLUID = 0
     BC_WALL = 1
-    FIXED_VELOCITY = 2
+    BC_VELOCITY = 2
     FIXED_PRESSURE = 3
 
 

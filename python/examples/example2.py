@@ -18,11 +18,9 @@ basic_config(log)
 
 # %% Params
 
-# dom = DomainMeta.with_extent_and_counts(extent=[[-1, 1], [-1, 1.1]], counts=[200, 220])
 dom = DomainMeta.with_extent_and_counts(extent=[[-0.2, 0.2], [-0.1, 0.1]], counts=[1000, 500])
-fld = FluidMeta(mu=0.001, rho=1000)
-sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs=0.16)
-# sim = SimulationMeta(domain=dom, fluid=fld, dt=0.001)
+fld = FluidMeta.WATER
+sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs=0.6)
 
 log.info(f"{dom.dx=}, {dom.extent=}, {dom.counts=}, cells={np.prod(dom.counts):,d}")
 log.info(f"{fld.mu=}, {fld.rho=}, {fld.nu=}")
@@ -30,6 +28,18 @@ log.info(f"{sim.tau=}, {sim.c=}, {sim.dt=}")
 
 if sim.tau < 0.6:
     log.warning(f"Small value for tau! [tau={sim.tau}]")
+
+# cylinder centre & radius [m]
+cx, cy = -0.1, 0
+r = 0.01
+
+# flow velocity [m/s]
+# v0 = 0.2
+v0 = 0.005
+
+re_no = v0 * r / fld.nu
+log.info(f"Reynolds no.:  {re_no:,.0f}")
+
 
 # %% Compile
 
@@ -44,75 +54,68 @@ d2q9 = NumbaModel(D2Q9.ws, D2Q9.qs, D2Q9.js, pidx.counts)
 
 # %% Initialize arrays
 
-f = make_array(pidx, 9)
-v = make_array(pidx, 2)
-cell = make_array(pidx, dtype=np.int32)
+f1 = make_array(pidx, 9)
+f2 = make_array(pidx, 9)
+vel = make_array(pidx, 2)
 rho = make_array(pidx, fill=fld.rho)
-rho *= 1 + 0.001 * np.random.uniform(size=rho.shape)
+cell = make_array(pidx, dtype=np.int32)
 curl = make_array(pidx)
-feq = np.zeros_like(f)
+
+# introduce slight randomness to initial density
+np.random.seed(42)
+# rho *= 1 + 0.0001 * (np.random.uniform(size=rho.shape) - 0.5)
 
 x = np.pad(dom.x, (1, 1), mode="edge")
 y = np.pad(dom.y, (1, 1), mode="edge")
-xx, yy = np.meshgrid(x, y)
+XX, YY = np.meshgrid(x, y)
 
-xx = xx.flatten()
-yy = yy.flatten()
+XX = XX.flatten()
+YY = YY.flatten()
+
+
+# fixed velocity in- & out-flow
+# (only need to specify one due to periodicity)
+cell[make_slice_y1d(pidx, 1)] = CellType.BC_VELOCITY.value
+
+# reduce velocity around cylinder centre to reduce initial sound waves
+vel[:, 0] = v0 * (1 - np.exp(-(((YY - cy) / (r * 4)) ** 2) - ((XX - cx) / (r * 4)) ** 2))
 
 # --- Cylinder
-cell[:] = CellType.BC_WALL.value * (((xx - -0.1) ** 2 + (yy - 0.0) ** 2) < 0.01**2.0)
-# cell[make_slice_x1d(pidx, 125, 130, 200)] = CellType.BC_WALL.value
+# cell[:] = CellType.BC_WALL.value * (((XX - cx) ** 2 + (YY - cy) ** 2) < r**2.0)
 
-# --- Taper
-xs = np.linspace(-0.1, -0.05, 500)
-rs = np.linspace(0.01, 0.0, 500)
+# --- Tapered
+xs = np.linspace(cx, cx + 0.05, 500)
+rs = np.linspace(r, 0.0, 500)
 for x, r in zip(xs, rs):
-    mask = ((xx - x) ** 2 + (yy - 0.0) ** 2) < r**2.0
+    mask = ((XX - x) ** 2 + (YY - 0.0) ** 2) < r**2.0
     mask = mask.flatten()
     cell[mask] = CellType.BC_WALL.value
 
 # --- Square
-# cell[:] = CellType.BC_WALL.value * ((np.abs(xx - -0.1) < 0.01) * (np.abs(yy - 0.0) < 0.01))
+# cell[:] = CellType.BC_WALL.value * ((np.abs(xx - cx) < r) * (np.abs(yy - cy) < r))
 
 # --- Wedge
 # cell[:] = CellType.BC_WALL.value * (
-#     (np.abs(xx - -0.1) < 0.01) * (np.abs(yy - 0.0) < 0.5 * (xx - -0.11))
+#     (np.abs(xx - cx) < r) * (np.abs(yy - cy) < 0.5 * (xx - (cx - r)))
 # )
 
-# --- In-flow jet
-# cell[1, :150] = CellType.BC_WALL.value
-# cell[1, -150:] = CellType.BC_WALL.value
-# cell[1, 150:-150] = CellType.FIXED_VELOCITY.value
-# v[:, 150:-150, 0] = sim.c * 0.1
-
-cell[make_slice_y1d(pidx, 1)] = CellType.FIXED_VELOCITY.value
-v[:, 0] = sim.c * 0.1 * (1 - np.exp(-((yy / 0.04) ** 2) - ((xx - -0.1) / 0.04) ** 2))
-
-# theta = np.arctan2((xx - -0.1), (yy - 0.0))
-# r2 = (xx - -0.1) ** 2 + (yy - 0) ** 2
-# v[:, 0] = sim.c * 0.1 * (1 + np.cos(2 * theta) * np.exp(-r2 / 0.08**2))
-
-# v[make_slice_y1d(pidx, 200, 90, 110)] = sim.c * 0.099
-
-# v[((xx - -1.5) ** 2 + (yy - 0.0) ** 2) < 0.2**2.0, 0] = sim.c * 0.1
-# v[((xx - -1.2) ** 2 + (yy - 0.0) ** 2) < 0.2**2.0, 1] = sim.c * 0.02
+# ensure cell types match across boundary
+pidx.copy_periodic(cell)
 
 # flag arrays
 is_wall = (cell == CellType.BC_WALL.value).astype(np.int32)
 update_vel = (cell == CellType.FLUID.value).astype(np.int32)
 
-# set wall vel to input zero (just for nice output)
-v[cell == CellType.BC_WALL.value, 0] = 0
+# set wall velocity to zero
+# (just for nice output, doesn't affect the simulation)
+vel[cell == CellType.BC_WALL.value, 0] = 0
 
 # initial f is equilibrium for desired values of v and rho
-calc_equilibrium(v, rho, f, np.float32(params.cs), d2q9)
-feq[:] = f[:]
-
-# ensure cell types match across boundary
-pidx.copy_periodic(cell)
+calc_equilibrium(vel, rho, f1, np.float32(params.cs), d2q9)
+f2[:] = f1[:]
 
 
-# %% Define VTK out
+# %% Define VTK output function
 
 
 def calc_curl(pidx: PeriodicDomain, v: np.ndarray, rho: np.ndarray) -> np.ndarray:
@@ -140,13 +143,15 @@ def calc_curl(pidx: PeriodicDomain, v: np.ndarray, rho: np.ndarray) -> np.ndarra
 
 def write_vti(
     path: str,
-    pidx: PeriodicDomain,
-    params: NumbaParams,
     v: np.ndarray,
     rho: np.ndarray,
     curl: np.ndarray,
     cell: np.ndarray,
     f: np.ndarray,
+    pidx: PeriodicDomain,
+    params: NumbaParams,
+    *,
+    save_f: bool = False,
 ):
 
     counts = pidx.counts
@@ -204,15 +209,18 @@ def write_vti(
     p_data.AddArray(curl_data)
     p_data.AddArray(wall_data)
 
-    # f_data = vtk_np.numpy_to_vtk(num_array=f_.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
-    # f_data.SetName(f"F")
-    # f_data.SetNumberOfComponents(9)
-    # p_data.AddArray(f_data)
+    if save_f:
+        f_data = vtk_np.numpy_to_vtk(num_array=f_.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
+        f_data.SetName(f"F")
+        f_data.SetNumberOfComponents(9)
+        p_data.AddArray(f_data)
 
     p_data.SetActiveAttribute("Velocity", vtk.VTK_ATTRIBUTE_MODE_DEFAULT)
 
+    zipper = vtk.vtkZLibDataCompressor()
     writer = vtk.vtkXMLImageDataWriter()
     writer.SetFileName(path)
+    writer.SetCompressor(zipper)
     writer.SetInputData(image_data)
     writer.Write()
 
@@ -220,7 +228,7 @@ def write_vti(
 # %% Write PNGs
 
 
-def write_png(path: str, vort: np.ndarray, rho: np.ndarray, vel: np.ndarray, show: bool = False):
+def write_png(path: str, vel: np.ndarray, rho: np.ndarray, vort: np.ndarray, show: bool = False):
     pass  # some Qt error with numba :(
 
 
@@ -278,14 +286,13 @@ def write_png(path: str, vort: np.ndarray, rho: np.ndarray, vel: np.ndarray, sho
 # %% Main Loop
 
 # write out the zeroth timestep
-pref = "example2"
-curl = calc_curl(pidx, v, rho)
-write_vti(f"out/{pref}_{0:06d}.vti", pidx, params, v, rho, curl, cell, f)
-write_png(f"tmp/{pref}_{0:06d}.png", curl, rho, v)
+pref = f"example2_re{re_no:.0f}"
+curl = calc_curl(pidx, vel, rho)
+write_vti(f"out/{pref}_{0:06d}.vti", vel, rho, curl, cell, f1, pidx, params)
+write_png(f"out/{pref}_{0:06d}.png", vel, rho, curl)
 
 t = 0.0
 out_dt = 0.1
-# out_dt = sim.dt
 out_i = 1
 out_t = out_dt
 max_i = 1000
@@ -294,13 +301,15 @@ batch_i = int((out_dt + 1e-8) // sim.dt)
 
 log.info(f"{batch_i:,d} iters/output")
 
-prog_msg = "Wrote out_i={out_i} out_t={out_t:.3f}, mlups_batch={mlups_batch:.2f}, mlups_total={mlups_total:.2f}\r".format
 perf_total = PerfInfo()
 
 for out_i in range(1, max_i):
     perf_batch = tick()
 
-    loop_for_2(batch_i, v, rho, f, feq, is_wall, update_vel, params, pidx, d2q9)
+    if np.any(~np.isfinite(f1)):
+        raise ValueError(f"Non-finite value in f.")
+
+    loop_for_2(batch_i, vel, rho, f1, f2, is_wall, update_vel, params, pidx, d2q9)
 
     perf_batch = perf_batch.tock(events=np.prod(dom.counts) * batch_i)
     perf_total = perf_total + perf_batch
@@ -308,12 +317,10 @@ for out_i in range(1, max_i):
     mlups_batch = perf_batch.events / (1e6 * perf_batch.seconds)
     mlups_total = perf_total.events / (1e6 * perf_total.seconds)
 
-    curl = calc_curl(pidx, v, rho)
-    write_vti(
-        f"out/{pref}_{out_i:06d}.vti".format(out_i=out_i), pidx, params, v, rho, curl, cell, f
-    )
-    write_png(f"tmp/{pref}_{out_i:06d}.png", curl, rho, v)
+    curl = calc_curl(pidx, vel, rho)
+    write_vti(f"out/{pref}_{out_i:06d}.vti", vel, rho, curl, cell, f1, pidx, params)
+    write_png(f"out/{pref}_{out_i:06d}.png", vel, rho, curl)
 
-    log.info(prog_msg(out_i=out_i, out_t=out_t, mlups_batch=mlups_batch, mlups_total=mlups_total))
+    log.info(f"Wrote {out_i=} {out_t=:.3f}, {mlups_batch=:.2f}, {mlups_total=:.2f}\r")
 
     out_t += out_dt
