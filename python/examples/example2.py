@@ -61,6 +61,23 @@ yy = yy.flatten()
 
 # --- Cylinder
 cell[:] = CellType.BC_WALL.value * (((xx - -0.1) ** 2 + (yy - 0.0) ** 2) < 0.01**2.0)
+# cell[make_slice_x1d(pidx, 125, 130, 200)] = CellType.BC_WALL.value
+
+# --- Taper
+xs = np.linspace(-0.1, -0.05, 500)
+rs = np.linspace(0.01, 0.0, 500)
+for x, r in zip(xs, rs):
+    mask = ((xx - x) ** 2 + (yy - 0.0) ** 2) < r**2.0
+    mask = mask.flatten()
+    cell[mask] = CellType.BC_WALL.value
+
+# --- Square
+# cell[:] = CellType.BC_WALL.value * ((np.abs(xx - -0.1) < 0.01) * (np.abs(yy - 0.0) < 0.01))
+
+# --- Wedge
+# cell[:] = CellType.BC_WALL.value * (
+#     (np.abs(xx - -0.1) < 0.01) * (np.abs(yy - 0.0) < 0.5 * (xx - -0.11))
+# )
 
 # --- In-flow jet
 # cell[1, :150] = CellType.BC_WALL.value
@@ -70,7 +87,11 @@ cell[:] = CellType.BC_WALL.value * (((xx - -0.1) ** 2 + (yy - 0.0) ** 2) < 0.01*
 
 cell[make_slice_y1d(pidx, 1)] = CellType.FIXED_VELOCITY.value
 v[:, 0] = sim.c * 0.1 * (1 - np.exp(-((yy / 0.04) ** 2) - ((xx - -0.1) / 0.04) ** 2))
-v[make_slice_y1d(pidx, 1), 0] = sim.c * 0.1
+
+# theta = np.arctan2((xx - -0.1), (yy - 0.0))
+# r2 = (xx - -0.1) ** 2 + (yy - 0) ** 2
+# v[:, 0] = sim.c * 0.1 * (1 + np.cos(2 * theta) * np.exp(-r2 / 0.08**2))
+
 # v[make_slice_y1d(pidx, 200, 90, 110)] = sim.c * 0.099
 
 # v[((xx - -1.5) ** 2 + (yy - 0.0) ** 2) < 0.2**2.0, 0] = sim.c * 0.1
@@ -79,6 +100,9 @@ v[make_slice_y1d(pidx, 1), 0] = sim.c * 0.1
 # flag arrays
 is_wall = (cell == CellType.BC_WALL.value).astype(np.int32)
 update_vel = (cell == CellType.FLUID.value).astype(np.int32)
+
+# set wall vel to input zero (just for nice output)
+v[cell == CellType.BC_WALL.value, 0] = 0
 
 # initial f is equilibrium for desired values of v and rho
 calc_equilibrium(v, rho, f, np.float32(params.cs), d2q9)
