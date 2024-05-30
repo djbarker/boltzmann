@@ -420,3 +420,26 @@ def loop_for_2(
     # make sure output always ends in f1
     if iters % 2 != 0:
         f1[:] = f2[:]
+
+
+def calc_curl_2d(pidx: PeriodicDomain, v: np.ndarray, cell: np.ndarray, dx: float) -> np.ndarray:
+    counts = pidx.counts
+
+    # calc curl
+    pidx.copy_periodic(v)
+    curl = np.zeros((v.shape[0],))
+    for yidx in range(1, counts[1] - 1):
+        for xidx in range(1, counts[0] - 1):
+            idx = yidx * counts[0] + xidx
+
+            # NOTE: Assumes zero wall velocity.
+            # fmt: off
+            dydx1 = v[idx - counts[0], 0] * (cell[idx - counts[0]] != CellType.BC_WALL.value)
+            dydx2 = v[idx + counts[0], 0] * (cell[idx + counts[0]] != CellType.BC_WALL.value)
+            dxdy1 = v[idx -         1, 1] * (cell[idx -         1] != CellType.BC_WALL.value)
+            dxdy2 = v[idx +         1, 1] * (cell[idx +         1] != CellType.BC_WALL.value)
+            # fmt: on
+
+            curl[idx] = ((dydx2 - dydx1) - (dxdy2 - dxdy1)) / (2 * dx)
+
+    return curl

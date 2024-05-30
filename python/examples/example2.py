@@ -1,15 +1,12 @@
 # %% Imports
 
 import logging
-from itertools import product
 
 import numpy as np
-import numba
-import vtk
-import vtk.util.numpy_support as vtk_np
 
 from boltzmann.utils.logger import tick, PerfInfo, basic_config
 from boltzmann.core import DomainMeta, SimulationMeta, FluidMeta, D2Q9, CellType
+from boltzmann.vtkio import VtiWriter
 
 log = logging.getLogger(__name__)
 
@@ -20,7 +17,7 @@ basic_config(log)
 
 dom = DomainMeta.with_extent_and_counts(extent=[[-0.2, 0.2], [-0.1, 0.1]], counts=[1000, 500])
 fld = FluidMeta.WATER
-sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs=0.6)
+sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs=1)
 
 log.info(f"{dom.dx=}, {dom.extent=}, {dom.counts=}, cells={np.prod(dom.counts):,d}")
 log.info(f"{fld.mu=}, {fld.rho=}, {fld.nu=}")
@@ -29,13 +26,20 @@ log.info(f"{sim.tau=}, {sim.c=}, {sim.dt=}")
 if sim.tau < 0.6:
     log.warning(f"Small value for tau! [tau={sim.tau}]")
 
+l_ = 0.25
+nu_ = fld.nu / (sim.c * dom.dx)
+wpve = 1.0 / (nu_ + 0.5)
+wnve = 1.0 / (l_ / nu_ + 0.5)
+
+log.info(f"{1/wpve=} {1/wnve=} {nu_=}")
+
 # cylinder centre & radius [m]
 cx, cy = -0.1, 0
 r = 0.01
 
 # flow velocity [m/s]
-# v0 = 0.2
-v0 = 0.005
+v0 = 0.01
+# v0 = 0.5
 
 re_no = v0 * r / fld.nu
 log.info(f"Reynolds no.:  {re_no:,.0f}")
@@ -47,9 +51,10 @@ log.info("Compiling using Numba...")
 
 from boltzmann.impl2 import *
 
+
 # make numba objects
 pidx = PeriodicDomain(dom.counts)
-params = NumbaParams(sim.dt, dom.dx, sim.c, sim.tau)
+params = NumbaParams(sim.dt, dom.dx, sim.c, sim.tau, wpve, wnve)
 d2q9 = NumbaModel(D2Q9.ws, D2Q9.qs, D2Q9.js, pidx.counts)
 
 # %% Initialize arrays
@@ -69,13 +74,16 @@ x = np.pad(dom.x, (1, 1), mode="edge")
 y = np.pad(dom.y, (1, 1), mode="edge")
 XX, YY = np.meshgrid(x, y)
 
-XX = XX.flatten()
-YY = YY.flatten()
+# XX = XX.flatten()
+# YY = YY.flatten()
+XX = flatten(pidx, XX)
+YY = flatten(pidx, YY)
 
 
 # fixed velocity in- & out-flow
 # (only need to specify one due to periodicity)
 cell[make_slice_y1d(pidx, 1)] = CellType.BC_VELOCITY.value
+
 
 # reduce velocity around cylinder centre to reduce initial sound waves
 vel[:, 0] = v0 * (1 - np.exp(-(((YY - cy) / (r * 4)) ** 2) - ((XX - cx) / (r * 4)) ** 2))
@@ -99,6 +107,18 @@ for x, r in zip(xs, rs):
 #     (np.abs(xx - cx) < r) * (np.abs(yy - cy) < 0.5 * (xx - (cx - r)))
 # )
 
+# ramp velocity from zero to flow velocity moving away from the walls
+
+from scipy.ndimage import distance_transform_edt
+
+WW = 1 - 1 * (cell == CellType.BC_WALL.value)
+WW = unflatten(pidx, WW)
+DD = distance_transform_edt(WW).clip(0, 100)
+DD = DD / np.max(DD)
+DD = flatten(pidx, DD)
+vel[:, 0] = v0 * DD
+
+
 # ensure cell types match across boundary
 pidx.copy_periodic(cell)
 
@@ -108,7 +128,7 @@ update_vel = (cell == CellType.FLUID.value).astype(np.int32)
 
 # set wall velocity to zero
 # (just for nice output, doesn't affect the simulation)
-vel[cell == CellType.BC_WALL.value, 0] = 0
+# vel[cell == CellType.BC_WALL.value, 0] = 0
 
 # initial f is equilibrium for desired values of v and rho
 calc_equilibrium(vel, rho, f1, np.float32(params.cs), d2q9)
@@ -116,29 +136,6 @@ f2[:] = f1[:]
 
 
 # %% Define VTK output function
-
-
-def calc_curl(pidx: PeriodicDomain, v: np.ndarray, rho: np.ndarray) -> np.ndarray:
-    counts = pidx.counts
-
-    # calc curl
-    pidx.copy_periodic(v)
-    curl = np.zeros_like(rho)
-    for yidx in range(1, counts[1] - 1):
-        for xidx in range(1, counts[0] - 1):
-            idx = yidx * counts[0] + xidx
-
-            # NOTE: Assumes zero wall velocity.
-            # fmt: off
-            dydx1 = v[idx - counts[0], 0] * (cell[idx - counts[0]] != CellType.BC_WALL.value)
-            dydx2 = v[idx + counts[0], 0] * (cell[idx + counts[0]] != CellType.BC_WALL.value)
-            dxdy1 = v[idx -         1, 1] * (cell[idx -         1] != CellType.BC_WALL.value)
-            dxdy2 = v[idx +         1, 1] * (cell[idx +         1] != CellType.BC_WALL.value)
-            # fmt: on
-
-            curl[idx] = ((dydx2 - dydx1) - (dxdy2 - dxdy1)) / (2 * params.dx)
-
-    return curl
 
 
 def write_vti(
@@ -153,76 +150,13 @@ def write_vti(
     *,
     save_f: bool = False,
 ):
-
-    counts = pidx.counts
-
-    # need 3d vectors for vtk
-    def _to3d(v: np.ndarray):
-        if v.shape[-1] == 2:
-            return np.pad(v, [(0, 0), (0, 1)])
-        else:
-            return v
-
-    # reshape data for writing
-    v_ = unflatten(pidx, _to3d(v))
-    rho_ = unflatten(pidx, rho)
-    curl_ = unflatten(pidx, curl)
-    cell_ = unflatten(pidx, cell)
-    f_ = unflatten(pidx, f)
-
-    # v_[cell_ == CellType.BC_WALL.value, :] = np.nan
-    # rho_[cell_ == CellType.BC_WALL.value] = np.nan
-    # curl_[cell_ == CellType.BC_WALL.value] = np.nan
-
-    # cut off periodic part
-    # v_ = v_[1:-1, 1:-1, :]
-    # rho_ = rho_[1:-1, 1:-1]
-    # curl_ = curl_[1:-1, 1:-1]
-    # cell_ = cell_[1:-1, 1:-1]
-    # f_ = f_[1:-1, 1:-1, :]
-
-    # counts = counts - 2
-
-    image_data = vtk.vtkImageData()
-    nx, ny = list(counts)
-    image_data.SetDimensions(nx, ny, 1)
-
-    rho_data = vtk_np.numpy_to_vtk(num_array=rho_.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
-    rho_data.SetName("Density")
-    rho_data.SetNumberOfComponents(1)
-
-    vel_data = vtk_np.numpy_to_vtk(num_array=v_.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
-    vel_data.SetName("Velocity")
-    vel_data.SetNumberOfComponents(3)
-
-    curl_data = vtk_np.numpy_to_vtk(num_array=curl_.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
-    curl_data.SetName("Vorticity")
-    curl_data.SetNumberOfComponents(1)
-
-    wall_data = vtk_np.numpy_to_vtk(num_array=cell_.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
-    wall_data.SetName("CellType")
-    wall_data.SetNumberOfComponents(1)
-
-    p_data = image_data.GetPointData()
-    p_data.AddArray(rho_data)
-    p_data.AddArray(vel_data)
-    p_data.AddArray(curl_data)
-    p_data.AddArray(wall_data)
-
-    if save_f:
-        f_data = vtk_np.numpy_to_vtk(num_array=f_.ravel(), deep=False, array_type=vtk.VTK_FLOAT)
-        f_data.SetName(f"F")
-        f_data.SetNumberOfComponents(9)
-        p_data.AddArray(f_data)
-
-    p_data.SetActiveAttribute("Velocity", vtk.VTK_ATTRIBUTE_MODE_DEFAULT)
-
-    zipper = vtk.vtkZLibDataCompressor()
-    writer = vtk.vtkXMLImageDataWriter()
-    writer.SetFileName(path)
-    writer.SetCompressor(zipper)
-    writer.SetInputData(image_data)
-    writer.Write()
+    with VtiWriter(path, pidx) as writer:
+        writer.add_data("Velocity", v, default=True)
+        writer.add_data("Density", rho)
+        writer.add_data("Vorticity", curl)
+        writer.add_data("CellType", cell)
+        if save_f:
+            writer.add_data("F", f)
 
 
 # %% Write PNGs
@@ -287,12 +221,13 @@ def write_png(path: str, vel: np.ndarray, rho: np.ndarray, vort: np.ndarray, sho
 
 # write out the zeroth timestep
 pref = f"example2_re{re_no:.0f}"
-curl = calc_curl(pidx, vel, rho)
+curl = calc_curl_2d(pidx, vel, cell, params.dx)
 write_vti(f"out/{pref}_{0:06d}.vti", vel, rho, curl, cell, f1, pidx, params)
 write_png(f"out/{pref}_{0:06d}.png", vel, rho, curl)
 
 t = 0.0
 out_dt = 0.1
+# out_dt = sim.dt
 out_i = 1
 out_t = out_dt
 max_i = 1000
@@ -317,7 +252,7 @@ for out_i in range(1, max_i):
     mlups_batch = perf_batch.events / (1e6 * perf_batch.seconds)
     mlups_total = perf_total.events / (1e6 * perf_total.seconds)
 
-    curl = calc_curl(pidx, vel, rho)
+    curl = calc_curl_2d(pidx, vel, cell, params.dx)
     write_vti(f"out/{pref}_{out_i:06d}.vti", vel, rho, curl, cell, f1, pidx, params)
     write_png(f"out/{pref}_{out_i:06d}.png", vel, rho, curl)
 
