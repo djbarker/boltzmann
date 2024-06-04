@@ -64,7 +64,6 @@ f2 = make_array(pidx, 9)
 vel = make_array(pidx, 2)
 rho = make_array(pidx, fill=fld.rho)
 cell = make_array(pidx, dtype=np.int32)
-curl = make_array(pidx)
 
 # introduce slight randomness to initial density
 np.random.seed(42)

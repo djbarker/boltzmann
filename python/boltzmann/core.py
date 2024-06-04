@@ -119,7 +119,7 @@ class SimulationMeta:
         self.fluid = fluid  # TODO: this & tau will need to change for multiphase
         self.dt = dt
         self.c = domain.dx / dt
-        self.tau = 3 * fluid.nu * (1 / (self.c * domain.dx)) + 0.5
+        self.tau = fluid.nu * (1 / (self.c * domain.dx)) + 0.5
 
         assert 0.5 < self.tau, f"Invalid relaxation time! [tau={self.tau}]"
 
@@ -151,7 +151,20 @@ class Model:
         self.D = self.qs.shape[1]
 
 
+# NOTE: order is not arbitrary
+#       1. rest velocity at index zero
+#       2. pairs of opposite velocities follow
 D2Q9 = Model(
     [4 / 9, 1 / 9, 1 / 9, 1 / 9, 1 / 9, 1 / 36, 1 / 36, 1 / 36, 1 / 36],
-    [[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [-1, -1], [1, -1]],
+    [
+        [0, 0],
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+        [1, 1],
+        [-1, -1],
+        [-1, 1],
+        [1, -1],
+    ],
 )

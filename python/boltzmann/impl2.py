@@ -40,11 +40,12 @@ class NumbaModel:
 
 @jitclass(
     {
-        "dt": numba.float32,
-        "dx": numba.float32,
-        "cs": numba.float32,
-        "tau": numba.float32,
-        "counts": numba.int32[:],
+        "dt": float32,
+        "dx": float32,
+        "cs": float32,
+        "tau": float32,
+        "wpve": float32,
+        "wnve": float32,
     }
 )
 class NumbaParams:
@@ -54,11 +55,15 @@ class NumbaParams:
         dx: float,
         cs: float,
         tau: float,
+        wpve: float,
+        wnve: float,
     ):
         self.dt = dt
         self.dx = dx
         self.cs = cs
         self.tau = tau
+        self.wpve = wpve
+        self.wnve = wnve
 
 
 @jitclass(
@@ -123,9 +128,12 @@ def flatten(dom: PeriodicDomain, arr: np.ndarray) -> np.ndarray:
     return np.reshape(arr, (np.prod(dom.counts),) + arr.shape[dom.dims :])
 
 
-def unflatten(dom: PeriodicDomain, arr: np.ndarray) -> np.ndarray:
+def unflatten(dom: PeriodicDomain, arr: np.ndarray, rev: bool = True) -> np.ndarray:
     n = arr.shape[1:]
-    return np.reshape(arr, tuple(dom.counts) + n)
+    c = tuple(dom.counts)
+    if rev:
+        c = c[::-1]
+    return np.reshape(arr, c + n)
 
 
 def make_slice_x1d(dom: PeriodicDomain, yidx: int, start: int = 0, stop: int = -1) -> np.ndarray:
@@ -289,12 +297,116 @@ def loop_for(
 
 
 @numba.njit(
+    void(
+        int32,
+        float32[:, :],
+        float32,
+        float32[:],
+        float32,
+        jc_arg(NumbaParams),
+        jc_arg(NumbaModel),
+    ),
+    inline="always",
+)
+def collide_bgk_d2q9(
+    idx: int,
+    f_to: np.ndarray,
+    rho: float,
+    v: np.ndarray,
+    vv: float,
+    params: NumbaParams,
+    model: NumbaModel,
+):
+
+    for i in range(9):
+        w = model.ws[i]
+        q = model.qs[i]
+        qv = np.sum(q * v)
+
+        feq = rho * w * (1 + 3.0 * qv + 4.5 * qv**2 - (3.0 / 2.0) * vv)
+
+        f_to[idx, i] = f_to[idx, i] + (feq - f_to[idx, i]) / params.tau
+
+
+@numba.njit(
+    void(
+        int32,
+        float32[:, :],
+        float32,
+        float32[:],
+        float32,
+        jc_arg(NumbaParams),
+        jc_arg(NumbaModel),
+    ),
+    inline="always",
+)
+def collide_trt_d2q9(
+    idx: int,
+    f_to: np.ndarray,
+    rho: float,
+    v: np.ndarray,
+    vv: float,
+    params: NumbaParams,
+    model: NumbaModel,
+):
+    feq = np.zeros((9,))
+    f_ = np.zeros((9,))
+    feq_ = np.zeros((9,))
+
+    # equilibrate
+    for i in range(9):
+        w = model.ws[i]
+        q = model.qs[i]
+        qv = np.sum(q * v)
+
+        feq[i] = rho * w * (1 + 3.0 * qv + 4.5 * qv**2 - (3.0 / 2.0) * vv)
+
+    f_[0] = f_to[idx, 0]
+    f_[1] = (f_to[idx, 1] + f_to[idx, 2]) * 0.5
+    f_[2] = (f_to[idx, 1] - f_to[idx, 2]) * 0.5
+    f_[3] = (f_to[idx, 3] + f_to[idx, 4]) * 0.5
+    f_[4] = (f_to[idx, 3] - f_to[idx, 4]) * 0.5
+    f_[5] = (f_to[idx, 5] + f_to[idx, 6]) * 0.5
+    f_[6] = (f_to[idx, 5] - f_to[idx, 6]) * 0.5
+    f_[7] = (f_to[idx, 7] + f_to[idx, 8]) * 0.5
+    f_[8] = (f_to[idx, 7] - f_to[idx, 8]) * 0.5
+
+    feq_[0] = feq[0]
+    feq_[1] = (feq[1] + feq[2]) * 0.5
+    feq_[2] = (feq[1] - feq[2]) * 0.5
+    feq_[3] = (feq[3] + feq[4]) * 0.5
+    feq_[4] = (feq[3] - feq[4]) * 0.5
+    feq_[5] = (feq[5] + feq[6]) * 0.5
+    feq_[6] = (feq[5] - feq[6]) * 0.5
+    feq_[7] = (feq[7] + feq[8]) * 0.5
+    feq_[8] = (feq[7] - feq[8]) * 0.5
+
+    # fmt: off
+    f_to[idx, 0] -= (params.wpve * (f_[0] - feq_[0]))
+    f_to[idx, 1] -= (params.wpve * (f_[1] - feq_[1]) + params.wnve * (f_[2] - feq_[2]))
+    f_to[idx, 2] -= (params.wpve * (f_[1] - feq_[1]) - params.wnve * (f_[2] - feq_[2]))
+    f_to[idx, 3] -= (params.wpve * (f_[3] - feq_[3]) + params.wnve * (f_[4] - feq_[4]))
+    f_to[idx, 4] -= (params.wpve * (f_[3] - feq_[3]) - params.wnve * (f_[4] - feq_[4]))
+    f_to[idx, 5] -= (params.wpve * (f_[5] - feq_[5]) + params.wnve * (f_[6] - feq_[6]))
+    f_to[idx, 6] -= (params.wpve * (f_[5] - feq_[5]) - params.wnve * (f_[6] - feq_[6]))
+    f_to[idx, 7] -= (params.wpve * (f_[7] - feq_[7]) + params.wnve * (f_[8] - feq_[8]))
+    f_to[idx, 8] -= (params.wpve * (f_[7] - feq_[7]) - params.wnve * (f_[8] - feq_[8]))
+    # fmt: on
+
+
+@numba.njit(
     [
-        # fmt: off
-        void(float32[:, ::1], float32[:, ::1], int32[:], int32[:], int32[:], jc_arg(NumbaParams), jc_arg(NumbaModel), 
-             float32[:, :], float32[:],
-             ),
-        # fmt: on
+        void(
+            float32[:, ::1],
+            float32[:, ::1],
+            int32[:],
+            int32[:],
+            int32[:],
+            jc_arg(NumbaParams),
+            jc_arg(NumbaModel),
+            float32[:, :],
+            float32[:],
+        ),
     ],
     parallel=True,
 )
@@ -347,29 +459,24 @@ def stream_and_collide(
 
             # macroscopic
             rho = np.sum(f_to[idx, :])
-            v_to = np.dot(qs, f_to[idx, :])
-
-            v = v_to
-            v = v * cs / rho
+            v = np.dot(qs, f_to[idx, :]) / rho
             vv = np.sum(v * v)
 
-            v_o[idx, :] = v
+            v_o[idx, :] = v * cs
             rho_o[idx] = rho
 
-            for i in range(9):
-                # equilibrate
-                w = model.ws[i]
-                q = model.qs[i]
-                qv = np.sum(q * v)
+            # BGK
+            # for i in range(9):
+            #     w = model.ws[i]
+            #     q = model.qs[i]
+            #     qv = np.sum(q * v)
 
-                feq = (
-                    rho
-                    * w
-                    * (1 + 3.0 * qv / cs**1 + 4.5 * qv**2 / cs**2 - (3.0 / 2.0) * vv / cs**2)
-                )
+            #     feq = rho * w * (1 + 3.0 * qv + 4.5 * qv**2 - (3.0 / 2.0) * vv)
 
-                # collide
-                f_to[idx, i] = f_to[idx, i] + (feq - f_to[idx, i]) / params.tau
+            #     f_to[idx, i] = f_to[idx, i] + (feq - f_to[idx, i]) / params.tau
+
+            # collide_bgk_d2q9(idx, f_to, rho, v, vv, params, model)
+            collide_trt_d2q9(idx, f_to, rho, v, vv, params, model)
 
 
 @numba.njit(
