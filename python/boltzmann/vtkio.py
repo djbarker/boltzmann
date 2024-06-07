@@ -40,7 +40,7 @@ class VtiWriter:
         assert np.ndim(val) <= 2
         if np.ndim(val) == 1:
             val = val[:, None]
-        self.data[key] = unflatten(self.pidx, _to3d(val), rev=False)
+        self.data[key] = unflatten(self.pidx, _to3d(val), rev=False)[1:-1, 1:-1]
 
         match self.default, default:
             case None, True:
@@ -49,7 +49,7 @@ class VtiWriter:
                 raise ValueError(f"Default key already set! [old={self.default!r}, new={key!r}]")
 
     def write(self):
-        counts = self.pidx.counts
+        counts = self.pidx.counts - 2
 
         img_data = vtk.vtkImageData()
         nx, ny = list(counts)
