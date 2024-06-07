@@ -46,6 +46,7 @@ class NumbaModel:
         "tau": float32,
         "wpve": float32,
         "wnve": float32,
+        "g": float32[:],
     }
 )
 class NumbaParams:
@@ -57,6 +58,7 @@ class NumbaParams:
         tau: float,
         wpve: float,
         wnve: float,
+        g: np.ndarray,
     ):
         self.dt = dt
         self.dx = dx
@@ -64,6 +66,7 @@ class NumbaParams:
         self.tau = tau
         self.wpve = wpve
         self.wnve = wnve
+        self.g = g
 
 
 @jitclass(
@@ -381,7 +384,6 @@ def collide_trt_d2q9(
     feq_[7] = (feq[7] + feq[8]) * 0.5
     feq_[8] = (feq[7] - feq[8]) * 0.5
 
-    # fmt: off
     f_to[idx, 0] -= (params.wpve * (f_[0] - feq_[0]))
     f_to[idx, 1] -= (params.wpve * (f_[1] - feq_[1]) + params.wnve * (f_[2] - feq_[2]))
     f_to[idx, 2] -= (params.wpve * (f_[1] - feq_[1]) - params.wnve * (f_[2] - feq_[2]))
@@ -391,7 +393,6 @@ def collide_trt_d2q9(
     f_to[idx, 6] -= (params.wpve * (f_[5] - feq_[5]) - params.wnve * (f_[6] - feq_[6]))
     f_to[idx, 7] -= (params.wpve * (f_[7] - feq_[7]) + params.wnve * (f_[8] - feq_[8]))
     f_to[idx, 8] -= (params.wpve * (f_[7] - feq_[7]) - params.wnve * (f_[8] - feq_[8]))
-    # fmt: on
 
 
 @numba.njit(
@@ -460,6 +461,8 @@ def stream_and_collide(
             # macroscopic
             rho = np.sum(f_to[idx, :])
             v = np.dot(qs, f_to[idx, :]) / rho
+            v += params.g * params.tau
+
             vv = np.sum(v * v)
 
             v_o[idx, :] = v * cs
