@@ -48,7 +48,7 @@ class DomainMeta:
         self.dx = dx
         self.dims = extent.shape[0]
         self.extent = extent
-        self.counts = np.array((extent[:, -1] - extent[:, 0]) / dx, dtype=np.int32)
+        self.counts = np.array((extent[:, 1] - extent[:, 0]) / dx, dtype=np.int32)
 
         # sanity check values
         assert dx > 0
@@ -85,7 +85,7 @@ class DomainMeta:
         extent = to_extent(extent)
         counts = to_counts(counts)
         assert extent.shape[0] == counts.shape[0]
-        dx = (extent[0][1] - extent[0][0]) / counts[0]
+        dx = (extent[0][1] - extent[0][0]) / (counts[0] - 1)
         return DomainMeta(dx, extent)
 
     def make_array(
@@ -118,14 +118,17 @@ class SimulationMeta:
         self.domain = domain
         self.fluid = fluid  # TODO: this & tau will need to change for multiphase
         self.dt = dt
-        self.c = domain.dx / dt
-        self.tau = fluid.nu * (1 / (self.c * domain.dx)) + 0.5
+        self.cs = (1.0 / np.sqrt(3.0)) * (domain.dx / dt)
+        # self.cs = domain.dx / dt
+        self.tau = fluid.nu * (1 / (self.cs * domain.dx)) + 0.5
+        # self.tau = fluid.nu * (dt / domain.dx**2) + 0.5
+        # self.tau = (fluid.nu / self.c**2 + dt / 2.0) / dt
 
         assert 0.5 < self.tau, f"Invalid relaxation time! [tau={self.tau}]"
 
     @staticmethod
     def with_cs(domain: DomainMeta, fluid: FluidMeta, cs: float) -> "SimulationMeta":
-        dt = domain.dx / cs
+        dt = domain.dx / (np.sqrt(3.0) * cs)
         return SimulationMeta(domain, fluid, dt)
 
 
