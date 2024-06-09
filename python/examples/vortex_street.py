@@ -19,7 +19,7 @@ log.info("Starting")
 # %% Params
 
 dom = DomainMeta.with_extent_and_counts(extent_si=[[-0.2, 0.2], [-0.1, 0.1]], counts=[1001, 501])
-fld = FluidMeta.WATER
+fld = FluidMeta(0.01, 100)
 sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs=1)
 
 log.info(f"\n{pprint(asdict(sim), sort_dicts=False, width=10)}")
@@ -44,7 +44,6 @@ from boltzmann.impl2 import *
 
 # make numba objects
 pidx = PeriodicDomain(dom.counts)
-d2q9 = NumbaModel(D2Q9.ws, D2Q9.qs, D2Q9.js, pidx.counts)
 g_lu = np.array([0.0, 0.0], dtype=np.float32)
 params = NumbaParams(sim.dt_si, dom.dx_si, sim.cs_si, sim.w_pos_lu, sim.w_neg_lu, g_lu)
 
@@ -123,7 +122,7 @@ update_vel = (cell == CellType.FLUID.value).astype(np.int32)
 # vel[cell == CellType.BC_WALL.value, 0] = 0
 
 # initial f is equilibrium for desired values of v and rho
-calc_equilibrium(vel_si, rho_si, f1, np.float32(params.cs_si), d2q9)
+calc_equilibrium(vel_si, rho_si, f1, np.float32(params.cs_si), D2Q9)
 f2[:] = f1[:]
 
 
@@ -245,7 +244,7 @@ for out_i in range(1, max_i):
     if np.any(~np.isfinite(f1)):
         raise ValueError(f"Non-finite value in f.")
 
-    loop_for_2(batch_i, vel_si, rho_si, f1, f2, is_wall, update_vel, params, pidx, d2q9)
+    loop_for_2(batch_i, vel_si, rho_si, f1, f2, is_wall, update_vel, params, pidx, D2Q9)
 
     perf_batch = perf_batch.tock(events=np.prod(dom.counts) * batch_i)
     perf_total = perf_total + perf_batch

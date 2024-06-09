@@ -103,7 +103,6 @@ from boltzmann.impl2 import *
 # make numba objects
 pidx = PeriodicDomain(dom.counts)
 params = NumbaParams(sim.dt_si, dom.dx_si, sim.cs_si, sim.w_pos_lu, sim.w_neg_lu, g_lu)
-d2q9 = NumbaModel(D2Q9.ws, D2Q9.qs, D2Q9.js, pidx.counts)
 
 # %% Initialize arrays
 
@@ -126,7 +125,7 @@ update_vel = (cell == CellType.FLUID.value).astype(np.int32)
 vel_si[cell == CellType.BC_WALL.value, 0] = 0
 
 # initial f is equilibrium for desired values of v and rho
-calc_equilibrium(vel_si, rho_si, f1_si, np.float32(params.cs_si), d2q9)
+calc_equilibrium(vel_si, rho_si, f1_si, np.float32(params.cs_si), D2Q9)
 f2_si[:] = f1_si[:]
 
 
@@ -187,7 +186,7 @@ for out_i in range(1, max_i):
     if np.any(~np.isfinite(f1_si)):
         raise ValueError(f"Non-finite value in f.")
 
-    loop_for_2(batch_i, vel_si, rho_si, f1_si, f2_si, is_wall, update_vel, params, pidx, d2q9)
+    loop_for_2(batch_i, vel_si, rho_si, f1_si, f2_si, is_wall, update_vel, params, pidx, D2Q9)
 
     perf_batch = perf_batch.tock(events=np.prod(dom.counts) * batch_i)
     perf_total = perf_total + perf_batch

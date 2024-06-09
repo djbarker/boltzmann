@@ -10,7 +10,7 @@ import numba
 from numba.experimental import jitclass
 from numba import void, int32, int64, float32, float64
 
-from boltzmann.core import CellType, DimsT, to_dims
+from boltzmann.core import CellType, DimsT, to_dims, D2Q9 as D2Q9_
 
 
 def jc_arg(cls: Type):
@@ -25,17 +25,18 @@ def jc_arg(cls: Type):
         "ws": numba.float32[:],
         "qs": numba.int32[:, :],
         "js": numba.int32[:],
-        "os": numba.int32[:],
         "qs_f32": numba.float32[:, ::1],
     }
 )
 class NumbaModel:
-    def __init__(self, ws: np.ndarray, qs: np.ndarray, js: np.ndarray, counts: np.ndarray):
+    def __init__(self, ws: np.ndarray, qs: np.ndarray, js: np.ndarray):
         self.ws = ws
         self.qs = qs
         self.js = js
-        self.os = qs[:, 0] + qs[:, 1] * counts[0]  # downstream offset
         self.qs_f32 = qs.astype(np.float32).copy()
+
+
+D2Q9 = NumbaModel(D2Q9_.ws, D2Q9_.qs, D2Q9_.js)
 
 
 @jitclass(
