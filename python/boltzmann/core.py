@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 
 
@@ -6,13 +7,16 @@ from enum import Enum
 from typing import Sequence, Protocol
 
 
+log = logging.getLogger(__name__)
+
+
 ExtentT = np.ndarray | Sequence[Sequence[float]]
 
 
 def to_extent(extent: ExtentT) -> np.ndarray:
     extent = np.array(extent)
     assert (
-        np.ndim(extent) == 2 and extent.shape[1] == 2
+        extent.ndim == 2 and extent.shape[1] == 2
     ), f"Expected array of pairs for domain extents! [extent.shape={extent.shape!r}]"
     return extent
 
@@ -41,26 +45,33 @@ def to_dims(dims: DimsT) -> list[int]:
             raise TypeError(f"Expected None, int or list[int] for dims. [{dims=}]")
 
 
+@dataclass
 class DomainMeta:
 
-    def __init__(self, dx: float, extent: ExtentT):
-        extent = to_extent(extent)
-        self.dx = dx
-        self.dims = extent.shape[0]
-        self.extent = extent
-        self.counts = np.array((extent[:, 1] - extent[:, 0]) / dx, dtype=np.int32)
+    extent_si: np.ndarray
+    dx_si: float
+    dims: int = field(init=False)
+    counts: np.ndindex = field(init=False)
+
+    def __post_init__(self):
+        self.extent_si = to_extent(self.extent_si)
+        self.dims = self.extent_si.shape[0]
+        self.counts = np.array(
+            (self.extent_si[:, 1] - self.extent_si[:, 0]) / self.dx_si,
+            dtype=np.int32,
+        )
 
         # sanity check values
-        assert dx > 0
-        for i, (e, c) in enumerate(zip(self.extent, self.counts)):
+        assert self.dx_si > 0
+        for i, (e, c) in enumerate(zip(self.extent_si, self.counts)):
             dx_ = (e[1] - e[0]) / c
             assert (
-                abs(dx_ - dx) < 1e-8
+                abs(dx_ - self.dx_si) < 1e-8
             ), f"dx differs from dimension 0 for dimension {i}. [{e=}, {c=} => {dx_=}]"
 
     def get_dim(self, dim: int) -> np.ndarray:
         assert dim <= self.dims, f"Invalid dim! [{dim=}, {self.dims=}]"
-        return np.linspace(self.extent[dim, 0], self.extent[dim, 1], self.counts[dim])
+        return np.linspace(self.extent_si[dim, 0], self.extent_si[dim, 1], self.counts[dim])
 
     @property
     def x(self) -> np.ndarray:
@@ -75,18 +86,18 @@ class DomainMeta:
         return self.get_dim(2)
 
     @staticmethod
-    def with_dx_and_counts(dx: float, counts: CountsT) -> "DomainMeta":
+    def with_dx_and_counts(dx_si: float, counts: CountsT) -> "DomainMeta":
         counts = to_counts(counts)
-        extent = np.vstack([np.zeros_like(counts), counts])
-        return DomainMeta(dx, extent)
+        extent_si = np.vstack([np.zeros_like(counts), counts])
+        return DomainMeta(dx_si, extent_si)
 
     @staticmethod
-    def with_extent_and_counts(extent: ExtentT, counts: CountsT) -> "DomainMeta":
-        extent = to_extent(extent)
+    def with_extent_and_counts(extent_si: ExtentT, counts: CountsT) -> "DomainMeta":
+        extent_si = to_extent(extent_si)
         counts = to_counts(counts)
-        assert extent.shape[0] == counts.shape[0]
-        dx = (extent[0][1] - extent[0][0]) / (counts[0] - 1)
-        return DomainMeta(dx, extent)
+        assert extent_si.shape[0] == counts.shape[0]
+        dx_si = (extent_si[0][1] - extent_si[0][0]) / (counts[0] - 1)
+        return DomainMeta(extent_si=extent_si, dx_si=dx_si)
 
     def make_array(
         self,
@@ -101,34 +112,49 @@ class DomainMeta:
 
 @dataclass
 class FluidMeta:
-    mu: float
-    rho: float
-    nu: float = field(init=False)
+    mu_si: float
+    rho_si: float
+    nu_si: float = field(init=False)
 
     def __post_init__(self):
-        self.nu = self.mu / self.rho
+        self.nu_si = self.mu_si / self.rho_si
 
 
-FluidMeta.WATER = FluidMeta(mu=0.001, rho=1000)
+FluidMeta.WATER = FluidMeta(mu_si=0.001, rho_si=1000)
 
 
+@dataclass
 class SimulationMeta:
 
-    def __init__(self, domain: DomainMeta, fluid: FluidMeta, dt: float):
-        self.domain = domain
-        self.fluid = fluid  # TODO: this & tau will need to change for multiphase
-        self.dt = dt
-        self.cs = (1.0 / np.sqrt(3.0)) * (domain.dx / dt)
-        # self.cs = domain.dx / dt
-        self.tau = fluid.nu * (1 / (self.cs * domain.dx)) + 0.5
-        # self.tau = fluid.nu * (dt / domain.dx**2) + 0.5
-        # self.tau = (fluid.nu / self.c**2 + dt / 2.0) / dt
+    domain: DomainMeta
+    fluid: FluidMeta
+    dt_si: float
 
-        assert 0.5 < self.tau, f"Invalid relaxation time! [tau={self.tau}]"
+    cs_si: float = field(init=False)
+    w_pos_lu: float = field(init=False)
+    w_neg_lu: float = field(init=False)
+
+    def __post_init__(self):
+        self.cs_si = (1.0 / np.sqrt(3.0)) * (self.domain.dx_si / self.dt_si)
+
+        nu_lu = self.fluid.nu_si / (self.cs_si**2 * self.dt_si)
+
+        l_ = 0.25  # magic parameter
+        tau_pos_lu = nu_lu + 0.5
+        tau_neg_lu = l_ / nu_lu + 0.5
+
+        if tau_pos_lu < 0.6:
+            log.warning(f"Small value for tau! [{tau_pos_lu=}]")
+
+        w_pve_lu = 1.0 / tau_pos_lu
+        w_nve_lu = 1.0 / tau_neg_lu
+
+        self.w_pos_lu = w_pve_lu
+        self.w_neg_lu = w_nve_lu
 
     @staticmethod
     def with_cs(domain: DomainMeta, fluid: FluidMeta, cs: float) -> "SimulationMeta":
-        dt = domain.dx / (np.sqrt(3.0) * cs)
+        dt = domain.dx_si / (np.sqrt(3.0) * cs)
         return SimulationMeta(domain, fluid, dt)
 
 

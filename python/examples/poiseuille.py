@@ -52,9 +52,11 @@ Plane Poiseuille flow.
 # %% Imports
 
 import logging
-import os
-
 import numpy as np
+import os
+import yaml
+from pprint import pprint
+from dataclasses import asdict
 
 from boltzmann.utils.logger import tick, PerfInfo, basic_config
 from boltzmann.core import DomainMeta, SimulationMeta, FluidMeta, D2Q9, CellType
@@ -68,41 +70,24 @@ log.info("Starting")
 
 # %% Params
 
-dom = DomainMeta.with_extent_and_counts(extent=[[0.00, 0.01], [0.00, 0.01]], counts=[101, 101])
-fld = FluidMeta(mu=0.01, rho=100)
-sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs=0.1)
+dom = DomainMeta.with_extent_and_counts(extent_si=[[0.00, 0.01], [0.00, 0.01]], counts=[101, 101])
+fld = FluidMeta(mu_si=0.01, rho_si=100)
+sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs=1.0)
 
-log.info(f"{dom.dx=}, {dom.extent=}, {dom.counts=}, cells={np.prod(dom.counts):,d}")
-log.info(f"{fld.mu=}, {fld.rho=}, {fld.nu=}")
-log.info(f"{sim.tau=}, {sim.cs=}, {sim.dt=}")
-
-if sim.tau < 0.6:
-    log.warning(f"Small value for tau! [tau={sim.tau}]")
-
-l_ = 0.25
-nu_ = fld.nu / (sim.cs**2 * sim.dt)
-# nu_ = fld.nu / sim.cs**2
-wpve = 1.0 / (nu_ + 0.5)
-wnve = 1.0 / (l_ / nu_ + 0.5)
-# wnve = wpve
-
-tau_pve = 1.0 / wpve
-tau_nve = 1.0 / wnve
-
-log.info(f"{tau_pve=} {tau_nve=} {nu_=}")
+log.info(f"\n{pprint(asdict(sim), sort_dicts=False, width=10)}")
 
 # pipe width [m]
-l_si = dom.extent[0, 1] - dom.extent[0, 0]
+l_si = dom.extent_si[0, 1] - dom.extent_si[0, 0]
 
 # gravitational acceleration [m/s^2]
 g_si = 0.1
-g_lu = g_si * (sim.dt**2 / dom.dx)
+g_lu = g_si * (sim.dt_si**2 / dom.dx_si)
 
 # max infinite time velocity
-v_si = (g_si / fld.nu) * (l_si**2) / 8
+v_si = (g_si / fld.nu_si) * (l_si**2) / 8
 log.info(f"Max vel.: {v_si:.04f} m/s")
 
-re_no = v_si * l_si / fld.nu
+re_no = v_si * l_si / fld.nu_si
 log.info(f"Reynolds no.:  {re_no:,.0f}")
 
 g_lu = np.array([0, g_lu], dtype=np.float32)
@@ -117,19 +102,16 @@ from boltzmann.impl2 import *
 
 # make numba objects
 pidx = PeriodicDomain(dom.counts)
-params = NumbaParams(sim.dt, dom.dx, sim.cs, sim.tau, wpve, wnve, g_lu)
+params = NumbaParams(sim.dt_si, dom.dx_si, sim.cs_si, sim.w_pos_lu, sim.w_neg_lu, g_lu)
 d2q9 = NumbaModel(D2Q9.ws, D2Q9.qs, D2Q9.js, pidx.counts)
 
 # %% Initialize arrays
 
-f1 = make_array(pidx, 9)
-f2 = make_array(pidx, 9)
-vel = make_array(pidx, 2)
-rho = make_array(pidx, fill=fld.rho)
+f1_si = make_array(pidx, 9)
+f2_si = make_array(pidx, 9)
+vel_si = make_array(pidx, 2)
+rho_si = make_array(pidx, fill=fld.rho_si)
 cell = make_array(pidx, dtype=np.int32)
-
-# rho_ = unflatten(pidx, rho)
-# rho_[126, 126] = 1.05
 
 cell_ = unflatten(pidx, cell)
 cell_[:, 1] = CellType.BC_WALL.value
@@ -141,11 +123,11 @@ update_vel = (cell == CellType.FLUID.value).astype(np.int32)
 
 # set wall velocity to zero
 # (just for nice output, doesn't affect the simulation)
-vel[cell == CellType.BC_WALL.value, 0] = 0
+vel_si[cell == CellType.BC_WALL.value, 0] = 0
 
 # initial f is equilibrium for desired values of v and rho
-calc_equilibrium(vel, rho, f1, np.float32(params.cs), d2q9)
-f2[:] = f1[:]
+calc_equilibrium(vel_si, rho_si, f1_si, np.float32(params.cs_si), d2q9)
+f2_si[:] = f1_si[:]
 
 
 # %% Define VTK output function
@@ -155,9 +137,9 @@ from boltzmann.vtkio import VtiWriter
 
 def write_vti(
     path: str,
-    v: np.ndarray,
-    rho: np.ndarray,
-    curl: np.ndarray,
+    vel_si: np.ndarray,
+    rho_si: np.ndarray,
+    curl_si: np.ndarray,
     cell: np.ndarray,
     f: np.ndarray,
     pidx: PeriodicDomain,
@@ -166,9 +148,9 @@ def write_vti(
     save_f: bool = False,
 ):
     with VtiWriter(path, pidx) as writer:
-        writer.add_data("Velocity", v, default=True)
-        writer.add_data("Density", rho)
-        writer.add_data("Vorticity", curl)
+        writer.add_data("Velocity", vel_si, default=True)
+        writer.add_data("Density", rho_si)
+        writer.add_data("Vorticity", curl_si)
         writer.add_data("CellType", cell)
         if save_f:
             writer.add_data("F", f)
@@ -183,8 +165,8 @@ if not os.path.exists(path):
     os.makedirs(path)
 
 # write out the zeroth timestep
-curl = calc_curl_2d(pidx, vel, cell, params.dx)
-write_vti(tmpl_out.format(0), vel, rho, curl, cell, f1, pidx, params)
+curl = calc_curl_2d(pidx, vel_si, cell, params.dx_si)
+write_vti(tmpl_out.format(0), vel_si, rho_si, curl, cell, f1_si, pidx, params)
 
 t = 0.0
 out_dt = 0.1
@@ -193,7 +175,7 @@ out_i = 1
 out_t = out_dt
 max_i = 31
 
-batch_i = int((out_dt + 1e-8) // sim.dt)
+batch_i = int((out_dt + 1e-8) // sim.dt_si)
 
 log.info(f"{batch_i:,d} iters/output")
 
@@ -202,10 +184,10 @@ perf_total = PerfInfo()
 for out_i in range(1, max_i):
     perf_batch = tick()
 
-    if np.any(~np.isfinite(f1)):
+    if np.any(~np.isfinite(f1_si)):
         raise ValueError(f"Non-finite value in f.")
 
-    loop_for_2(batch_i, vel, rho, f1, f2, is_wall, update_vel, params, pidx, d2q9)
+    loop_for_2(batch_i, vel_si, rho_si, f1_si, f2_si, is_wall, update_vel, params, pidx, d2q9)
 
     perf_batch = perf_batch.tock(events=np.prod(dom.counts) * batch_i)
     perf_total = perf_total + perf_batch
@@ -213,8 +195,8 @@ for out_i in range(1, max_i):
     mlups_batch = perf_batch.events / (1e6 * perf_batch.seconds)
     mlups_total = perf_total.events / (1e6 * perf_total.seconds)
 
-    curl = calc_curl_2d(pidx, vel, cell, params.dx)
-    write_vti(tmpl_out.format(out_i), vel, rho, curl, cell, f1, pidx, params)
+    curl = calc_curl_2d(pidx, vel_si, cell, params.dx_si)
+    write_vti(tmpl_out.format(out_i), vel_si, rho_si, curl, cell, f1_si, pidx, params)
 
     log.info(f"Wrote {out_i=} {out_t=:.3f}, {mlups_batch=:.2f}, {mlups_total=:.2f}\r")
 
