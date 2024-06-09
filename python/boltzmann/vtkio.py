@@ -40,7 +40,7 @@ class VtiWriter:
         assert np.ndim(val) <= 2
         if np.ndim(val) == 1:
             val = val[:, None]
-        self.data[key] = unflatten(self.pidx, _to3d(val), rev=False)[1:-1, 1:-1]
+        self.data[key] = unflatten(self.pidx, _to3d(val), rev=True)[1:-1, 1:-1]
 
         match self.default, default:
             case None, True:
