@@ -131,6 +131,8 @@ class SimulationMeta:
     dt_si: float
 
     cs_si: float = field(init=False)
+    tau_pos_lu: float = field(init=False)
+    tau_neg_lu: float = field(init=False)
     w_pos_lu: float = field(init=False)
     w_neg_lu: float = field(init=False)
 
@@ -149,12 +151,14 @@ class SimulationMeta:
         w_pve_lu = 1.0 / tau_pos_lu
         w_nve_lu = 1.0 / tau_neg_lu
 
+        self.tau_pos_lu = tau_pos_lu
+        self.tau_neg_lu = tau_neg_lu
         self.w_pos_lu = w_pve_lu
         self.w_neg_lu = w_nve_lu
 
     @staticmethod
-    def with_cs(domain: DomainMeta, fluid: FluidMeta, cs: float) -> "SimulationMeta":
-        dt = domain.dx_si / (np.sqrt(3.0) * cs)
+    def with_cs(domain: DomainMeta, fluid: FluidMeta, cs_si: float) -> "SimulationMeta":
+        dt = domain.dx_si / (np.sqrt(3.0) * cs_si)
         return SimulationMeta(domain, fluid, dt)
 
 
