@@ -320,14 +320,28 @@ def collide_bgk_d2q9(
     model: NumbaModel,
 ):
 
-    for i in range(9):
-        w = model.ws[i]
-        q = model.qs[i]
-        qv = np.sum(q * v)
+    # for i in numba.prange(9):
+    #     w = model.ws[i]
+    #     q = model.qs[i]
+    #     qv = np.sum(q * v)
 
-        feq = rho * w * (1 + 3.0 * qv + 4.5 * qv**2 - (3.0 / 2.0) * vv)
+    #     feq = rho * w * (1 + 3.0 * qv + 4.5 * qv**2 - (3.0 / 2.0) * vv)
 
-        f_to[idx, i] = f_to[idx, i] + (feq - f_to[idx, i]) * params.w_pos_lu
+    #     f_to[idx, i] = f_to[idx, i] + (feq - f_to[idx, i]) * params.w_pos_lu
+
+    # Already D2Q9 specific so write it out
+    # Writing it out explicitly like this does seem a bit faster.
+    # fmt: off
+    f_to[idx, 0] -= params.w_pos_lu * (f_to[idx, 0] - rho * (4/9)  * (1                                                - (3.0/2.0) * vv))
+    f_to[idx, 1] -= params.w_pos_lu * (f_to[idx, 1] - rho * (1/9)  * (1 + 3.0 * (v[0])        + 4.5 * (v[0])**2        - (3.0/2.0) * vv))
+    f_to[idx, 2] -= params.w_pos_lu * (f_to[idx, 2] - rho * (1/9)  * (1 - 3.0 * (v[0])        + 4.5 * (v[0])**2        - (3.0/2.0) * vv))
+    f_to[idx, 3] -= params.w_pos_lu * (f_to[idx, 3] - rho * (1/9)  * (1 + 3.0 * (v[1])        + 4.5 * (v[1])**2        - (3.0/2.0) * vv))
+    f_to[idx, 4] -= params.w_pos_lu * (f_to[idx, 4] - rho * (1/9)  * (1 - 3.0 * (v[1])        + 4.5 * (v[1])**2        - (3.0/2.0) * vv))
+    f_to[idx, 5] -= params.w_pos_lu * (f_to[idx, 5] - rho * (1/36) * (1 + 3.0 * (v[0] + v[1]) + 4.5 * (v[0] + v[1])**2 - (3.0/2.0) * vv))
+    f_to[idx, 6] -= params.w_pos_lu * (f_to[idx, 6] - rho * (1/36) * (1 - 3.0 * (v[0] + v[1]) + 4.5 * (v[0] + v[1])**2 - (3.0/2.0) * vv))
+    f_to[idx, 7] -= params.w_pos_lu * (f_to[idx, 7] - rho * (1/36) * (1 + 3.0 * (v[1] - v[0]) + 4.5 * (v[1] - v[0])**2 - (3.0/2.0) * vv))
+    f_to[idx, 8] -= params.w_pos_lu * (f_to[idx, 8] - rho * (1/36) * (1 + 3.0 * (v[0] - v[1]) + 4.5 * (v[0] - v[1])**2 - (3.0/2.0) * vv))
+    # fmt: on
 
 
 @numba.njit(
@@ -410,6 +424,7 @@ def collide_trt_d2q9(
         ),
     ],
     parallel=True,
+    fastmath=True,
 )
 def stream_and_collide(
     f_to: np.ndarray,
@@ -419,7 +434,7 @@ def stream_and_collide(
     counts: np.ndarray,
     params: NumbaParams,
     model: NumbaModel,
-    v_si_o: np.ndarray,
+    vel_si_o: np.ndarray,
     rho_si_o: np.ndarray,
 ):
     assert f_to is not f_from
@@ -465,20 +480,17 @@ def stream_and_collide(
 
             vv_lu = np.sum(v_lu * v_lu)
 
-            # NOTE: The conversion factor here is not cs_si because v_lu already includes the
-            #       factor or 1/sqrt(3), so we do not want to double factor that.
+            # vel_si_o[idx, :] = v_lu * cs_si
+            # rho_si_o[idx] = rho_si
 
-            v_si_o[idx, :] = v_lu * params.dx_si / params.dt_si
-            rho_si_o[idx] = rho_si
-
-            # collide_bgk_d2q9(idx, f_to, rho_si, v_lu, vv_lu, params, model)
-            collide_trt_d2q9(idx, f_to, rho_si, v_lu, vv_lu, params, model)
+            collide_bgk_d2q9(idx, f_to, rho_si, v_lu, vv_lu, params, model)
+            # collide_trt_d2q9(idx, f_to, rho_si, v_lu, vv_lu, params, model)
 
 
 @numba.njit(
     void(
         int64,
-        float32[:, ::1],
+        float32[:, :],
         float32[:],
         float32[:, ::1],
         float32[:, ::1],
@@ -527,6 +539,18 @@ def loop_for_2(
     # make sure output always ends in f1
     if iters % 2 != 0:
         f1_si[:] = f2_si[:]
+
+    # output macroscopic
+    qs = np.ascontiguousarray(model.qs_f32.T)
+    for yidx in numba.prange(1, counts[1] - 1):
+        for xidx in range(1, counts[0] - 1):
+            idx = sub_to_idx(counts, xidx, yidx)
+
+            rho_si_ = np.sum(f1_si[idx, :])
+            vel_si_ = np.dot(qs, f1_si[idx, :] / rho_si_) * params.cs_si
+
+            vel_si[idx, :] = vel_si_
+            rho_si[idx] = rho_si_
 
 
 def calc_curl_2d(pidx: PeriodicDomain, v: np.ndarray, cell: np.ndarray, dx: float) -> np.ndarray:
