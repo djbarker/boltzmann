@@ -331,16 +331,17 @@ def collide_bgk_d2q9(
 
     # Already D2Q9 specific so write it out
     # Writing it out explicitly like this does seem a bit faster.
+    vxy = v[0] * v[1]
     # fmt: off
-    f_to[idx, 0] -= params.w_pos_lu * (f_to[idx, 0] - rho * (4/9)  * (1                                                - (3.0/2.0) * vv))
-    f_to[idx, 1] -= params.w_pos_lu * (f_to[idx, 1] - rho * (1/9)  * (1 + 3.0 * (v[0])        + 4.5 * (v[0])**2        - (3.0/2.0) * vv))
-    f_to[idx, 2] -= params.w_pos_lu * (f_to[idx, 2] - rho * (1/9)  * (1 - 3.0 * (v[0])        + 4.5 * (v[0])**2        - (3.0/2.0) * vv))
-    f_to[idx, 3] -= params.w_pos_lu * (f_to[idx, 3] - rho * (1/9)  * (1 + 3.0 * (v[1])        + 4.5 * (v[1])**2        - (3.0/2.0) * vv))
-    f_to[idx, 4] -= params.w_pos_lu * (f_to[idx, 4] - rho * (1/9)  * (1 - 3.0 * (v[1])        + 4.5 * (v[1])**2        - (3.0/2.0) * vv))
-    f_to[idx, 5] -= params.w_pos_lu * (f_to[idx, 5] - rho * (1/36) * (1 + 3.0 * (v[0] + v[1]) + 4.5 * (v[0] + v[1])**2 - (3.0/2.0) * vv))
-    f_to[idx, 6] -= params.w_pos_lu * (f_to[idx, 6] - rho * (1/36) * (1 - 3.0 * (v[0] + v[1]) + 4.5 * (v[0] + v[1])**2 - (3.0/2.0) * vv))
-    f_to[idx, 7] -= params.w_pos_lu * (f_to[idx, 7] - rho * (1/36) * (1 + 3.0 * (v[1] - v[0]) + 4.5 * (v[1] - v[0])**2 - (3.0/2.0) * vv))
-    f_to[idx, 8] -= params.w_pos_lu * (f_to[idx, 8] - rho * (1/36) * (1 + 3.0 * (v[0] - v[1]) + 4.5 * (v[0] - v[1])**2 - (3.0/2.0) * vv))
+    f_to[idx, 0] -= params.w_pos_lu * (f_to[idx, 0] - rho * (2/9)  * (2 - 3 * vv))
+    f_to[idx, 1] -= params.w_pos_lu * (f_to[idx, 1] - rho * (1/18) * (2 + 6 * v[0] + 9 * v[0]**2 - 3 * vv))
+    f_to[idx, 2] -= params.w_pos_lu * (f_to[idx, 2] - rho * (1/18) * (2 - 6 * v[0] + 9 * v[0]**2 - 3 * vv))
+    f_to[idx, 3] -= params.w_pos_lu * (f_to[idx, 3] - rho * (1/18) * (2 + 6 * v[1] + 9 * v[1]**2 - 3 * vv))
+    f_to[idx, 4] -= params.w_pos_lu * (f_to[idx, 4] - rho * (1/18) * (2 - 6 * v[1] + 9 * v[1]**2 - 3 * vv))
+    f_to[idx, 5] -= params.w_pos_lu * (f_to[idx, 5] - rho * (1/36) * (1 + 3 * (v[0] + v[1]) + 9 * vxy + 3 * vv))
+    f_to[idx, 6] -= params.w_pos_lu * (f_to[idx, 6] - rho * (1/36) * (1 - 3 * (v[0] + v[1]) + 9 * vxy + 3 * vv))
+    f_to[idx, 7] -= params.w_pos_lu * (f_to[idx, 7] - rho * (1/36) * (1 + 3 * (v[1] - v[0]) - 9 * vxy + 3 * vv))
+    f_to[idx, 8] -= params.w_pos_lu * (f_to[idx, 8] - rho * (1/36) * (1 - 3 * (v[1] - v[0]) - 9 * vxy + 3 * vv))
     # fmt: on
 
 
