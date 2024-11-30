@@ -125,11 +125,17 @@ def make_array(
 
 
 def flatten(dom: PeriodicDomain, arr: np.ndarray) -> np.ndarray:
+    """
+    TODO: Make this idempotent?
+    """
     assert np.ndim(arr) >= dom.dims
     return np.reshape(arr, (np.prod(dom.counts),) + arr.shape[dom.dims :])
 
 
 def unflatten(dom: PeriodicDomain, arr: np.ndarray, rev: bool = True) -> np.ndarray:
+    """
+    TODO: Make this idempotent?
+    """
     n = arr.shape[1:]
     c = tuple(dom.counts)
     if rev:
@@ -188,6 +194,28 @@ def calc_equilibrium(
                 * w
                 * (1 + 3.0 * qv / cs**1 + 4.5 * qv**2 / cs**2 - (3.0 / 2.0) * vv / cs**2)
             )
+
+    # return feq
+
+
+@numba.njit(
+    void(float32[:, ::1], float32[:], float32[:, ::1], float32, jc_arg(NumbaModel)),
+    parallel=True,
+)
+def calc_equilibrium_advdif(
+    v: np.ndarray,
+    C: np.ndarray,
+    feq: np.ndarray,
+    cs: float,
+    model: NumbaModel,
+) -> np.ndarray:
+    for idx in numba.prange(v.shape[0]):
+        vv = np.sum(v[idx, :] ** 2)
+        for i in range(len(model.ws)):
+            w = model.ws[i]
+            q = model.qs[i]
+            qv = np.sum(q * v[idx, :])
+            feq[idx, i] = C[idx] * w * (1 + qv / cs**2 + 0.5 * qv**2 / (cs**4) - 0.5 * vv / cs**2)
 
     # return feq
 
@@ -342,6 +370,36 @@ def collide_bgk_d2q9(
     f_to[idx, 6] -= params.w_pos_lu * (f_to[idx, 6] - rho * (1/36) * (1 - 3 * (v[0] + v[1]) + 9 * vxy + 3 * vv))
     f_to[idx, 7] -= params.w_pos_lu * (f_to[idx, 7] - rho * (1/36) * (1 + 3 * (v[1] - v[0]) - 9 * vxy + 3 * vv))
     f_to[idx, 8] -= params.w_pos_lu * (f_to[idx, 8] - rho * (1/36) * (1 - 3 * (v[1] - v[0]) - 9 * vxy + 3 * vv))
+    # fmt: on
+
+
+@numba.njit(
+    void(
+        int32,
+        float32[:, :],
+        float32,
+        float32[:],
+        float32,
+        jc_arg(NumbaParams),
+        jc_arg(NumbaModel),
+    ),
+    inline="always",
+    fastmath=True,
+)
+def collide_bgk_d2q5_advdif(
+    idx: int,
+    f_to: np.ndarray,
+    C: float,
+    v: np.ndarray,
+    vv: float,
+    params: NumbaParams,
+):
+    # fmt: off
+    f_to[idx, 0] -= params.w_pos_lu * (f_to[idx, 0] - C * (1/6) * (2 - vv))
+    f_to[idx, 1] -= params.w_pos_lu * (f_to[idx, 1] - C * (1/12) * (2 + 2*   v[0] + v[0]**2 - vv))
+    f_to[idx, 2] -= params.w_pos_lu * (f_to[idx, 2] - C * (1/12) * (2 - 2* v[0] + v[0]**2 - vv))
+    f_to[idx, 3] -= params.w_pos_lu * (f_to[idx, 3] - C * (1/12) * (2 + 2* v[1] + v[1]**2 - vv))
+    f_to[idx, 4] -= params.w_pos_lu * (f_to[idx, 4] - C * (1/12) * (2 - 2* v[1] + v[1]**2 - vv))
     # fmt: on
 
 

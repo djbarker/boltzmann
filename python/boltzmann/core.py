@@ -201,3 +201,17 @@ D2Q9 = Model(
         [1, -1],
     ],
 )
+
+# NOTE: order is not arbitrary
+#       1. rest velocity at index zero
+#       2. pairs of opposite velocities follow
+D2Q5 = Model(
+    [1 / 3, 1 / 6, 1 / 6, 1 / 6, 1 / 6],
+    [
+        [0, 0],
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+    ],
+)

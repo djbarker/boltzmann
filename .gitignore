@@ -76,3 +76,5 @@ docs/_build/
 *.vti
 *.png
 *.mp4
+**/out/
+**/checkpoint_*

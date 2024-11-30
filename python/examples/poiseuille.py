@@ -72,7 +72,7 @@ log.info("Starting")
 
 dom = DomainMeta.with_extent_and_counts(extent_si=[[0.00, 0.01], [0.00, 0.01]], counts=[101, 101])
 fld = FluidMeta(mu_si=0.01, rho_si=100)
-sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs=1.0)
+sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs_si=1.0)
 
 log.info(f"\n{pprint(asdict(sim), sort_dicts=False, width=10)}")
 
@@ -81,7 +81,7 @@ l_si = dom.extent_si[0, 1] - dom.extent_si[0, 0]
 
 # gravitational acceleration [m/s^2]
 g_si = 0.1
-g_lu = g_si * (sim.dt_si**2 / dom.dx_si)
+g_lu = g_si * (sim.dt_si / sim.cs_si)
 
 # max infinite time velocity
 v_si = (g_si / fld.nu_si) * (l_si**2) / 8
@@ -197,6 +197,9 @@ for out_i in range(1, max_i):
     curl = calc_curl_2d(pidx, vel_si, cell, params.dx_si)
     write_vti(tmpl_out.format(out_i), vel_si, rho_si, curl, cell, f1_si, pidx, params)
 
+    vmax_si = np.max(np.sqrt(np.sum(vel_si**2, -1)))
+
     log.info(f"Wrote {out_i=} {out_t=:.3f}, {mlups_batch=:.2f}, {mlups_total=:.2f}\r")
+    log.info(f"      {vmax_si=:.4f} m/s")
 
     out_t += out_dt
