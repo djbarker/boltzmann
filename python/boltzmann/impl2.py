@@ -2,6 +2,8 @@
 An implementation which uses numba.
 """
 
+from __future__ import annotations
+
 import numpy as np
 
 from typing import Type
@@ -10,10 +12,10 @@ import numba
 from numba.experimental import jitclass
 from numba import void, int32, int64, float32, float64
 
-from boltzmann.core import CellType, DimsT, to_dims, D2Q9 as D2Q9_
+from boltzmann.core import CellType, DimsT, to_dims, D2Q9 as D2Q9_, D2Q5 as D2Q5_
 
 
-def jc_arg(cls: Type):
+def jc_arg(cls: type):
     """
     Use a @jitclass type as an argument in eager @jit signature.
     """
@@ -21,9 +23,9 @@ def jc_arg(cls: Type):
 
 
 @jitclass(
-    {
+    spec={
         "ws": numba.float32[:],
-        "qs": numba.int32[:, :],
+        "qs": numba.int32[:, ::1],
         "js": numba.int32[:],
         "qs_f32": numba.float32[:, ::1],
     }
@@ -37,10 +39,11 @@ class NumbaModel:
 
 
 D2Q9 = NumbaModel(D2Q9_.ws, D2Q9_.qs, D2Q9_.js)
+D2Q5 = NumbaModel(D2Q5_.ws, D2Q5_.qs, D2Q5_.js)
 
 
 @jitclass(
-    {
+    spec={
         "dt_si": float32,
         "dx_si": float32,
         "cs_si": float32,
@@ -68,7 +71,7 @@ class NumbaParams:
 
 
 @jitclass(
-    {
+    spec={
         "counts": numba.int32[:],
         "dims": numba.int32,
     }
@@ -113,8 +116,8 @@ def copy_periodic(counts: np.ndarray, arr: np.ndarray) -> None:
 def make_array(
     dom: PeriodicDomain,
     dims: DimsT = None,
-    dtype: np.dtype = np.float32,
-    fill: float | int = 0.0,
+    dtype: np.dtype[np.float32 | np.int32] = np.float32,
+    fill: float | int = 0.0,  # noqa: PYI041
 ) -> np.ndarray:
     """
     Make a (possibly multi-dimensional) array where the first dimension is the 1d lattice index.
@@ -182,7 +185,7 @@ def calc_equilibrium(
     feq: np.ndarray,
     cs: float,
     model: NumbaModel,
-) -> np.ndarray:
+):
     for idx in numba.prange(v.shape[0]):
         vv = np.sum(v[idx, :] ** 2)
         for i in range(9):
@@ -208,7 +211,7 @@ def calc_equilibrium_advdif(
     feq: np.ndarray,
     cs: float,
     model: NumbaModel,
-) -> np.ndarray:
+):
     for idx in numba.prange(v.shape[0]):
         vv = np.sum(v[idx, :] ** 2)
         for i in range(len(model.ws)):
@@ -216,8 +219,6 @@ def calc_equilibrium_advdif(
             q = model.qs[i]
             qv = np.sum(q * v[idx, :])
             feq[idx, i] = C[idx] * w * (1 + qv / cs**2 + 0.5 * qv**2 / (cs**4) - 0.5 * vv / cs**2)
-
-    # return feq
 
 
 @numba.njit(
@@ -283,7 +284,6 @@ def loop_for(
     pidx: PeriodicDomain,
     model: NumbaModel,
 ):
-
     cs = params.cs_si
     counts = pidx.counts
 
@@ -294,7 +294,6 @@ def loop_for(
     assert np.prod(counts) == rho.shape[0]
 
     for _ in range(iters):
-
         # equillibrium
         calc_equilibrium(v, rho, feq, cs, model)
 
@@ -328,7 +327,7 @@ def loop_for(
 @numba.njit(
     void(
         int32,
-        float32[:, :],
+        float32[:, ::1],
         float32,
         float32[:],
         float32,
@@ -347,7 +346,6 @@ def collide_bgk_d2q9(
     params: NumbaParams,
     model: NumbaModel,
 ):
-
     # for i in numba.prange(9):
     #     w = model.ws[i]
     #     q = model.qs[i]
@@ -376,12 +374,10 @@ def collide_bgk_d2q9(
 @numba.njit(
     void(
         int32,
-        float32[:, :],
+        float32[:, ::1],
         float32,
         float32[:],
-        float32,
         jc_arg(NumbaParams),
-        jc_arg(NumbaModel),
     ),
     inline="always",
     fastmath=True,
@@ -391,22 +387,22 @@ def collide_bgk_d2q5_advdif(
     f_to: np.ndarray,
     C: float,
     v: np.ndarray,
-    vv: float,
     params: NumbaParams,
 ):
+    vv = np.sum(v * v)
     # fmt: off
-    f_to[idx, 0] -= params.w_pos_lu * (f_to[idx, 0] - C * (1/6) * (2 - vv))
-    f_to[idx, 1] -= params.w_pos_lu * (f_to[idx, 1] - C * (1/12) * (2 + 2*   v[0] + v[0]**2 - vv))
-    f_to[idx, 2] -= params.w_pos_lu * (f_to[idx, 2] - C * (1/12) * (2 - 2* v[0] + v[0]**2 - vv))
-    f_to[idx, 3] -= params.w_pos_lu * (f_to[idx, 3] - C * (1/12) * (2 + 2* v[1] + v[1]**2 - vv))
-    f_to[idx, 4] -= params.w_pos_lu * (f_to[idx, 4] - C * (1/12) * (2 - 2* v[1] + v[1]**2 - vv))
+    f_to[idx, 0] -= params.w_pos_lu * (f_to[idx, 0] - C * (1/6) * (2 - 3 * vv))
+    f_to[idx, 1] -= params.w_pos_lu * (f_to[idx, 1] - C * (1/12) * (2 + 6 * v[0] + 9 * v[0]**2 - 3 * vv))
+    f_to[idx, 2] -= params.w_pos_lu * (f_to[idx, 2] - C * (1/12) * (2 - 6 * v[0] + 9 * v[0]**2 - 3 * vv))
+    f_to[idx, 3] -= params.w_pos_lu * (f_to[idx, 3] - C * (1/12) * (2 + 6 * v[1] + 9 * v[1]**2 - 3 * vv))
+    f_to[idx, 4] -= params.w_pos_lu * (f_to[idx, 4] - C * (1/12) * (2 - 6 * v[1] + 9 * v[1]**2 - 3 * vv))
     # fmt: on
 
 
 @numba.njit(
     void(
         int32,
-        float32[:, :],
+        float32[:, ::1],
         float32,
         float32[:],
         float32,
@@ -478,8 +474,6 @@ def collide_trt_d2q9(
             int32[:],
             jc_arg(NumbaParams),
             jc_arg(NumbaModel),
-            float32[:, :],
-            float32[:],
         ),
     ],
     parallel=True,
@@ -489,18 +483,15 @@ def stream_and_collide(
     f_to: np.ndarray,
     f_from: np.ndarray,
     is_wall: np.ndarray,
-    update_vel: np.ndarray,
+    is_fixed: np.ndarray,
     counts: np.ndarray,
     params: NumbaParams,
     model: NumbaModel,
-    vel_si_o: np.ndarray,
-    rho_si_o: np.ndarray,
 ):
     assert f_to is not f_from
     assert np.prod(counts) == f_to.shape[0]
     assert np.prod(counts) == f_from.shape[0]
 
-    cs_si = params.cs_si
     qs = np.ascontiguousarray(model.qs_f32.T)
 
     for yidx in numba.prange(1, counts[1] - 1):
@@ -510,7 +501,7 @@ def stream_and_collide(
             # fmt: off
             update_f = ( 1 
                  * (1 - is_wall[idx])  # not wall
-                 * update_vel[idx]  # not fixed velocity
+                 * (1- is_fixed[idx])  # not fixed density & velocity / concentration
             )
             # fmt: on
 
@@ -519,7 +510,7 @@ def stream_and_collide(
 
             # stream
             f_to[idx, 0] = f_from[idx, 0]
-            for i in range(1, 9):
+            for i in range(1, len(model.qs)):
                 q = model.qs[i]
                 j = model.js[i]
                 idx_up = sub_to_idx(counts, xidx - q[0], yidx - q[1])
@@ -539,9 +530,6 @@ def stream_and_collide(
 
             vv_lu = np.sum(v_lu * v_lu)
 
-            # vel_si_o[idx, :] = v_lu * cs_si
-            # rho_si_o[idx] = rho_si
-
             collide_bgk_d2q9(idx, f_to, rho_si, v_lu, vv_lu, params, model)
             # collide_trt_d2q9(idx, f_to, rho_si, v_lu, vv_lu, params, model)
 
@@ -549,7 +537,7 @@ def stream_and_collide(
 @numba.njit(
     void(
         int64,
-        float32[:, :],
+        float32[:, ::1],
         float32[:],
         float32[:, ::1],
         float32[:, ::1],
@@ -568,12 +556,11 @@ def loop_for_2(
     f1_si,
     f2_si,
     is_wall,
-    update_vel,
+    is_fixed,
     params: NumbaParams,
     pidx: PeriodicDomain,
     model: NumbaModel,
 ):
-
     counts = pidx.counts
 
     assert f1_si is not f2_si
@@ -583,17 +570,12 @@ def loop_for_2(
     assert np.prod(counts) == rho_si.shape[0]
 
     for i in range(iters):
-
         if i % 2 == 0:
             pidx.copy_periodic(f1_si)
-            stream_and_collide(
-                f2_si, f1_si, is_wall, update_vel, counts, params, model, vel_si, rho_si
-            )
+            stream_and_collide(f2_si, f1_si, is_wall, is_fixed, counts, params, model)
         else:
             pidx.copy_periodic(f2_si)
-            stream_and_collide(
-                f1_si, f2_si, is_wall, update_vel, counts, params, model, vel_si, rho_si
-            )
+            stream_and_collide(f1_si, f2_si, is_wall, is_fixed, counts, params, model)
 
     # make sure output always ends in f1
     if iters % 2 != 0:
@@ -633,3 +615,159 @@ def calc_curl_2d(pidx: PeriodicDomain, v: np.ndarray, cell: np.ndarray, dx: floa
             curl[idx] = ((dydx2 - dydx1) - (dxdy2 - dxdy1)) / (2 * dx)
 
     return curl
+
+
+@numba.njit(
+    [
+        void(
+            float32[:, ::1],
+            float32[:, ::1],
+            float32[:, ::1],
+            int32[:],
+            int32[:],
+            int32[:],
+            jc_arg(NumbaParams),
+            jc_arg(NumbaModel),
+        ),
+    ],
+    parallel=True,
+    fastmath=True,
+)
+def stream_and_collide_advdif(
+    vel_si: np.ndarray,
+    f_to: np.ndarray,
+    f_from: np.ndarray,
+    is_wall: np.ndarray,
+    is_fixed: np.ndarray,
+    counts: np.ndarray,
+    params: NumbaParams,
+    model: NumbaModel,
+):
+    """
+    TODO: This is basically a copy-paste of `stream_and_collide` but adapted for advection-diffusion.
+          They are very similar and should be combined.
+    """
+    assert f_to is not f_from
+    assert np.prod(counts) == f_to.shape[0]
+    assert np.prod(counts) == f_from.shape[0]
+
+    # PONDER: this loop is being duplicated accross the two calls to stream_and_collide (one for
+    #         the fluid and one for adv. dif.) but perhaps combining is worse due to harming memory
+    #         locality?
+
+    for yidx in numba.prange(1, counts[1] - 1):
+        for xidx in range(1, counts[0] - 1):
+            idx = sub_to_idx(counts, xidx, yidx)
+
+            # fmt: off
+            update_f = ( 1 
+                 * (1 - is_wall[idx])  # not wall
+                 * (1- is_fixed[idx])  # not fixed density & velocity / concentration
+            )
+            # fmt: on
+
+            if update_f < 1:
+                continue
+
+            # stream
+            f_to[idx, 0] = f_from[idx, 0]
+            for i in range(1, len(model.qs)):
+                q = model.qs[i]
+                j = model.js[i]
+                idx_up = sub_to_idx(counts, xidx - q[0], yidx - q[1])
+                # fmt: off
+                f_to[idx, i] = (
+                    (
+                          f_from[idx_up, i] * (1 - is_wall[idx_up])  # stream
+                        + f_from[idx,    j] * (0 + is_wall[idx_up])  # bounceback
+                                   )
+                )
+                # fmt: on
+
+            # macroscopic
+            rho = np.sum(f_to[idx, :])
+            # TODO: we are wasting time doing this computation better to keep velocity in lattice units
+            v_lu = vel_si[idx, :] / params.cs_si
+
+            collide_bgk_d2q5_advdif(idx, f_to, rho, v_lu, params)
+
+
+@numba.njit(
+    void(
+        int64,
+        float32[:],
+        float32[:, ::1],
+        float32[:, ::1],
+        float32[:, ::1],
+        jc_arg(NumbaModel),
+        float32[:],
+        float32[:, ::1],
+        float32[:, ::1],
+        jc_arg(NumbaModel),
+        int32[:],
+        int32[:],
+        jc_arg(NumbaParams),
+        jc_arg(PeriodicDomain),
+    ),
+    parallel=True,
+)
+def loop_for_2_advdif(
+    iters: int,
+    rho_si,
+    vel_si,
+    f1_si,
+    f2_si,
+    model_f: NumbaModel,
+    conc,
+    g1_si,
+    g2_si,
+    model_g: NumbaModel,
+    is_wall,
+    is_fixed,
+    params: NumbaParams,
+    pidx: PeriodicDomain,
+):
+    counts = pidx.counts
+
+    assert g1_si is not g2_si
+    assert np.prod(counts) == g1_si.shape[0]
+    assert np.prod(counts) == g2_si.shape[0]
+    assert np.prod(counts) == vel_si.shape[0]
+    assert np.prod(counts) == conc.shape[0]
+
+    for i in range(iters):
+        if i % 2 == 0:
+            pidx.copy_periodic(f1_si)
+            stream_and_collide(f2_si, f1_si, is_wall, is_fixed, counts, params, model_f)
+
+            pidx.copy_periodic(g1_si)
+            stream_and_collide_advdif(
+                vel_si, g2_si, g1_si, is_wall, is_fixed, counts, params, model_g
+            )
+        else:
+            pidx.copy_periodic(f2_si)
+            stream_and_collide(f1_si, f2_si, is_wall, is_fixed, counts, params, model_f)
+
+            pidx.copy_periodic(g2_si)
+            stream_and_collide_advdif(
+                vel_si, g1_si, g2_si, is_wall, is_fixed, counts, params, model_g
+            )
+
+    # make sure output always ends in f1
+    if iters % 2 != 0:
+        f1_si[:] = f2_si[:]
+        g1_si[:] = g2_si[:]
+
+    # output macroscopic
+    qs = np.ascontiguousarray(model_f.qs_f32.T)
+    for yidx in numba.prange(1, counts[1] - 1):
+        for xidx in range(1, counts[0] - 1):
+            idx = sub_to_idx(counts, xidx, yidx)
+
+            rho_si_ = np.sum(f1_si[idx, :])
+            vel_si_ = np.dot(qs, f1_si[idx, :] / rho_si_) * params.cs_si
+            conc_ = np.sum(g1_si[idx, :])
+
+            vel_si[idx, :] = vel_si_
+            rho_si[idx] = rho_si_
+            conc[idx] = conc_

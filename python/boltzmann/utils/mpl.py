@@ -31,11 +31,11 @@ class PngWriter(object):
         self.data = data
         self.pidx = pidx
 
-        ey = domain.extent_si[0, 1] - domain.extent_si[0, 0]
-        ex = domain.extent_si[1, 1] - domain.extent_si[1, 0]
+        ey = domain.extent[0, 1] - domain.extent[0, 0]
+        ex = domain.extent[1, 1] - domain.extent[1, 0]
         ar = ey / ex
 
-        fig = plt.figure(figsize=(8, 8 / ar), **fig_kwargs)
+        fig = plt.figure(figsize=(10, 10 / ar), **fig_kwargs)
         ax1 = fig.add_subplot(1, 1, 1)
         ax1.imshow(data, vmin=vmin, vmax=vmax, cmap=cmap, interpolation="none")
 

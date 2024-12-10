@@ -72,16 +72,16 @@ cs_si = 1.0
 
 dom = DomainMeta.with_extent_and_counts(extent_si=[[-0.1, 0.1], [-0.1, 0.1]], counts=[751, 751])
 fld = FluidMeta(mu_si, rho_si)
-sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs_si=cs_si)
+sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs=cs_si)
 
 log.info(f"\n{pprint(asdict(sim), sort_dicts=False, width=18)}")
 
 n = 100
-out_dt_si = sim.dt_si * n
+out_dt_si = sim.dt * n
 
 # gravitational acceleration [m/s^2]
 g_si = 0.1
-g_lu = g_si * (sim.dt_si / sim.cs_si)
+g_lu = g_si * (sim.dt / sim.cs)
 
 log.info(f"Steps per output: {n=}")
 
@@ -95,14 +95,14 @@ from boltzmann.impl2 import *
 # make numba objects
 pidx = PeriodicDomain(dom.counts)
 g_lu = np.array([0.0, -g_lu], dtype=np.float32)
-params = NumbaParams(sim.dt_si, dom.dx_si, sim.cs_si, sim.w_pos_lu, sim.w_neg_lu, g_lu)
+params = NumbaParams(sim.dt, dom.dx, sim.cs, sim.w_pos_lu, sim.w_neg_lu, g_lu)
 
 # %% Initialize arrays
 
 f1 = make_array(pidx, 9)
 f2 = make_array(pidx, 9)
 vel_si = make_array(pidx, 2)
-rho_si = make_array(pidx, fill=fld.rho_si)
+rho_si = make_array(pidx, fill=fld.rho)
 cell = make_array(pidx, dtype=np.int32)
 
 np.random.seed(42)
@@ -175,7 +175,7 @@ def write_png(
     cell = unflatten(pidx, cell)[1:-1, 1:-1]
     vmag = np.where(cell == 1, np.nan, vmag)
 
-    ar = (dom.extent_si[0, 1] - dom.extent_si[0, 0]) / (dom.extent_si[1, 1] - dom.extent_si[1, 0])
+    ar = (dom.extent[0, 1] - dom.extent[0, 0]) / (dom.extent[1, 1] - dom.extent[1, 0])
 
     fig = plt.figure(figsize=(8, 8 / ar), facecolor="#252525")
     ax1 = fig.add_subplot(1, 1, 1)
@@ -221,7 +221,7 @@ out_i = 1
 out_t = out_dt_si
 max_i = 50
 
-batch_i = int((out_dt_si + 1e-8) // sim.dt_si)
+batch_i = int((out_dt_si + 1e-8) // sim.dt)
 
 log.info(f"{batch_i:,d} iters/output")
 

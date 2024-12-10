@@ -4,33 +4,25 @@ import os
 
 from dataclasses import dataclass, field
 
-LOG_FMT_STRING = "{asctime:s} - {levelname:5.5s} - [{module}] {message}"
-
-
-class UtilHandler(logging.Handler):
-    pass
-
 
 def basic_config(logger: logging.Logger | None = None, level: int | str | None = None):
-
     logger = logger or logging.getLogger()
-
-    logging.basicConfig
 
     match level:
         case int():
             pass
         case str():
-            level = logging.getLevelName(level)  # confusing function name :shrug:
+            level = logging.getLevelName(level)
         case None:
             level = logging.getLevelName(os.environ.get("LOG_LEVEL", "INFO"))
         case _:
-            raise TypeError(f"Expected int, str or None")
+            raise TypeError("Expected int, str or None")
 
     for h in logger.handlers:
         logger.removeHandler(h)
 
-    formatter = logging.Formatter(LOG_FMT_STRING, style=r"{")
+    fmt = "{asctime:s} - {levelname:5.5s} - [{module}] {message}"
+    formatter = logging.Formatter(fmt=fmt, style=r"{")
 
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)

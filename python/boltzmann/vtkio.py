@@ -6,11 +6,14 @@ from vtk.util.numpy_support import numpy_to_vtk
 from boltzmann.impl2 import PeriodicDomain, NumbaParams, unflatten
 
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
-# need 3d vectors for vtk
 def _to3d(v: np.ndarray):
+    """
+    VTK needs 3D vectors to display correctly.
+    Pads 2D vectors with zeros and leaves 3D untouched.
+    """
     if v.shape[-1] == 2:
         return np.pad(v, [(0, 0), (0, 1)])
     else:
@@ -79,7 +82,7 @@ class VtiWriter:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
-            log.warning(f"Not writing VTK file due to exception. [path={self.path!r}]")
+            logger.warning(f"Not writing VTK file due to exception. [path={self.path!r}]")
             return
 
         self.write()

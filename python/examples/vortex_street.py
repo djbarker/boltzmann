@@ -44,16 +44,16 @@ cs_si = v0_si * cs_mult
 
 dom = DomainMeta.with_extent_and_counts(extent_si=[[-0.2, 0.3], [-0.1, 0.1]], counts=[1876, 751])
 fld = FluidMeta(mu_si, rho_si)
-sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs_si=cs_si)
+sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs=cs_si)
 
 log.info(f"\n{pprint(asdict(sim), sort_dicts=False, width=10)}")
 
 # dimensionless time does not depend on viscosity, purely on distances
 out_dx_si = r_si / 8.0  # want to output when flow has moved this far
-sim_dx_si = v0_si * sim.dt_si  # flow moves this far in dt (i.e. one iteration)
+sim_dx_si = v0_si * sim.dt  # flow moves this far in dt (i.e. one iteration)
 n = out_dx_si / sim_dx_si
 n = int(n + 1e-8)
-out_dt_si = sim.dt_si * n
+out_dt_si = sim.dt * n
 
 log.info(f"Steps per output: {n=}")
 
@@ -67,14 +67,14 @@ from boltzmann.impl2 import *
 # make numba objects
 pidx = PeriodicDomain(dom.counts)
 g_lu = np.array([0.0, 0.0], dtype=np.float32)
-params = NumbaParams(sim.dt_si, dom.dx_si, sim.cs_si, sim.w_pos_lu, sim.w_neg_lu, g_lu)
+params = NumbaParams(sim.dt, dom.dx, sim.cs, sim.w_pos_lu, sim.w_neg_lu, g_lu)
 
 # %% Initialize arrays
 
 f1 = make_array(pidx, 9)
 f2 = make_array(pidx, 9)
 vel_si = make_array(pidx, 2)
-rho_si = make_array(pidx, fill=fld.rho_si)
+rho_si = make_array(pidx, fill=fld.rho)
 cell = make_array(pidx, dtype=np.int32)
 
 # introduce slight randomness to initial density
@@ -225,7 +225,7 @@ def write_png(
         case _:
             raise ValueError(f"{what=!r}")
 
-    ar = (dom.extent_si[0, 1] - dom.extent_si[0, 0]) / (dom.extent_si[1, 1] - dom.extent_si[1, 0])
+    ar = (dom.extent[0, 1] - dom.extent[0, 0]) / (dom.extent[1, 1] - dom.extent[1, 0])
 
     fig = plt.figure(figsize=(8, 8 / ar), facecolor=fcol)
     ax1 = fig.add_subplot(1, 1, 1)
@@ -273,7 +273,7 @@ out_i = 1
 out_t = out_dt_si
 max_i = 1000
 
-batch_i = int((out_dt_si + 1e-8) // sim.dt_si)
+batch_i = int((out_dt_si + 1e-8) // sim.dt)
 
 log.info(f"{batch_i:,d} iters/output")
 
