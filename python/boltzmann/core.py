@@ -5,9 +5,9 @@ import numpy as np
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Sequence
+from typing import Sequence, TypeVar, cast
 
-from boltzmann.utils.option import Some, to_opt
+from boltzmann.utils.option import Some, to_opt, map_opt, Option, unwrap
 
 
 logger = logging.getLogger(__name__)
@@ -50,28 +50,63 @@ class DomainMeta:
 
     lower: np.ndarray
     upper: np.ndarray
+    counts: np.ndarray
     dx: float
-    dims: int = field(init=False)
-    counts: np.ndarray = field(init=False)
+    dims: int
 
-    def __post_init__(self):
-        self.lower = to_array1d(self.lower)
-        self.upper = to_array1d(self.upper)
-        assert self.lower.ndim == 1
-        assert self.lower.shape == self.upper.shape
-        self.dims = len(self.lower)
-        self.counts = np.array(
-            (self.upper - self.lower) / self.dx,
-            dtype=np.int32,
-        )
+    @staticmethod
+    def make(
+        lower: Option[Array1dT] = None,
+        upper: Option[Array1dT] = None,
+        counts: Option[Array1dT] = None,
+        dx: Option[float] = None,
+    ) -> DomainMeta:
+        lower_ = map_opt(lower, to_array1d)
+        upper_ = map_opt(upper, to_array1d)
+        counts_ = map_opt(counts, to_array1d)
+        dx = to_opt(dx)
+
+        eps = 1e-8
+
+        # When specified, dx is used to infer the others.
+        # The lower bound is always implicitly zero if not specified.
+        # After this match ll, uu, and cc should be non-None, we don't care about dx.
+        match (lower_, upper_, counts_, dx):
+            case Some(ll), Some(uu), Some(cc), None:
+                pass
+            case None, Some(uu), Some(cc), None:
+                ll = np.zeros_like(uu)
+            case Some(ll), Some(uu), None, Some(d):
+                cc = (uu - ll + eps) / d
+            case Some(ll), None, Some(cc), Some(d):
+                uu = ll + cc * d
+            case None, None, Some(cc), Some(d):
+                uu = d * cc
+                ll = np.zeros_like(uu)
+            case None, Some(uu), None, Some(d):
+                cc = uu / d
+                ll = np.zeros_like(uu)
+            case _:
+                raise ValueError("Invalid argument combination!")
+
+        lower = ll
+        upper = uu
+        counts = cc
 
         # sanity check values
-        assert self.dx > 0
-        for i, (l, u, c) in enumerate(zip(self.lower, self.upper, self.counts)):
-            dx_ = (u - l) / c
-            assert (
-                abs(dx_ - self.dx) < 1e-8
-            ), f"dx differs from dimension 0 for dimension {i}. [{l=}, {u=}, {c=} => {dx_=}]"
+
+        assert lower.ndim == 1
+        assert lower.shape == upper.shape
+        assert lower.shape == counts.shape
+        assert upper.shape == counts.shape
+        assert all(upper > lower)
+        assert all(counts > 0)
+        dx_ = (upper - lower) / counts
+        assert np.allclose(dx_, dx_[0])
+
+        counts = np.array(counts, dtype=np.int32)
+
+        return DomainMeta(lower, upper, counts, dx_[0], len(counts))
 
     def get_dim(self, dim: int) -> np.ndarray:
         assert dim < self.dims, f"Invalid dim! [{dim=}, {self.dims=}]"
@@ -104,23 +139,6 @@ class DomainMeta:
     @property
     def depth(self) -> float:
         return self.get_extent(2)
-
-    @staticmethod
-    def with_dx_and_counts(dx: float, counts: Array1dT) -> "DomainMeta":
-        counts = to_array1d(counts)
-        return DomainMeta(np.zeros_like(counts), counts * dx, dx)
-
-    @staticmethod
-    def with_extent_and_counts(
-        lower: Array1dT, upper: Array1dT, counts: Array1dT
-    ) -> "DomainMeta":
-        lower = to_array1d(lower)
-        upper = to_array1d(upper)
-        counts = to_array1d(counts)
-        assert lower.shape == counts.shape
-        assert upper.shape == counts.shape
-        dx = (upper[0] - lower[0]) / (counts[0] - 1)
-        return DomainMeta(lower, upper, dx)
 
     def make_array(
         self,
@@ -197,35 +215,34 @@ class Scales:
 
         match (x_, t_, c_):
             case (None, Some(t), Some(c)):
-                x = c * np.sqrt(3) * t
+                x = (c * np.sqrt(3)) * t
             case (Some(x), None, Some(c)):
-                x = x / np.sqrt(3)
-                t = x / c
+                t = x / (c * np.sqrt(3))
             case (Some(x), Some(t), None):
-                x = x / np.sqrt(3)
+                pass
             case _:
-                msg = (
-                    f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
-                )
+                msg = f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
                 raise ValueError(msg)
 
         return Scales(x, t, dm)
 
     @property
     def cs(self) -> float:
-        # Remember, dx already contains the factor 1/sqrt(3).
-        return self.dx / self.dt
-
-    @property
-    def inv(self) -> Scales:
-        return Scales(1 / self.dx, 1 / self.dt, 1 / self.dm)
-
-    def rescale(self, value: float, L: int = 0, T: int = 0, M: int = 0) -> float:
         """
-        Correctly rescale a dimensional quantity.
-        Dimensions are specified by passing non-zero values to the kwargs L, T and M.
+        NOTE: Only use this if you _really_ mean the speed of sound.
+              If you are just converting a velocity to physical units this is the wrong thing.
         """
+        return (self.dx / self.dt) / np.sqrt(3)
+
+    def to_lattice_units(
+        self, value: float | np.ndarray, L: int = 0, T: int = 0, M: int = 0
+    ) -> float | np.ndarray:
         return value * pow(self.dx, -L) * pow(self.dt, -T) * pow(self.dm, -M)
+
+    def to_physical_units(
+        self, value: float | np.ndarray, L: int = 0, T: int = 0, M: int = 0
+    ) -> float | np.ndarray:
+        return value * pow(self.dx, L) * pow(self.dt, T) * pow(self.dm, M)
 
 
 VELOCITY = dict(L=1, T=-1)
@@ -260,13 +277,22 @@ class FluidMeta:
 
         return FluidMeta(r, m, n)
 
-    def rescale(self, scale: Scales) -> FluidMeta:
+    def to_lattice_units(self, scale: Scales) -> FluidMeta:
         """
         Convert the unit scales.
         """
         return FluidMeta.make(
             rho=self.rho / (scale.dm / scale.dx**3),
             nu=self.nu / (scale.cs**2 * scale.dt),
+        )
+
+    def to_physical_units(self, scale: Scales) -> FluidMeta:
+        """
+        Convert the unit scales.
+        """
+        return FluidMeta.make(
+            rho=self.rho * (scale.dm / scale.dx**3),
+            nu=self.nu * (scale.cs**2 * scale.dt),
         )
 
 
@@ -298,14 +324,19 @@ class SimulationMeta:
     w_neg_lu: float = field(init=False)
 
     def __post_init__(self) -> None:
-        nu_lu = self.fluid.rescale(self.scales).nu
+        nu_lu = self.fluid.to_lattice_units(self.scales).nu
 
         l_ = 0.25  # magic parameter
         tau_pos_lu = nu_lu + 0.5
         tau_neg_lu = l_ / nu_lu + 0.5
 
         if tau_pos_lu < 0.6:
+            # stability can suffer but sim will be accurate
             logger.warning(f"Small value for tau! [{tau_pos_lu=}]")
+
+        if tau_pos_lu > 1.0:
+            # error grows with tau and this leads to very inaccurate simulations
+            raise ValueError(f"Large value for tau! [{tau_pos_lu=}]")
 
         w_pve_lu = 1.0 / tau_pos_lu
         w_nve_lu = 1.0 / tau_neg_lu
