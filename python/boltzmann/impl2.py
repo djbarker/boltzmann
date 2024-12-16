@@ -46,7 +46,6 @@ D2Q5 = NumbaModel(D2Q5_.ws, D2Q5_.qs, D2Q5_.js)
     spec={
         "dt_si": float32,
         "dx_si": float32,
-        # "cs_si": float32,
         "w_pos_lu": float32,
         "w_neg_lu": float32,
         "g_lu": float32[:],
@@ -57,14 +56,12 @@ class NumbaParams:
         self,
         dt_si: float,
         dx_si: float,
-        # cs_si: float,
         w_pos_lu: float,
         w_neg_lu: float,
         g_lu: np.ndarray,
     ):
         self.dt_si = dt_si
         self.dx_si = dx_si
-        # self.cs_si = cs_si
         self.w_pos_lu = w_pos_lu
         self.w_neg_lu = w_neg_lu
         self.g_lu = g_lu
@@ -207,7 +204,6 @@ def calc_equilibrium_advdif(
     v: np.ndarray,
     C: np.ndarray,
     feq: np.ndarray,
-    cs: float,
     model: NumbaModel,
 ):
     for idx in numba.prange(v.shape[0]):
@@ -216,7 +212,7 @@ def calc_equilibrium_advdif(
             w = model.ws[i]
             q = model.qs[i]
             qv = np.sum(q * v[idx, :])
-            feq[idx, i] = C[idx] * w * (1 + qv / cs**2 + 0.5 * qv**2 / (cs**4) - 0.5 * vv / cs**2)
+            feq[idx, i] = C[idx] * w * (1 + 3 * qv + 4.5 * qv**2 - 1.5 * vv)
 
 
 @numba.njit(
@@ -282,7 +278,6 @@ def loop_for(
     pidx: PeriodicDomain,
     model: NumbaModel,
 ):
-    # cs = params.cs_si
     counts = pidx.counts
 
     assert f is not feq
@@ -296,7 +291,7 @@ def loop_for(
         calc_equilibrium(v, rho, feq, model)
 
         if np.any(~np.isfinite(feq)):
-            raise ValueError(f"non finite value in feq")
+            raise ValueError("non finite value in feq")
 
         # collide
         f += (feq - f) * params.w_pos_lu
@@ -329,8 +324,7 @@ def loop_for(
         float32,
         float32[:],
         float32,
-        jc_arg(NumbaParams),
-        jc_arg(NumbaModel),
+        float32,
     ),
     inline="always",
     fastmath=True,
@@ -341,31 +335,21 @@ def collide_bgk_d2q9(
     rho: float,
     v: np.ndarray,
     vv: float,
-    params: NumbaParams,
-    model: NumbaModel,
+    omega: float,
 ):
-    # for i in numba.prange(9):
-    #     w = model.ws[i]
-    #     q = model.qs[i]
-    #     qv = np.sum(q * v)
-
-    #     feq = rho * w * (1 + 3.0 * qv + 4.5 * qv**2 - (3.0 / 2.0) * vv)
-
-    #     f_to[idx, i] = f_to[idx, i] + (feq - f_to[idx, i]) * params.w_pos_lu
-
     # Already D2Q9 specific so write it out
     # Writing it out explicitly like this does seem a bit faster.
     vxy = v[0] * v[1]
     # fmt: off
-    f_to[idx, 0] -= params.w_pos_lu * (f_to[idx, 0] - rho * (2/9)  * (2 - 3 * vv))
-    f_to[idx, 1] -= params.w_pos_lu * (f_to[idx, 1] - rho * (1/18) * (2 + 6 * v[0] + 9 * v[0]**2 - 3 * vv))
-    f_to[idx, 2] -= params.w_pos_lu * (f_to[idx, 2] - rho * (1/18) * (2 - 6 * v[0] + 9 * v[0]**2 - 3 * vv))
-    f_to[idx, 3] -= params.w_pos_lu * (f_to[idx, 3] - rho * (1/18) * (2 + 6 * v[1] + 9 * v[1]**2 - 3 * vv))
-    f_to[idx, 4] -= params.w_pos_lu * (f_to[idx, 4] - rho * (1/18) * (2 - 6 * v[1] + 9 * v[1]**2 - 3 * vv))
-    f_to[idx, 5] -= params.w_pos_lu * (f_to[idx, 5] - rho * (1/36) * (1 + 3 * (v[0] + v[1]) + 9 * vxy + 3 * vv))
-    f_to[idx, 6] -= params.w_pos_lu * (f_to[idx, 6] - rho * (1/36) * (1 - 3 * (v[0] + v[1]) + 9 * vxy + 3 * vv))
-    f_to[idx, 7] -= params.w_pos_lu * (f_to[idx, 7] - rho * (1/36) * (1 + 3 * (v[1] - v[0]) - 9 * vxy + 3 * vv))
-    f_to[idx, 8] -= params.w_pos_lu * (f_to[idx, 8] - rho * (1/36) * (1 - 3 * (v[1] - v[0]) - 9 * vxy + 3 * vv))
+    f_to[idx, 0] -= omega * (f_to[idx, 0] - rho * (2/9)  * (2 - 3 * vv))
+    f_to[idx, 1] -= omega * (f_to[idx, 1] - rho * (1/18) * (2 + 6 * v[0] + 9 * v[0]**2 - 3 * vv))
+    f_to[idx, 2] -= omega * (f_to[idx, 2] - rho * (1/18) * (2 - 6 * v[0] + 9 * v[0]**2 - 3 * vv))
+    f_to[idx, 3] -= omega * (f_to[idx, 3] - rho * (1/18) * (2 + 6 * v[1] + 9 * v[1]**2 - 3 * vv))
+    f_to[idx, 4] -= omega * (f_to[idx, 4] - rho * (1/18) * (2 - 6 * v[1] + 9 * v[1]**2 - 3 * vv))
+    f_to[idx, 5] -= omega * (f_to[idx, 5] - rho * (1/36) * (1 + 3 * (v[0] + v[1]) + 9 * vxy + 3 * vv))
+    f_to[idx, 6] -= omega * (f_to[idx, 6] - rho * (1/36) * (1 - 3 * (v[0] + v[1]) + 9 * vxy + 3 * vv))
+    f_to[idx, 7] -= omega * (f_to[idx, 7] - rho * (1/36) * (1 + 3 * (v[1] - v[0]) - 9 * vxy + 3 * vv))
+    f_to[idx, 8] -= omega * (f_to[idx, 8] - rho * (1/36) * (1 - 3 * (v[1] - v[0]) - 9 * vxy + 3 * vv))
     # fmt: on
 
 
@@ -375,7 +359,7 @@ def collide_bgk_d2q9(
         float32[:, ::1],
         float32,
         float32[:],
-        jc_arg(NumbaParams),
+        float32,
     ),
     inline="always",
     fastmath=True,
@@ -385,15 +369,15 @@ def collide_bgk_d2q5_advdif(
     f_to: np.ndarray,
     C: float,
     v: np.ndarray,
-    params: NumbaParams,
+    omega: float,
 ):
     vv = np.sum(v * v)
     # fmt: off
-    f_to[idx, 0] -= params.w_pos_lu * (f_to[idx, 0] - C * (1/6) * (2 - 3 * vv))
-    f_to[idx, 1] -= params.w_pos_lu * (f_to[idx, 1] - C * (1/12) * (2 + 6 * v[0] + 9 * v[0]**2 - 3 * vv))
-    f_to[idx, 2] -= params.w_pos_lu * (f_to[idx, 2] - C * (1/12) * (2 - 6 * v[0] + 9 * v[0]**2 - 3 * vv))
-    f_to[idx, 3] -= params.w_pos_lu * (f_to[idx, 3] - C * (1/12) * (2 + 6 * v[1] + 9 * v[1]**2 - 3 * vv))
-    f_to[idx, 4] -= params.w_pos_lu * (f_to[idx, 4] - C * (1/12) * (2 - 6 * v[1] + 9 * v[1]**2 - 3 * vv))
+    f_to[idx, 0] -= omega * (f_to[idx, 0] - C * (1/6) * (2 - 3 * vv))
+    f_to[idx, 1] -= omega * (f_to[idx, 1] - C * (1/12) * (2 + 6 * v[0] + 9 * v[0]**2 - 3 * vv))
+    f_to[idx, 2] -= omega * (f_to[idx, 2] - C * (1/12) * (2 - 6 * v[0] + 9 * v[0]**2 - 3 * vv))
+    f_to[idx, 3] -= omega * (f_to[idx, 3] - C * (1/12) * (2 + 6 * v[1] + 9 * v[1]**2 - 3 * vv))
+    f_to[idx, 4] -= omega * (f_to[idx, 4] - C * (1/12) * (2 - 6 * v[1] + 9 * v[1]**2 - 3 * vv))
     # fmt: on
 
 
@@ -528,7 +512,7 @@ def stream_and_collide(
 
             vv_lu = np.sum(v_lu * v_lu)
 
-            collide_bgk_d2q9(idx, f_to, rho, v_lu, vv_lu, params, model)
+            collide_bgk_d2q9(idx, f_to, rho, v_lu, vv_lu, params.w_pos_lu)
             # collide_trt_d2q9(idx, f_to, rho_si, v_lu, vv_lu, params, model)
 
 
