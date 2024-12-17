@@ -5,7 +5,7 @@ import numpy as np
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Sequence, TypeVar, cast
+from typing import Sequence, Type
 
 from boltzmann.utils.option import Some, to_opt, map_opt, Option, unwrap
 
@@ -143,11 +143,11 @@ class DomainMeta:
     def make_array(
         self,
         dims: DimsT = None,
-        dtype: np.dtype = np.float32,
+        dtype: Type[np.float32] | Type[np.int32] = np.float32,
         fill: float | int = 0.0,
     ) -> np.ndarray:
         dims = to_dims(dims)
-        dims = list(self.counts + 2) + dims  # + 2 for periodic BCs
+        dims = [int(np.prod(self.counts + 2))] + dims  # + 2 for periodic BCs
         return np.full(dims, fill, dtype)
 
 
@@ -400,3 +400,37 @@ D2Q5 = Model(
         [0, -1],
     ],
 )
+
+
+def calc_equilibrium(
+    vel: np.ndarray,  # in lattice units
+    rho: np.ndarray,
+    feq: np.ndarray,
+    model: Model,
+):
+    """
+    Velocity is measured in lattice-units.
+    """
+    vv = np.sum(vel**2, axis=1)
+    for i in range(9):
+        w = model.ws[i]
+        q = model.qs[i]
+        qv = vel @ q
+        feq[:, i] = rho * w * (1 + 3.0 * qv + 4.5 * qv**2 - (3.0 / 2.0) * vv)
+
+
+def calc_equilibrium_advdif(
+    vel: np.ndarray,
+    C: np.ndarray,
+    feq: np.ndarray,
+    model: Model,
+):
+    """
+    Velocity is measured in lattice-units.
+    """
+    vv = np.sum(vel**2, -1)
+    for i in range(len(model.ws)):
+        w = model.ws[i]
+        q = model.qs[i]
+        qv = vel @ q
+        feq[:, i] = C * w * (1 + 3 * qv + 4.5 * qv**2 - 1.5 * vv)

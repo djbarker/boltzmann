@@ -37,7 +37,7 @@ logger.info("Starting")
 l_si = 0.01
 
 # gravitational acceleration [m/s^2]
-g_si = 0.1
+g_si = 0.2
 
 # max infinite time velocity
 mu_si = 0.01
@@ -81,9 +81,7 @@ g_lu = np.array([0, g_lu], dtype=np.float32)
 logger.info("Compiling using Numba...")
 
 from boltzmann.impl2 import (  # noqa: E402
-    calc_equilibrium,
     loop_for_2,
-    make_array,
     unflatten,
     PeriodicDomain,
     NumbaParams,
@@ -114,6 +112,7 @@ cells_[:, 1] = CellType.BC_WALL.value
 cells_[:, -2] = CellType.BC_WALL.value
 
 # flag arrays
+# TODO: this is duped between sims
 is_wall = (cells.cells == CellType.BC_WALL.value).astype(np.int32)
 is_fixed = (cells.cells != CellType.FLUID.value).astype(np.int32)
 

@@ -31,7 +31,6 @@ def to_vtk_type(np_dtype: np.dtype) -> int:
 
 
 class VtiWriter:
-
     def __init__(self, path: str, pidx: PeriodicDomain):
         self.path = path
         self.pidx = pidx

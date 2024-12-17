@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -10,10 +11,9 @@ from boltzmann.core import DomainMeta
 
 
 class PngWriter(object):
-
     def __init__(
         self,
-        path: str,
+        path: str | Path,
         domain: DomainMeta,
         pidx: PeriodicDomain,
         cell: np.ndarray,
@@ -23,7 +23,6 @@ class PngWriter(object):
         vmax: float,
         fig_kwargs: dict[str, Any],
     ):
-
         cell = unflatten(pidx, cell)[1:-1, 1:-1]
         data = unflatten(pidx, data)[1:-1, 1:-1]
         data = np.where(cell == 1, np.nan, data)
@@ -31,8 +30,8 @@ class PngWriter(object):
         self.data = data
         self.pidx = pidx
 
-        ey = domain.extent[0, 1] - domain.extent[0, 0]
-        ex = domain.extent[1, 1] - domain.extent[1, 0]
+        ey = domain.upper[0] - domain.lower[0]
+        ex = domain.upper[1] - domain.lower[1]
         ar = ey / ex
 
         fig = plt.figure(figsize=(10, 10 / ar), **fig_kwargs)

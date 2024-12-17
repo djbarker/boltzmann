@@ -8,62 +8,99 @@ from dataclasses import dataclass
 from typing import Protocol
 
 
-from boltzmann.core import SimulationMeta
+from boltzmann.core import (
+    DomainMeta,
+    Model,
+    SimulationMeta,
+    calc_equilibrium,
+    calc_equilibrium_advdif,
+)
 from boltzmann.utils.logger import PerfInfo, tick
 
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(init=False)
 class Cells:
     cells: np.ndarray
 
+    def __init__(self, domain: DomainMeta) -> None:
+        self.cells = domain.make_array(dtype=np.int32)
+
     def save(self, base: Path):
-        assert base.is_dir(), "Base path must be a directory!"
         np.save(base / "chk.cells.npy", self.cells)
 
     def load(self, base: Path):
-        assert base.is_dir(), "Base path must be a directory!"
-        self.cells = np.load(base / "chk.cells.npy")
+        self.cells[:] = np.load(base / "chk.cells.npy")
 
 
-@dataclass
+@dataclass(init=False)
 class Field:
     name: str
-    f1: np.ndarray
+    model: Model
+
+    f1: np.ndarray = field(init=False)
     f2: np.ndarray = field(init=False)
 
-    def __post_init__(self):
-        self.f2 = self.f1.copy()
+    def __init__(self, name: str, model: Model, domain: DomainMeta) -> None:
+        self.name = name
+        self.model = model
+        self.f1 = domain.make_array(model.Q)
+        self.f2 = domain.make_array(model.Q)
 
     def save(self, base: Path):
-        assert base.is_dir(), "Base path must be a directory!"
         np.save(base / f"chk.{self.name}.npy", self.f1)
 
     def load(self, base: Path):
-        assert base.is_dir(), "Base path must be a directory!"
-        self.f1 = np.load(base / f"chk.{self.name}.npy")
+        self.f1[:] = np.load(base / f"chk.{self.name}.npy")
         self.f2[:] = self.f1[:]
 
 
-@dataclass
+@dataclass(init=False)
 class FluidField(Field):
     rho: np.ndarray
     vel: np.ndarray
 
-    def __post_init__(self):
-        super().__post_init__()  # Field.__post_init_()
-        assert self.f1.shape[:-1] == self.rho.shape
-        assert self.f1.shape[:-1] == self.vel.shape[:-1]
+    def __init__(self, name: str, model: Model, domain: DomainMeta) -> None:
+        super().__init__(name, model, domain)
+        self.rho = domain.make_array()
+        self.vel = domain.make_array(2)
+
+    def load(self, base: Path):
+        super().load(base)
+        self.macro()  # recalc momements
+
+    def macro(self):
+        # careful to repopulate existing arrays
+        self.rho[:] = np.sum(self.f1, axis=-1)
+        self.vel[:] = np.dot(self.f1, self.model.qs)
+
+    def equilibrate(self):
+        calc_equilibrium(self.vel, self.rho, self.f1, self.model)
+        self.f2[:] = self.f1[:]
 
 
-@dataclass
+@dataclass(init=False)
 class ScalarField(Field):
     val: np.ndarray
 
-    def __post_init__(self):
-        assert self.f1.shape[:-1] == self.val.shape
+    def __init__(self, name: str, model: Model, domain: DomainMeta) -> None:
+        super().__init__(name, model, domain)
+        self.val = domain.make_array()
+
+    def load(self, base: Path):
+        super().load(base)
+        self.macro()  # recalc momements
+
+    def macro(self):
+        # careful to repopulate existing arrays
+        self.val[:] = np.sum(self.f1, axis=-1)
+
+    def equilibrate(self, vel: np.ndarray):
+        assert vel.shape[-1] == self.model.D, "Dimension mismatch!"
+        calc_equilibrium_advdif(vel, self.val, self.f1, self.model)
+        self.f2[:] = self.f1[:]
 
 
 class SimulationLoop(Protocol):
@@ -81,7 +118,11 @@ class SimulationRunner:
         loop: SimulationLoop,
         step: int = 0,
     ):
-        assert base.is_dir(), f"Base path must be a directory! [{base=}]"
+        if base.exists():
+            assert base.is_dir(), f"Base path must be a directory! [{base=}]"
+        else:
+            base.mkdir()
+
         self.base = base
         self.meta = meta
         self.loop = loop
@@ -91,6 +132,8 @@ class SimulationRunner:
     def load_checkpoint(
         base: Path, meta: SimulationMeta, loop: SimulationLoop
     ) -> "SimulationRunner":
+        logger.info(f"Reading checkpoint from '{base}'")
+
         # read meta-data
         with open(base / "chk.meta.json", "r") as fin:
             step = json.loads(fin.read())["step"]
@@ -103,12 +146,16 @@ class SimulationRunner:
     def run(self):
         batch_iters = self.meta.time.batch_steps(self.meta.scales.dt)
         logger.info(f"{batch_iters} iters/output")
+        logger.info(f"{np.prod(self.meta.domain.counts) / 1e6:,.2f}m cells")
 
-        self.loop.write_output(self.base, 0)
+        if self.step > 0:
+            logger.info(f"Resuming from step {self.step}")
+        else:
+            self.loop.write_output(self.base, self.step)
 
         perf_total = PerfInfo()
         out_i = self.meta.time.output_count
-        for i in range(1, out_i):
+        for i in range(self.step + 1, out_i):
             perf_batch = tick()
 
             self.loop.loop_for(batch_iters)

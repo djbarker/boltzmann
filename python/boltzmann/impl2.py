@@ -5,12 +5,9 @@ An implementation which uses numba.
 from __future__ import annotations
 
 import numpy as np
-
-from typing import Type
-
 import numba
 from numba.experimental import jitclass
-from numba import void, int32, int64, float32, float64
+from numba import void, int32, int64, float32
 
 from boltzmann.core import CellType, DimsT, to_dims, D2Q9 as D2Q9_, D2Q5 as D2Q5_
 
@@ -29,7 +26,7 @@ def jc_arg(cls: type):
         "js": numba.int32[:],
         "qs_f32": numba.float32[:, ::1],
     }
-)
+)  # type: ignore
 class NumbaModel:
     def __init__(self, ws: np.ndarray, qs: np.ndarray, js: np.ndarray):
         self.ws = ws
@@ -50,7 +47,7 @@ D2Q5 = NumbaModel(D2Q5_.ws, D2Q5_.qs, D2Q5_.js)
         "w_neg_lu": float32,
         "g_lu": float32[:],
     }
-)
+)  # type: ignore
 class NumbaParams:
     def __init__(
         self,
@@ -72,7 +69,7 @@ class NumbaParams:
         "counts": numba.int32[:],
         "dims": numba.int32,
     }
-)
+)  # type: ignore
 class PeriodicDomain:
     def __init__(self, counts: np.ndarray):
         self.counts = (counts + 2).astype(np.int32)
@@ -110,20 +107,6 @@ def copy_periodic(counts: np.ndarray, arr: np.ndarray) -> None:
         arr[0 * counts[0] + xidx] = arr[(counts[1] - 2) * counts[0] + xidx]
 
 
-def make_array(
-    dom: PeriodicDomain,
-    dims: DimsT = None,
-    dtype: np.dtype[np.float32 | np.int32] = np.float32,
-    fill: float | int = 0.0,  # noqa: PYI041
-) -> np.ndarray:
-    """
-    Make a (possibly multi-dimensional) array where the first dimension is the 1d lattice index.
-    """
-    dims = to_dims(dims)
-    dims = [np.prod(dom.counts)] + dims
-    return np.full(dims, fill, dtype)
-
-
 def flatten(dom: PeriodicDomain, arr: np.ndarray) -> np.ndarray:
     """
     TODO: Make this idempotent?
@@ -134,12 +117,34 @@ def flatten(dom: PeriodicDomain, arr: np.ndarray) -> np.ndarray:
 
 def unflatten(dom: PeriodicDomain, arr: np.ndarray, rev: bool = True) -> np.ndarray:
     """
-    TODO: Make this idempotent?
+    Expands the collapsed spatial index into one for x, y, and (if needed) z.
+
+    For the simulation data is just stored in a flat array where the spatial indices are collapsed,
+    this function undoes that collapsing to let us slice into the array along desired axes.
+
+    NOTE: One perculiarity of our data layout is that (in 2D) the y axis is first.
+
+    This function is idemponent.
+
+    .. code-block::
+
+        rho = make_array(pidx)       # rho.shape == [nx*nx]
+        rho_ = unflatten(pidx, rho)  # rho_.shape == [ny, nx]
+        vel = make_array(pidx, 2)    # vel.shape == [nx*nx, 2]
+        vel_ = unflatten(pidx, vel)  # vel_.shape == [ny, nx, 2]
     """
     n = arr.shape[1:]
     c = tuple(dom.counts)
+
+    # looks already unflattened
+    if (len(arr.shape) >= dom.dims) and (
+        (arr.shape[: dom.dims] == c) or (arr.shape[: dom.dims] == c[::-1])
+    ):
+        return arr
+
     if rev:
         c = c[::-1]
+
     return np.reshape(arr, c + n)
 
 
@@ -170,49 +175,6 @@ def sub_to_idx(counts: np.ndarray, xidx: int, yidx: int) -> int:
     if yidx < 0:
         yidx = counts[1] + yidx
     return yidx * counts[0] + xidx
-
-
-@numba.njit(
-    void(float32[:, ::1], float32[:], float32[:, ::1], jc_arg(NumbaModel)),
-    parallel=True,
-)
-def calc_equilibrium(
-    vel: np.ndarray,  # in lattice units
-    rho: np.ndarray,
-    feq: np.ndarray,
-    model: NumbaModel,
-):
-    """
-    Velocity is measured in lattice-units.
-    """
-    for idx in numba.prange(vel.shape[0]):
-        vv = np.sum(vel[idx, :] ** 2)
-        for i in range(9):
-            w = model.ws[i]
-            q = model.qs[i]
-            qv = np.sum(q * vel[idx, :])
-            feq[idx, i] = rho[idx] * w * (1 + 3.0 * qv + 4.5 * qv**2 - (3.0 / 2.0) * vv)
-
-    # return feq
-
-
-@numba.njit(
-    void(float32[:, ::1], float32[:], float32[:, ::1], float32, jc_arg(NumbaModel)),
-    parallel=True,
-)
-def calc_equilibrium_advdif(
-    v: np.ndarray,
-    C: np.ndarray,
-    feq: np.ndarray,
-    model: NumbaModel,
-):
-    for idx in numba.prange(v.shape[0]):
-        vv = np.sum(v[idx, :] ** 2)
-        for i in range(len(model.ws)):
-            w = model.ws[i]
-            q = model.qs[i]
-            qv = np.sum(q * v[idx, :])
-            feq[idx, i] = C[idx] * w * (1 + 3 * qv + 4.5 * qv**2 - 1.5 * vv)
 
 
 @numba.njit(
@@ -249,72 +211,6 @@ def stream(
                     + f_from[idx, i] * (0 + is_wall[idx])
                 )
                 # fmt: on
-
-
-@numba.njit(
-    void(
-        int64,
-        float32[:, ::1],
-        float32[:],
-        float32[:, ::1],
-        float32[:, ::1],
-        int32[:],
-        int32[:],
-        jc_arg(NumbaParams),
-        jc_arg(PeriodicDomain),
-        jc_arg(NumbaModel),
-    ),
-    parallel=True,
-)
-def loop_for(
-    iters: int,
-    v,
-    rho,
-    f,
-    feq,
-    is_wall,
-    update_vel,
-    params: NumbaParams,
-    pidx: PeriodicDomain,
-    model: NumbaModel,
-):
-    counts = pidx.counts
-
-    assert f is not feq
-    assert np.prod(counts) == f.shape[0]
-    assert np.prod(counts) == feq.shape[0]
-    assert np.prod(counts) == v.shape[0]
-    assert np.prod(counts) == rho.shape[0]
-
-    for _ in range(iters):
-        # equillibrium
-        calc_equilibrium(v, rho, feq, model)
-
-        if np.any(~np.isfinite(feq)):
-            raise ValueError("non finite value in feq")
-
-        # collide
-        f += (feq - f) * params.w_pos_lu
-
-        # periodic
-        copy_periodic(counts, f)
-
-        # stream
-        stream(feq, f, is_wall, counts, model)
-
-        # swap
-        # f, feq = feq, f
-        # TODO: not sure why but just swapping vars causes issues with numba
-        f[:] = feq[:]
-
-        # macroscopic
-        rho[:] = np.sum(f, -1)
-        v_ = f @ model.qs_f32
-
-        # numba parallel does not like broadcast... sad.
-        # v[:] = update_vel[:, None] * v_ * cs / rho[:, None] + (1 - update_vel[:, None]) * v
-        for vdim in numba.prange(2):
-            v[:, vdim] = update_vel * v_[:, vdim] / rho + (1 - update_vel) * v[:, vdim]
 
 
 @numba.njit(
@@ -576,7 +472,10 @@ def loop_for_2(
             rho[idx] = rho_
 
 
-def calc_curl_2d(pidx: PeriodicDomain, v: np.ndarray, cell: np.ndarray, dx: float) -> np.ndarray:
+def calc_curl_2d(pidx: PeriodicDomain, v: np.ndarray, cell: np.ndarray) -> np.ndarray:
+    """
+    All quantities in lattice-units
+    """
     counts = pidx.counts
 
     # calc curl
@@ -594,7 +493,7 @@ def calc_curl_2d(pidx: PeriodicDomain, v: np.ndarray, cell: np.ndarray, dx: floa
             dxdy2 = v[idx +         1, 1] * (cell[idx +         1] != CellType.BC_WALL.value)
             # fmt: on
 
-            curl[idx] = ((dydx2 - dydx1) - (dxdy2 - dxdy1)) / (2 * dx)
+            curl[idx] = ((dydx2 - dydx1) - (dxdy2 - dxdy1)) / 2
 
     return curl
 
@@ -616,7 +515,7 @@ def calc_curl_2d(pidx: PeriodicDomain, v: np.ndarray, cell: np.ndarray, dx: floa
     fastmath=True,
 )
 def stream_and_collide_advdif(
-    vel_lu: np.ndarray,
+    vel: np.ndarray,  # in lattice units
     f_to: np.ndarray,
     f_from: np.ndarray,
     is_wall: np.ndarray,
@@ -667,10 +566,10 @@ def stream_and_collide_advdif(
                 # fmt: on
 
             # macroscopic
-            rho = np.sum(f_to[idx, :])
-            v_lu = vel_lu[idx, :]
+            C = np.sum(f_to[idx, :])
+            v_lu = vel[idx, :]
 
-            collide_bgk_d2q5_advdif(idx, f_to, rho, v_lu, params)
+            collide_bgk_d2q5_advdif(idx, f_to, C, v_lu, params.w_pos_lu)
 
 
 @numba.njit(
