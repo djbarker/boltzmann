@@ -1,6 +1,6 @@
 # %% Imports
 
-import argparse as ap
+
 import logging
 from pathlib import Path
 import numpy as np
@@ -23,7 +23,7 @@ from boltzmann.core import (
     D2Q5 as D2Q5_py,
 )
 from boltzmann.utils.mpl import PngWriter
-from boltzmann.simulation import Cells, FluidField, ScalarField, SimulationRunner
+from boltzmann.simulation import Cells, FluidField, ScalarField, SimulationRunner, run_sim_cli
 
 # be nice
 set_num_threads(cpu_count() - 2)
@@ -41,7 +41,7 @@ y_si = 0.5
 x_si = 1.5
 
 # flow velocity [m/s]
-v0_si = 1
+v0_si = 1.0
 
 vmax_vmag = 1.6 * v0_si
 vmax_curl = 30 * v0_si
@@ -61,7 +61,7 @@ dx = 1.0 / (100 * scale)
 upper = np.array([x_si, y_si])
 
 # Max Mach number implied dt
-Mmax = 0.4
+Mmax = 0.1
 cs = v0_si / Mmax
 dt_mach = np.sqrt(3) * dx / cs
 
@@ -81,30 +81,15 @@ out_dt_si = dt * n
 
 domain = Domain.make(upper=upper, dx=dx)
 scales = Scales.make(dx=dx, dt=dt)
-time_meta = TimeMeta.make(dt_output=out_dt_si, output_count=250)
+time_meta = TimeMeta.make(
+    dt_output=out_dt_si,
+    # dt_output=dt,
+    output_count=250,
+)
 fluid_meta = FluidMeta.make(nu=nu_si, rho=rho_si)
 sim = SimulationMeta(domain, time_meta, scales, fluid_meta)
 
 logger.info(f"\n{pprint(asdict(sim), sort_dicts=False, width=10)}")
-
-
-# %% Compile
-
-logger.info("Compiling using Numba...")
-
-from boltzmann.bz_numba import (  # noqa: E402
-    NumbaDomain,
-    NumbaParams,
-    D2Q5 as D2Q5_nb,
-    D2Q9 as D2Q9_nb,
-    loop_for_2_advdif,
-    calc_curl_2d,
-)
-
-# make numba objects
-nbdomain = NumbaDomain(domain.counts)
-g_lu = np.array([0.0, 0.0], dtype=np.float32)
-nbparams = NumbaParams(dt, domain.dx, sim.w_pos_lu, sim.w_neg_lu, g_lu)
 
 # %% Initialize arrays
 
@@ -119,7 +104,7 @@ np.random.seed(42)
 # rho *= 1 + 0.0001 * (np.random.uniform(size=rho.shape) - 0.5)
 rho_ = domain.unflatten(fluid.rho)
 rho_[:, :] = fluid_meta.rho
-# rho_[10:-10, 10:-10] *= 1 + 0.001 * (np.random.uniform(size=rho_[10:-10, 10:-10].shape) - 0.5)
+rho_[10:-10, 10:-10] *= 1 + 0.001 * (np.random.uniform(size=rho_[10:-10, 10:-10].shape) - 0.5)
 
 # fixed velocity in- & out-flow
 # (only need to specify one due to periodicity)
@@ -133,7 +118,7 @@ vel_[domain.counts[1] // 2 :, :, 0] = +v0_si
 vel_[: domain.counts[1] // 2, :, 0] = -v0_si
 
 # randomize velocity slightly
-# vel_[1:-1, 1:-1, :] *= 1 + 0.001 * (np.random.uniform(size=vel_[1:-1, 1:-1, :].shape) - 0.5)
+vel_[1:-1, 1:-1, :] *= 1 + 0.001 * (np.random.uniform(size=vel_[1:-1, 1:-1, :].shape) - 0.5)
 
 conc_ = domain.unflatten(tracer.val)
 conc_[domain.counts[1] // 2 :, :] = 1.0
@@ -156,6 +141,30 @@ vel_[:] = scales.to_lattice_units(vel_, **VELOCITY)
 
 fluid.equilibrate()
 tracer.equilibrate(fluid.vel)
+
+mem_mb = (cells.size_bytes + fluid.size_bytes + tracer.size_bytes) / 1e6
+logger.info(f"Memory usage: {mem_mb:,.2f} Mb")
+
+
+# %% Compile
+
+logger.info("Compiling using Numba...")
+
+from boltzmann.bz_numba import (  # noqa: E402
+    NumbaDomain,
+    NumbaParams,
+    D2Q5 as D2Q5_nb,
+    D2Q9 as D2Q9_nb,
+    loop_for_2_advdif,
+    calc_curl_2d,
+)
+
+# make numba objects
+g_lu = np.array([0.0, 0.0], dtype=np.float32)
+domain_nb = NumbaDomain(domain.counts)
+params_nb = NumbaParams(dt, domain.dx, sim.w_pos_lu, sim.w_neg_lu, g_lu)
+
+# %% Define simulation loop
 
 import matplotlib as mpl
 
@@ -205,7 +214,7 @@ def write_png_vmag(path: Path):
 
 
 def write_png_curl(path: Path):
-    vort = calc_curl_2d(nbdomain, fluid.vel, cells.cells)  # in LU
+    vort = calc_curl_2d(domain_nb, fluid.vel, cells.cells)  # in LU
     vort = vort * ((dx / dt) / dx)  # in SI
     vort = np.tanh(vort / vmax_curl) * vmax_curl
 
@@ -244,9 +253,9 @@ class KelvinHelmholtz:
             raise ValueError("Non-finite value in f.")
 
         # ensure periodicity is correct
-        nbdomain.copy_periodic(cells.cells)
-        nbdomain.copy_periodic(fluid.f1)
-        nbdomain.copy_periodic(tracer.f1)
+        domain_nb.copy_periodic(cells.cells)
+        domain_nb.copy_periodic(fluid.f1)
+        domain_nb.copy_periodic(tracer.f1)
 
         loop_for_2_advdif(
             steps,
@@ -261,8 +270,8 @@ class KelvinHelmholtz:
             D2Q5_nb,
             is_wall,
             is_fixed,
-            nbparams,
-            nbdomain,
+            params_nb,
+            domain_nb,
         )
 
     def write_output(self, base: Path, step: int):
@@ -284,17 +293,4 @@ class KelvinHelmholtz:
 
 # %% Main Loop
 
-parser = ap.ArgumentParser()
-parser.add_argument("--base", type=str, default="out")
-parser.add_argument("--resume", action="store_true")
-args = parser.parse_args()
-
-base = Path(args.base)
-
-if args.resume:
-    logger.info("Resuming")
-    Runner = SimulationRunner.load_checkpoint
-else:
-    Runner = SimulationRunner
-
-Runner(base, sim, KelvinHelmholtz()).run()
+run_sim_cli(sim, KelvinHelmholtz())

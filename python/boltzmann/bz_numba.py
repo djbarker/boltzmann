@@ -356,8 +356,8 @@ def stream_and_collide(
 @numba.njit(
     void(
         int64,
-        float32[:, ::1],
         float32[:],
+        float32[:, ::1],
         float32[:, ::1],
         float32[:, ::1],
         int32[:],
@@ -370,8 +370,8 @@ def stream_and_collide(
 )
 def loop_for_2(
     iters: int,
-    vel,  # in lattice-units
     rho,
+    vel,  # in lattice-units
     f1_si,
     f2_si,
     is_wall,

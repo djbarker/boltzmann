@@ -1,14 +1,15 @@
-from dataclasses import field
+import argparse as ap
 import json
 import logging
-from pathlib import Path
-import numpy as np
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Protocol
 
+import numpy as np
 
 from boltzmann.core import (
+    CellType,
     Domain,
     Model,
     SimulationMeta,
@@ -25,13 +26,17 @@ class Cells:
     cells: np.ndarray
 
     def __init__(self, domain: Domain) -> None:
-        self.cells = domain.make_array(dtype=np.int32)
+        self.cells = domain.make_array(dtype=np.int32, fill=CellType.FLUID.value)
 
     def save(self, base: Path):
         np.save(base / "chk.cells.npy", self.cells)
 
     def load(self, base: Path):
         self.cells[:] = np.load(base / "chk.cells.npy")
+
+    @property
+    def size_bytes(self) -> int:
+        return self.cells.nbytes
 
 
 @dataclass(init=False)
@@ -55,6 +60,10 @@ class Field:
         self.f1[:] = np.load(base / f"chk.{self.name}.npy")
         self.f2[:] = self.f1[:]
 
+    @property
+    def size_bytes(self) -> int:
+        return self.f1.nbytes + self.f2.nbytes
+
 
 @dataclass(init=False)
 class FluidField(Field):
@@ -63,7 +72,7 @@ class FluidField(Field):
 
     def __init__(self, name: str, model: Model, domain: Domain) -> None:
         super().__init__(name, model, domain)
-        self.rho = domain.make_array()
+        self.rho = domain.make_array(fill=1)
         self.vel = domain.make_array(2)
 
     def load(self, base: Path):
@@ -78,6 +87,10 @@ class FluidField(Field):
     def equilibrate(self):
         calc_equilibrium(self.vel, self.rho, self.f1, self.model)
         self.f2[:] = self.f1[:]
+
+    @property
+    def size_bytes(self) -> int:
+        return super().size_bytes + self.rho.nbytes + self.vel.nbytes
 
 
 @dataclass(init=False)
@@ -103,6 +116,10 @@ class ScalarField(Field):
         assert vel.shape[-1] == self.model.D, "Dimension mismatch!"
         calc_equilibrium(vel, self.val, self.f1, self.model)
         self.f2[:] = self.f1[:]
+
+    @property
+    def size_bytes(self) -> int:
+        return super().size_bytes + self.val.nbytes
 
 
 class SimulationLoop(Protocol):
@@ -182,3 +199,23 @@ class SimulationRunner:
             self.loop.write_checkpoint(self.base)
 
             logger.info(f"Batch {i}: {mlups_batch:.2f} mlups, {mlups_total=:.2f}")
+
+
+def run_sim_cli(sim: SimulationMeta, loop: SimulationLoop):
+    """
+    The 'main' method for running sims and handling cmd line args.
+    """
+    parser = ap.ArgumentParser()
+    parser.add_argument("--base", type=str, default="out")
+    parser.add_argument("--resume", action="store_true")
+    args = parser.parse_args()
+
+    base = Path(args.base)
+
+    if args.resume:
+        logger.info("Resuming")
+        Runner = SimulationRunner.load_checkpoint
+    else:
+        Runner = SimulationRunner
+
+    Runner(base, sim, loop).run()
