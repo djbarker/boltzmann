@@ -3,7 +3,7 @@ import numpy as np
 import vtk
 from vtk.util.numpy_support import numpy_to_vtk
 
-from boltzmann.impl2 import PeriodicDomain, NumbaParams, unflatten
+from boltzmann.core import Domain
 
 
 logger = logging.getLogger(__name__)
@@ -31,18 +31,18 @@ def to_vtk_type(np_dtype: np.dtype) -> int:
 
 
 class VtiWriter:
-    def __init__(self, path: str, pidx: PeriodicDomain):
+    def __init__(self, path: str, dom: Domain):
         self.path = path
-        self.pidx = pidx
+        self.dom = dom
         self.data = {}
         self.default = None
 
     def add_data(self, key: str, val: np.ndarray, *, default: bool = False):
-        assert val.shape[0] == np.prod(self.pidx.counts)
+        assert val.shape[0] == np.prod(self.dom.counts + 2)
         assert np.ndim(val) <= 2
         if np.ndim(val) == 1:
             val = val[:, None]
-        self.data[key] = unflatten(self.pidx, _to3d(val), rev=True)[1:-1, 1:-1]
+        self.data[key] = self.dom.unflatten(_to3d(val), rev=True)[1:-1, 1:-1]
 
         match self.default, default:
             case None, True:
@@ -51,7 +51,7 @@ class VtiWriter:
                 raise ValueError(f"Default key already set! [old={self.default!r}, new={key!r}]")
 
     def write(self):
-        counts = self.pidx.counts - 2
+        counts = self.dom.counts - 2
 
         img_data = vtk.vtkImageData()
         nx, ny = list(counts)

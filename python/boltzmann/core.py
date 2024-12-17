@@ -38,9 +38,9 @@ def to_dims(dims: DimsT) -> list[int]:
 
 
 @dataclass
-class DomainMeta:
+class Domain:
     """
-    Describes the domain grid.
+    Describes the domain grid and provides functions for creating arrays.
 
     The semantics are that each cell has a size of `dx`, the `lower` & `upper` arrays are the lower
     and upper _edges_ of the cells respectively.
@@ -60,7 +60,7 @@ class DomainMeta:
         upper: Option[Array1dT] = None,
         counts: Option[Array1dT] = None,
         dx: Option[float] = None,
-    ) -> DomainMeta:
+    ) -> Domain:
         lower_ = map_opt(lower, to_array1d)
         upper_ = map_opt(upper, to_array1d)
         counts_ = map_opt(counts, to_array1d)
@@ -106,7 +106,7 @@ class DomainMeta:
 
         counts = np.array(counts, dtype=np.int32)
 
-        return DomainMeta(lower, upper, counts, dx_[0], len(counts))
+        return Domain(lower, upper, counts, dx_[0], len(counts))
 
     def get_dim(self, dim: int) -> np.ndarray:
         assert dim < self.dims, f"Invalid dim! [{dim=}, {self.dims=}]"
@@ -149,6 +149,38 @@ class DomainMeta:
         dims = to_dims(dims)
         dims = [int(np.prod(self.counts + 2))] + dims  # + 2 for periodic BCs
         return np.full(dims, fill, dtype)
+
+    def unflatten(self, arr: np.ndarray, rev: bool = True) -> np.ndarray:
+        """
+        Expands the collapsed spatial index into one for x, y, and (if needed) z.
+
+        For the simulation data is just stored in a flat array where the spatial indices are collapsed,
+        this function undoes that collapsing to let us slice into the array along desired axes.
+
+        NOTE: One perculiarity of our data layout is that (in 2D) the y axis is first.
+
+        This function is idemponent.
+
+        .. code-block::
+
+            rho = dom.make_array()    # rho.shape == [nx*nx]
+            rho = dom.unflatten(rho)  # rho.shape == [ny, nx]
+            vel = dom.make_array(2)   # vel.shape == [nx*nx, 2]
+            vel = dom.unflatten(vel)  # vel.shape == [ny, nx, 2]
+        """
+        n = arr.shape[1:]
+        c = tuple(self.counts + 2)
+
+        # looks already unflattened
+        if (len(arr.shape) >= self.dims) and (
+            (arr.shape[: self.dims] == c) or (arr.shape[: self.dims] == c[::-1])
+        ):
+            return arr
+
+        if rev:
+            c = c[::-1]
+
+        return np.reshape(arr, c + n)
 
 
 @dataclass
@@ -309,7 +341,7 @@ class SimulationMeta:
     but some of it is rather specific to the particular simulation.
     """
 
-    domain: DomainMeta
+    domain: Domain
     time: TimeMeta
     scales: Scales
 
@@ -403,7 +435,7 @@ D2Q5 = Model(
 
 
 def calc_equilibrium(
-    vel: np.ndarray,  # in lattice units
+    vel: np.ndarray,
     rho: np.ndarray,
     feq: np.ndarray,
     model: Model,
@@ -411,26 +443,9 @@ def calc_equilibrium(
     """
     Velocity is measured in lattice-units.
     """
-    vv = np.sum(vel**2, axis=1)
-    for i in range(9):
+    vv = np.sum(vel**2, axis=-1)
+    for i in range(model.Q):
         w = model.ws[i]
         q = model.qs[i]
         qv = vel @ q
         feq[:, i] = rho * w * (1 + 3.0 * qv + 4.5 * qv**2 - (3.0 / 2.0) * vv)
-
-
-def calc_equilibrium_advdif(
-    vel: np.ndarray,
-    C: np.ndarray,
-    feq: np.ndarray,
-    model: Model,
-):
-    """
-    Velocity is measured in lattice-units.
-    """
-    vv = np.sum(vel**2, -1)
-    for i in range(len(model.ws)):
-        w = model.ws[i]
-        q = model.qs[i]
-        qv = vel @ q
-        feq[:, i] = C * w * (1 + 3 * qv + 4.5 * qv**2 - 1.5 * vv)

@@ -6,16 +6,14 @@ from typing import Any
 
 from matplotlib.figure import Figure
 
-from boltzmann.impl2 import PeriodicDomain, unflatten
-from boltzmann.core import DomainMeta
+from boltzmann.core import Domain
 
 
 class PngWriter(object):
     def __init__(
         self,
         path: str | Path,
-        domain: DomainMeta,
-        pidx: PeriodicDomain,
+        domain: Domain,
         cell: np.ndarray,
         data: np.ndarray,
         cmap: str,
@@ -23,12 +21,11 @@ class PngWriter(object):
         vmax: float,
         fig_kwargs: dict[str, Any],
     ):
-        cell = unflatten(pidx, cell)[1:-1, 1:-1]
-        data = unflatten(pidx, data)[1:-1, 1:-1]
+        cell = domain.unflatten(cell)[1:-1, 1:-1]
+        data = domain.unflatten(data)[1:-1, 1:-1]
         data = np.where(cell == 1, np.nan, data)
 
         self.data = data
-        self.pidx = pidx
 
         ey = domain.upper[0] - domain.lower[0]
         ex = domain.upper[1] - domain.lower[1]

@@ -70,7 +70,7 @@ class NumbaParams:
         "dims": numba.int32,
     }
 )  # type: ignore
-class PeriodicDomain:
+class NumbaDomain:
     def __init__(self, counts: np.ndarray):
         self.counts = (counts + 2).astype(np.int32)
         self.dims = len(counts)
@@ -105,65 +105,6 @@ def copy_periodic(counts: np.ndarray, arr: np.ndarray) -> None:
         arr[(counts[1] - 1) * counts[0] + xidx] = arr[1 * counts[0] + xidx]
         # yupper -> ylower:
         arr[0 * counts[0] + xidx] = arr[(counts[1] - 2) * counts[0] + xidx]
-
-
-def flatten(dom: PeriodicDomain, arr: np.ndarray) -> np.ndarray:
-    """
-    TODO: Make this idempotent?
-    """
-    assert np.ndim(arr) >= dom.dims
-    return np.reshape(arr, (np.prod(dom.counts),) + arr.shape[dom.dims :])
-
-
-def unflatten(dom: PeriodicDomain, arr: np.ndarray, rev: bool = True) -> np.ndarray:
-    """
-    Expands the collapsed spatial index into one for x, y, and (if needed) z.
-
-    For the simulation data is just stored in a flat array where the spatial indices are collapsed,
-    this function undoes that collapsing to let us slice into the array along desired axes.
-
-    NOTE: One perculiarity of our data layout is that (in 2D) the y axis is first.
-
-    This function is idemponent.
-
-    .. code-block::
-
-        rho = make_array(pidx)       # rho.shape == [nx*nx]
-        rho_ = unflatten(pidx, rho)  # rho_.shape == [ny, nx]
-        vel = make_array(pidx, 2)    # vel.shape == [nx*nx, 2]
-        vel_ = unflatten(pidx, vel)  # vel_.shape == [ny, nx, 2]
-    """
-    n = arr.shape[1:]
-    c = tuple(dom.counts)
-
-    # looks already unflattened
-    if (len(arr.shape) >= dom.dims) and (
-        (arr.shape[: dom.dims] == c) or (arr.shape[: dom.dims] == c[::-1])
-    ):
-        return arr
-
-    if rev:
-        c = c[::-1]
-
-    return np.reshape(arr, c + n)
-
-
-def make_slice_x1d(dom: PeriodicDomain, yidx: int, start: int = 0, stop: int = -1) -> np.ndarray:
-    if stop < 0:
-        stop = dom.counts[0] + stop
-    if yidx < 0:
-        yidx = dom.counts[1] + yidx
-    xidx = np.arange(start=start, stop=stop, step=1, dtype=np.int32)
-    return (yidx * dom.counts[0] + xidx).astype(np.int32)
-
-
-def make_slice_y1d(dom: PeriodicDomain, xidx: int, start: int = 0, stop: int = -1) -> np.ndarray:
-    if stop < 0:
-        stop = dom.counts[1] + stop
-    if xidx < 0:
-        xidx = dom.counts[0] + xidx
-    yidx = np.arange(start=start, stop=stop, step=1, dtype=np.int32)
-    return (yidx * dom.counts[0] + xidx).astype(np.int32)
 
 
 @numba.njit(
@@ -422,7 +363,7 @@ def stream_and_collide(
         int32[:],
         int32[:],
         jc_arg(NumbaParams),
-        jc_arg(PeriodicDomain),
+        jc_arg(NumbaDomain),
         jc_arg(NumbaModel),
     ),
     parallel=True,
@@ -436,7 +377,7 @@ def loop_for_2(
     is_wall,
     is_fixed,
     params: NumbaParams,
-    pidx: PeriodicDomain,
+    pidx: NumbaDomain,
     model: NumbaModel,
 ):
     counts = pidx.counts
@@ -472,7 +413,7 @@ def loop_for_2(
             rho[idx] = rho_
 
 
-def calc_curl_2d(pidx: PeriodicDomain, v: np.ndarray, cell: np.ndarray) -> np.ndarray:
+def calc_curl_2d(pidx: NumbaDomain, v: np.ndarray, cell: np.ndarray) -> np.ndarray:
     """
     All quantities in lattice-units
     """
@@ -587,7 +528,7 @@ def stream_and_collide_advdif(
         int32[:],
         int32[:],
         jc_arg(NumbaParams),
-        jc_arg(PeriodicDomain),
+        jc_arg(NumbaDomain),
     ),
     parallel=True,
 )
@@ -605,7 +546,7 @@ def loop_for_2_advdif(
     is_wall,
     is_fixed,
     params: NumbaParams,
-    pidx: PeriodicDomain,
+    pidx: NumbaDomain,
 ):
     counts = pidx.counts
 

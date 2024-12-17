@@ -9,7 +9,7 @@ from dataclasses import asdict
 from typing import Literal
 
 from boltzmann.utils.logger import tick, PerfInfo, basic_config
-from boltzmann.core import DomainMeta, SimulationMeta, FluidMeta, D2Q9, CellType
+from boltzmann.core import Domain, SimulationMeta, FluidMeta, D2Q9, CellType
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ log.info(f"Reynolds no.:  {re_no:,.0f}")
 cs_mult = 20.0
 cs_si = v0_si * cs_mult
 
-dom = DomainMeta.with_extent_and_counts(extent_si=[[-0.2, 0.3], [-0.1, 0.1]], counts=[1876, 751])
+dom = Domain.with_extent_and_counts(extent_si=[[-0.2, 0.3], [-0.1, 0.1]], counts=[1876, 751])
 fld = FluidMeta(mu_si, rho_si)
 sim = SimulationMeta.with_cs(domain=dom, fluid=fld, cs=cs_si)
 
@@ -62,10 +62,10 @@ log.info(f"Steps per output: {n=}")
 
 log.info("Compiling using Numba...")
 
-from boltzmann.impl2 import *
+from bz_numba import *
 
 # make numba objects
-pidx = PeriodicDomain(dom.counts)
+pidx = NumbaDomain(dom.counts)
 g_lu = np.array([0.0, 0.0], dtype=np.float32)
 params = NumbaParams(sim.dt, dom.dx, sim.cs, sim.w_pos_lu, sim.w_neg_lu, g_lu)
 
@@ -165,7 +165,7 @@ def write_vti(
     curl_si: np.ndarray,
     cell: np.ndarray,
     f: np.ndarray,
-    pidx: PeriodicDomain,
+    pidx: NumbaDomain,
     params: NumbaParams,
     *,
     save_f: bool = False,

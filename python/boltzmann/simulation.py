@@ -9,11 +9,10 @@ from typing import Protocol
 
 
 from boltzmann.core import (
-    DomainMeta,
+    Domain,
     Model,
     SimulationMeta,
     calc_equilibrium,
-    calc_equilibrium_advdif,
 )
 from boltzmann.utils.logger import PerfInfo, tick
 
@@ -25,7 +24,7 @@ logger = logging.getLogger(__name__)
 class Cells:
     cells: np.ndarray
 
-    def __init__(self, domain: DomainMeta) -> None:
+    def __init__(self, domain: Domain) -> None:
         self.cells = domain.make_array(dtype=np.int32)
 
     def save(self, base: Path):
@@ -43,7 +42,7 @@ class Field:
     f1: np.ndarray = field(init=False)
     f2: np.ndarray = field(init=False)
 
-    def __init__(self, name: str, model: Model, domain: DomainMeta) -> None:
+    def __init__(self, name: str, model: Model, domain: Domain) -> None:
         self.name = name
         self.model = model
         self.f1 = domain.make_array(model.Q)
@@ -62,7 +61,7 @@ class FluidField(Field):
     rho: np.ndarray
     vel: np.ndarray
 
-    def __init__(self, name: str, model: Model, domain: DomainMeta) -> None:
+    def __init__(self, name: str, model: Model, domain: Domain) -> None:
         super().__init__(name, model, domain)
         self.rho = domain.make_array()
         self.vel = domain.make_array(2)
@@ -85,7 +84,7 @@ class FluidField(Field):
 class ScalarField(Field):
     val: np.ndarray
 
-    def __init__(self, name: str, model: Model, domain: DomainMeta) -> None:
+    def __init__(self, name: str, model: Model, domain: Domain) -> None:
         super().__init__(name, model, domain)
         self.val = domain.make_array()
 
@@ -98,8 +97,11 @@ class ScalarField(Field):
         self.val[:] = np.sum(self.f1, axis=-1)
 
     def equilibrate(self, vel: np.ndarray):
+        """
+        Like Fluid.equilibrate but velocity field is externally imposed.
+        """
         assert vel.shape[-1] == self.model.D, "Dimension mismatch!"
-        calc_equilibrium_advdif(vel, self.val, self.f1, self.model)
+        calc_equilibrium(vel, self.val, self.f1, self.model)
         self.f2[:] = self.f1[:]
 
 
@@ -153,16 +155,16 @@ class SimulationRunner:
         else:
             self.loop.write_output(self.base, self.step)
 
+        cell_count = int(np.prod(self.meta.domain.counts))
         perf_total = PerfInfo()
-        out_i = self.meta.time.output_count
-        for i in range(self.step + 1, out_i):
+        max_i = self.meta.time.output_count
+        for i in range(self.step + 1, max_i):
             perf_batch = tick()
 
             self.loop.loop_for(batch_iters)
 
             # tock() before checkpointing so it's not included in the mlups calculation
 
-            cell_count = int(np.prod(self.meta.domain.counts))
             perf_batch = perf_batch.tock(events=cell_count * batch_iters)
             perf_total = perf_total + perf_batch
 

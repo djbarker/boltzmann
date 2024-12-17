@@ -3,18 +3,17 @@ import numpy as np
 import vtk
 import vtk.util.numpy_support as vtk_np
 
-from boltzmann.core import DomainMeta, CellType
+from boltzmann.core import Domain, CellType
 
 
 def write_vti(
     path: str,
-    dom: DomainMeta,
+    dom: Domain,
     v: np.ndarray,
     rho: np.ndarray,
     curl: np.ndarray,
     cell: np.ndarray,
 ):
-
     # need 3d vectors for vtk
     def _to3d(v: np.ndarray):
         if v.shape[-1] == 2:

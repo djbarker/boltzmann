@@ -13,7 +13,7 @@ from dataclasses import asdict, dataclass, field
 
 from boltzmann.utils.logger import basic_config
 from boltzmann.core import (
-    DomainMeta,
+    Domain,
     Scales,
     SimulationMeta,
     FluidMeta,
@@ -62,7 +62,7 @@ dt_err = (1 / 3) * (tau_max - 0.5) * dx**2 / nu_si
 
 dt = min(dt_err, dt_mach) * 0.5
 
-dom_meta = DomainMeta.make(upper=[l_si, l_si / 4], dx=dx)
+dom_meta = Domain.make(upper=[l_si, l_si / 4], dx=dx)
 assert dom_meta.dx == dx
 fluid_meta = FluidMeta.make(nu=nu_si, rho=rho_si)
 scales = Scales.make(dx=dx, dt=dt)
@@ -80,16 +80,16 @@ g_lu = np.array([0, g_lu], dtype=np.float32)
 
 logger.info("Compiling using Numba...")
 
-from boltzmann.impl2 import (  # noqa: E402
+from bz_numba import (  # noqa: E402
     loop_for_2,
     unflatten,
-    PeriodicDomain,
+    NumbaDomain,
     NumbaParams,
     D2Q9,
 )
 
 # make numba objects
-pidx = PeriodicDomain(dom_meta.counts)
+pidx = NumbaDomain(dom_meta.counts)
 params = NumbaParams(scales.dt, scales.dx, sim_meta.w_pos_lu, sim_meta.w_neg_lu, g_lu)
 
 # %% Initialize arrays

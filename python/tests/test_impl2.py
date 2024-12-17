@@ -1,13 +1,12 @@
 import numpy as np
 
-from boltzmann.impl2 import *
+from bz_numba import *
 from boltzmann.core import D2Q9
 
 
 def test_periodic_domain():
-
     cnt = np.array([100, 150])
-    dom = PeriodicDomain(cnt)
+    dom = NumbaDomain(cnt)
 
     # make some arrays
     X = make_array(dom, dtype=np.int32)
@@ -60,9 +59,8 @@ def test_periodic_domain():
 
 
 def test_stream_basic():
-
     cnt = np.array([3, 3])
-    dom = PeriodicDomain(cnt)
+    dom = NumbaDomain(cnt)
     mdl = NumbaModel(D2Q9.ws, D2Q9.qs, D2Q9.js, dom.counts)
 
     wall = make_array(dom, dtype=np.int32)
@@ -155,9 +153,8 @@ def test_stream_basic():
 
 
 def test_stream_bounceback():
-
     cnt = np.array([3, 3])
-    dom = PeriodicDomain(cnt)
+    dom = NumbaDomain(cnt)
     mdl = NumbaModel(D2Q9.ws, D2Q9.qs, D2Q9.js, dom.counts)
 
     wall = make_array(dom, dtype=np.int32)
@@ -263,9 +260,8 @@ def test_stream_bounceback():
 
 
 def test_calc_equilibrium():
-
     cnt = np.array([3, 3])
-    dom = PeriodicDomain(cnt)
+    dom = NumbaDomain(cnt)
     mdl = NumbaModel(D2Q9.ws, D2Q9.qs, D2Q9.js, dom.counts)
     cs = 100.0
 
@@ -277,9 +273,8 @@ def test_calc_equilibrium():
 
 
 def test_loop():
-
     cnt = np.array([3, 3])
-    dom = PeriodicDomain(cnt)
+    dom = NumbaDomain(cnt)
     mdl = NumbaModel(D2Q9.ws, D2Q9.qs, D2Q9.js, dom.counts)
     prm = NumbaParams(0.01, 0.1, 10, 0.6)  # made up params
 
