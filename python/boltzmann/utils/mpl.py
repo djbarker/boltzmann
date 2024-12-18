@@ -44,6 +44,6 @@ class PngWriter(object):
         return self.fig
 
     def __exit__(self, *a, **k):
-        self.fig.savefig(self.path, dpi=200, bbox_inches="tight", pad_inches=0)
+        self.fig.savefig(self.path, dpi=300, bbox_inches="tight", pad_inches=0)
         self.fig.clear()
         plt.close()

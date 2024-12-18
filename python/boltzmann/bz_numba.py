@@ -400,6 +400,9 @@ def loop_for_2(
     if iters % 2 != 0:
         f1_si[:] = f2_si[:]
 
+    # make sure periodicity is properly maintained
+    pidx.copy_periodic(f1_si)
+
     # output macroscopic
     qs = np.ascontiguousarray(model.qs_f32.T)
     for yidx in numba.prange(1, counts[1] - 1):

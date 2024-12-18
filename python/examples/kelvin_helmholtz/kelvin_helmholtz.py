@@ -66,7 +66,7 @@ cs = v0_si / Mmax
 dt_mach = np.sqrt(3) * dx / cs
 
 # Max tau implied dt
-tau_max = 0.7
+tau_max = 0.6
 dt_err = (1 / 3) * (tau_max - 0.5) * dx**2 / nu_si
 
 dt = min(dt_err, dt_mach)
@@ -101,7 +101,6 @@ tracer = ScalarField("tracer", D2Q5_py, domain)
 
 # introduce slight randomness to initial density
 np.random.seed(42)
-# rho *= 1 + 0.0001 * (np.random.uniform(size=rho.shape) - 0.5)
 rho_ = domain.unflatten(fluid.rho)
 rho_[:, :] = fluid_meta.rho
 rho_[10:-10, 10:-10] *= 1 + 0.001 * (np.random.uniform(size=rho_[10:-10, 10:-10].shape) - 0.5)
@@ -117,14 +116,11 @@ vel_ = domain.unflatten(fluid.vel)
 vel_[domain.counts[1] // 2 :, :, 0] = +v0_si
 vel_[: domain.counts[1] // 2, :, 0] = -v0_si
 
-# randomize velocity slightly
+# randomize velocity
 vel_[1:-1, 1:-1, :] *= 1 + 0.001 * (np.random.uniform(size=vel_[1:-1, 1:-1, :].shape) - 0.5)
 
 conc_ = domain.unflatten(tracer.val)
 conc_[domain.counts[1] // 2 :, :] = 1.0
-
-# # ensure cell types match across boundary
-# pidx.copy_periodic(cell)
 
 # flag arrays
 # TODO: this is duped between sims
@@ -252,10 +248,8 @@ class KelvinHelmholtz:
         if np.any(~np.isfinite(fluid.f1)) or np.any(~np.isfinite(tracer.f1)):
             raise ValueError("Non-finite value in f.")
 
-        # ensure periodicity is correct
-        domain_nb.copy_periodic(cells.cells)
-        domain_nb.copy_periodic(fluid.f1)
-        domain_nb.copy_periodic(tracer.f1)
+        # if np.any(fluid.f1 < 0) or np.any(tracer.f1 < 0):
+        #     raise ValueError("Negative value in f.")
 
         loop_for_2_advdif(
             steps,
@@ -281,12 +275,12 @@ class KelvinHelmholtz:
         write_png_vmag(base / f"vmag_{step:06d}.png")
 
     def write_checkpoint(self, base: Path):
-        cells.save(base)
+        # cells.save(base)  # these are defined above (as are mask arrays is_wall etc)
         fluid.save(base)
         tracer.save(base)
 
     def read_checkpoint(self, base: Path):
-        cells.load(base)
+        # cells.load(base)
         fluid.load(base)
         tracer.load(base)
 
@@ -294,3 +288,7 @@ class KelvinHelmholtz:
 # %% Main Loop
 
 run_sim_cli(sim, KelvinHelmholtz())
+
+# render with
+# ffmpeg -i out/curl_%06d.png -i out/vmag_%06d.png -c:v libx264 -crf 10 -r 30 -filter_complex "[1]pad=iw:ih+2:0:2[v1];[0][v1]vstack=inputs=2" -y kh.mp4
+# ffmpeg -i out/conc_%06d.png -i out/curl_%06d.png -i out/vmag_%06d.png -c:v libx264 -crf 10 -r 30 -filter_complex "[1]pad=iw:ih+2:0:2[v1];[2]pad=iw:ih+2:0:2[v2];[0][v1][v2]vstack=inputs=3" -y kh4.mp4

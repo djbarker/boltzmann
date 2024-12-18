@@ -362,11 +362,11 @@ class SimulationMeta:
         tau_pos_lu = nu_lu + 0.5
         tau_neg_lu = l_ / nu_lu + 0.5
 
-        if tau_pos_lu < 0.6:
+        if tau_pos_lu < 0.51:
             # stability can suffer but sim will be accurate
             logger.warning(f"Small value for tau! [{tau_pos_lu=}]")
 
-        if tau_pos_lu > 1.0:
+        if tau_pos_lu > 0.75:
             # error grows with tau and this leads to very inaccurate simulations
             raise ValueError(f"Large value for tau! [{tau_pos_lu=}]")
 

@@ -44,8 +44,8 @@ class Field:
     name: str
     model: Model
 
-    f1: np.ndarray = field(init=False)
-    f2: np.ndarray = field(init=False)
+    f1: np.ndarray
+    f2: np.ndarray
 
     def __init__(self, name: str, model: Model, domain: Domain) -> None:
         self.name = name
@@ -73,7 +73,7 @@ class FluidField(Field):
     def __init__(self, name: str, model: Model, domain: Domain) -> None:
         super().__init__(name, model, domain)
         self.rho = domain.make_array(fill=1)
-        self.vel = domain.make_array(2)
+        self.vel = domain.make_array(model.D)
 
     def load(self, base: Path):
         super().load(base)
@@ -82,7 +82,7 @@ class FluidField(Field):
     def macro(self):
         # careful to repopulate existing arrays
         self.rho[:] = np.sum(self.f1, axis=-1)
-        self.vel[:] = np.dot(self.f1, self.model.qs)
+        self.vel[:] = np.dot(self.f1, self.model.qs) / self.rho[:, np.newaxis]
 
     def equilibrate(self):
         calc_equilibrium(self.vel, self.rho, self.f1, self.model)
@@ -129,6 +129,10 @@ class SimulationLoop(Protocol):
     def read_checkpoint(self, base: Path): ...
 
 
+import time
+import datetime
+
+
 class SimulationRunner:
     def __init__(
         self,
@@ -146,6 +150,7 @@ class SimulationRunner:
         self.meta = meta
         self.loop = loop
         self.step = step
+        self.last = datetime.datetime.now()
 
     @staticmethod
     def load_checkpoint(
@@ -176,6 +181,13 @@ class SimulationRunner:
         perf_total = PerfInfo()
         max_i = self.meta.time.output_count
         for i in range(self.step + 1, max_i):
+            # give the cpu fans a chance ...
+            curr = datetime.datetime.now()
+            diff = curr - self.last
+            if diff > datetime.timedelta(minutes=10):
+                time.sleep(30)
+            self.last = curr
+
             perf_batch = tick()
 
             self.loop.loop_for(batch_iters)
