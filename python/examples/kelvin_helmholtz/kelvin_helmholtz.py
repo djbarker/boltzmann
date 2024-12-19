@@ -55,13 +55,13 @@ re_no = v0_si * y_si / nu_si
 logger.info(f"Reynolds no.:  {re_no:,.0f}")
 
 # geometry
-# scale = 35
-scale = 10
+scale = 35
+# scale = 15
 dx = 1.0 / (100 * scale)
 upper = np.array([x_si, y_si])
 
 # Max Mach number implied dt
-Mmax = 0.1
+Mmax = 0.2
 cs = v0_si / Mmax
 dt_mach = np.sqrt(3) * dx / cs
 
@@ -72,8 +72,8 @@ dt_err = (1 / 3) * (tau_max - 0.5) * dx**2 / nu_si
 dt = min(dt_err, dt_mach)
 
 # dimensionless time does not depend on viscosity, purely on distances
-# out_dx_si = x_si / (2 * 30.0)  # want to output when flow has moved this far
-out_dx_si = x_si / 400
+fps = 30
+out_dx_si = x_si / (5 * fps)  # want to output when flow has moved this far
 sim_dx_si = v0_si * dt  # flow moves this far in dt (i.e. one iteration)
 n = out_dx_si / sim_dx_si
 n = int(n + 1e-8)
@@ -103,7 +103,7 @@ tracer = ScalarField("tracer", D2Q5_py, domain)
 np.random.seed(42)
 rho_ = domain.unflatten(fluid.rho)
 rho_[:, :] = fluid_meta.rho
-rho_[10:-10, 10:-10] *= 1 + 0.001 * (np.random.uniform(size=rho_[10:-10, 10:-10].shape) - 0.5)
+# rho_[10:-10, 10:-10] *= 1 + 0.001 * (np.random.uniform(size=rho_[10:-10, 10:-10].shape) - 0.5)
 
 # fixed velocity in- & out-flow
 # (only need to specify one due to periodicity)
@@ -117,7 +117,13 @@ vel_[domain.counts[1] // 2 :, :, 0] = +v0_si
 vel_[: domain.counts[1] // 2, :, 0] = -v0_si
 
 # randomize velocity
-vel_[1:-1, 1:-1, :] *= 1 + 0.001 * (np.random.uniform(size=vel_[1:-1, 1:-1, :].shape) - 0.5)
+# vel_[1:-1, 1:-1, :] *= 1 + 0.001 * (np.random.uniform(size=vel_[1:-1, 1:-1, :].shape) - 0.5)
+
+# perturb velocity
+n = 10
+l = x_si / n  # wavelength
+vy_si = v0_si * 0.001 * np.sin(2 * np.pi * (domain.x / l))
+vel_[2:-2, 2:-2, 1] = vy_si[1:-1]
 
 conc_ = domain.unflatten(tracer.val)
 conc_[domain.counts[1] // 2 :, :] = 1.0
