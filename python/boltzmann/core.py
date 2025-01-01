@@ -46,6 +46,14 @@ class Domain:
     and upper _edges_ of the cells respectively.
     This means `N = (upper - lower) / dx`, and if `lower == upper` then we have no cells.
     The centre of the cells are located at `(x, y) = ((i + 0.5) * dx, (j + 0.5) * dx)`.
+
+    For the simple two-array implementation it's quite efficient to pad the arrays by one at the end
+    of each dimension. Then we can stream into/from these with simple offsets (not worrying about
+    periodicity), then copy the data accross as needed. This does not work for in-place updates,
+    where we would need to update the padded values two, but only for the directions that stream
+    back into domain, necessitating a check of whether we're in the periodic copy or not.
+
+
     """
 
     lower: np.ndarray
@@ -147,7 +155,7 @@ class Domain:
         fill: float | int = 0.0,
     ) -> np.ndarray:
         dims = to_dims(dims)
-        dims = [int(np.prod(self.counts + 2))] + dims  # + 2 for periodic BCs
+        dims = [int(np.prod(self.counts))] + dims
         return np.full(dims, fill, dtype)
 
     def unflatten(self, arr: np.ndarray, rev: bool = True) -> np.ndarray:
@@ -169,7 +177,7 @@ class Domain:
             vel = dom.unflatten(vel)  # vel.shape == [ny, nx, 2]
         """
         n = arr.shape[1:]
-        c = tuple(self.counts + 2)
+        c = tuple(self.counts)
 
         # looks already unflattened
         if (len(arr.shape) >= self.dims) and (
@@ -253,7 +261,9 @@ class Scales:
             case (Some(x), Some(t), None):
                 pass
             case _:
-                msg = f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
+                msg = (
+                    f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
+                )
                 raise ValueError(msg)
 
         return Scales(x, t, dm)
@@ -422,6 +432,7 @@ D2Q9 = Model(
 # NOTE: order is not arbitrary
 #       1. rest velocity at index zero
 #       2. pairs of opposite velocities follow
+#       3. matches the first 5 velocities of D2Q9 (important for upstream indexing)
 D2Q5 = Model(
     [1 / 3, 1 / 6, 1 / 6, 1 / 6, 1 / 6],
     [
@@ -432,6 +443,40 @@ D2Q5 = Model(
         [0, -1],
     ],
 )
+
+
+def upstream_indices(domain: Domain, model: Model) -> np.ndarray:
+    """
+    Return an array of size (cell_count, Q) where for each cell we have calculated the index of the
+    cell upstream of each velocity in the model.
+    """
+    N = domain.counts.prod()
+    D = model.D
+    Q = model.Q
+
+    # subs: N x D
+    subs = np.stack(
+        [
+            s.ravel()
+            for s in np.meshgrid(
+                *[np.arange(0, domain.counts[i], dtype=np.int32) for i in range(D)],
+                indexing="ij",
+            )
+        ][::-1]
+    ).T
+
+    # model.qs: Q x D  =>  subs: N x D x Q
+    subs = subs[:, :, None] + model.qs.T[None, :, :]
+    subs = np.mod(subs, domain.counts[None, :, None])
+
+    # indices: N x Q
+    stride = 1
+    indices = np.zeros((N, Q), dtype=np.int32)
+    for d in range(D):
+        indices += stride * subs[:, d, :]
+        stride *= domain.counts[d]
+
+    return indices
 
 
 def calc_equilibrium(
@@ -449,3 +494,24 @@ def calc_equilibrium(
         q = model.qs[i]
         qv = vel @ q
         feq[:, i] = rho * w * (1 + 3.0 * qv + 4.5 * qv**2 - (3.0 / 2.0) * vv)
+
+
+def calc_curl_2d(vel: np.ndarray, cells: np.ndarray, indices: np.ndarray) -> np.ndarray:
+    """
+    All quantities in lattice-units
+    """
+
+    assert vel.shape[0] == indices.shape[0]
+
+    curl = np.zeros((vel.shape[0],))
+    for i in range(0, vel.shape[0]):
+        idx = indices[i]
+        # NOTE: Assumes zero wall velocity.
+        dydx1 = vel[idx[2], 0] * (cells[idx[2]] != CellType.BC_WALL.value)
+        dydx2 = vel[idx[1], 0] * (cells[idx[1]] != CellType.BC_WALL.value)
+        dxdy1 = vel[idx[4], 1] * (cells[idx[4]] != CellType.BC_WALL.value)
+        dxdy2 = vel[idx[3], 1] * (cells[idx[3]] != CellType.BC_WALL.value)
+
+        curl[i] = ((dydx2 - dydx1) - (dxdy2 - dxdy1)) / 2
+
+    return curl

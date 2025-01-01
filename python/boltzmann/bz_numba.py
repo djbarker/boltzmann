@@ -7,7 +7,7 @@ from __future__ import annotations
 import numpy as np
 import numba
 from numba.experimental import jitclass
-from numba import void, int32, int64, float32
+from numba import void, int32, int64, float32, boolean
 
 from boltzmann.core import CellType, DimsT, to_dims, D2Q9 as D2Q9_, D2Q5 as D2Q5_
 
@@ -591,3 +591,251 @@ def loop_for_2_advdif(
             vel[idx, :] = vel_
             rho[idx] = rho_
             conc[idx] = conc_
+
+
+######################################################################
+# The below functions use AA pattern inplace streaming & collision.
+# The models are hard-coded here for _max speed_.
+######################################################################
+
+
+@numba.njit(
+    void(
+        boolean,
+        float32,
+        int32,
+        int32,
+        float32[:, ::1],
+        float32[:],
+        float32[:],
+    ),
+    cache=True,
+    fastmath=True,
+)
+def update_inplace_d2q5_bgk(
+    even: bool,
+    omega: float,
+    idx: int,
+    nx: int,
+    f: np.ndarray,
+    val: np.ndarray,
+    v: np.ndarray,  # externally imposed!
+):
+    # 0:  0  0
+    # 1: +1  0
+    # 2: -1  0
+    # 3:  0 +1
+    # 4:  0 -1
+
+    # collect fs
+    if even:
+        # ... from upstream
+        f0 = f[idx + 0 * nx + 0, 0]
+        f1 = f[idx + 0 * nx - 1, 1]
+        f2 = f[idx + 0 * nx + 1, 2]
+        f3 = f[idx - 1 * nx + 0, 3]
+        f4 = f[idx + 1 * nx + 0, 4]
+    else:
+        f0 = f[idx, 0]
+        f1 = f[idx, 2]
+        f3 = f[idx, 1]
+        f3 = f[idx, 4]
+        f4 = f[idx, 3]
+
+    # calc moments
+    C = f0 + f1 + f2 + f3 + f4
+    vv = (v * v).sum()
+    vxx = v[0] * v[0]
+    vyy = v[1] * v[1]
+
+    # calc equilibrium & collide
+    # fmt: off
+    f0 += omega * (C * (2.0 / 9.0) * (2.0 - 3.0 * vv) - f0)
+    f1 += omega * (C * (1.0 / 18.0) * (2.0 + 6.0 * v[0] + 9.0 * vxx - 3.0 * vv) - f1)
+    f2 += omega * (C * (1.0 / 18.0) * (2.0 - 6.0 * v[0] + 9.0 * vxx - 3.0 * vv) - f2)
+    f3 += omega * (C * (1.0 / 18.0) * (2.0 + 6.0 * v[1] + 9.0 * vyy - 3.0 * vv) - f3)
+    f4 += omega * (C * (1.0 / 18.0) * (2.0 - 6.0 * v[1] + 9.0 * vyy - 3.0 * vv) - f4)
+    # fmt: on
+
+    # write back to same locations
+    if even:
+        f[idx + 0 * nx + 0, 0] = f0
+        f[idx + 0 * nx - 1, 1] = f2
+        f[idx + 0 * nx + 1, 2] = f1
+        f[idx - 1 * nx + 0, 3] = f4
+        f[idx + 1 * nx + 0, 4] = f3
+    else:
+        f[idx, 0] = f0
+        f[idx, 1] = f1
+        f[idx, 2] = f2
+        f[idx, 3] = f3
+        f[idx, 4] = f4
+
+    val[idx] = C
+
+
+@numba.njit(
+    void(
+        boolean,
+        float32,
+        int32,
+        int32,
+        float32[:, ::1],
+        float32[:],
+        float32[:, ::1],
+    ),
+    cache=True,
+    fastmath=True,
+)
+def update_inplace_d2q9_bgk(
+    even: bool,
+    omega: float,
+    idx: int,
+    nx: int,
+    f: np.ndarray,
+    rho: np.ndarray,
+    vel: np.ndarray,
+):
+    # 0:  0  0
+    # 1: +1  0
+    # 2: -1  0
+    # 3:  0 +1
+    # 4:  0 -1
+    # 5: +1 +1
+    # 6: -1 -1
+    # 7: -1 +1
+    # 8: +1 -1
+
+    # collect fs
+    if even:
+        # ... from upstream
+        f0 = f[idx + 0 * nx + 0, 0]
+        f1 = f[idx + 0 * nx - 1, 1]
+        f2 = f[idx + 0 * nx + 1, 2]
+        f3 = f[idx - 1 * nx + 0, 3]
+        f4 = f[idx + 1 * nx + 0, 4]
+        f5 = f[idx - 1 * nx - 1, 5]
+        f6 = f[idx + 1 * nx + 1, 6]
+        f7 = f[idx + 1 * nx - 1, 7]
+        f8 = f[idx - 1 * nx + 1, 8]
+    else:
+        f0 = f[idx, 0]
+        f1 = f[idx, 2]
+        f2 = f[idx, 1]
+        f3 = f[idx, 4]
+        f4 = f[idx, 3]
+        f5 = f[idx, 6]
+        f6 = f[idx, 5]
+        f7 = f[idx, 8]
+        f8 = f[idx, 7]
+
+    # calc moments
+    r = f0 + f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8
+    vx = (f1 + f5 + f8 - f3 - f6 - f7) / r
+    vy = (f3 - f4 + f5 - f6 + f7 - f8) / r
+    vv = vx * vx + vy * vy
+    vxx = vx * vx
+    vyy = vy * vy
+    vxy = vx * vy
+
+    # calc equilibrium & collide
+    # fmt: off
+    f0 += omega * (r * (2.0 / 9.0) * (2.0 - 3.0 * vv) - f0)
+    f1 += omega * (r * (1.0 / 18.0) * (2.0 + 6.0 * vx + 9.0 * vxx - 3.0 * vv) - f1)
+    f2 += omega * (r * (1.0 / 18.0) * (2.0 - 6.0 * vx + 9.0 * vxx - 3.0 * vv) - f2)
+    f3 += omega * (r * (1.0 / 18.0) * (2.0 + 6.0 * vy + 9.0 * vyy - 3.0 * vv) - f3)
+    f4 += omega * (r * (1.0 / 18.0) * (2.0 - 6.0 * vy + 9.0 * vyy - 3.0 * vv) - f4)
+    f5 += omega * (r * (1.0 / 36.0) * (1.0 + 3.0 * (vx + vy) + 9.0 * vxy + 3.0 * vv) - f5)
+    f6 += omega * (r * (1.0 / 36.0) * (1.0 - 3.0 * (vx + vy) + 9.0 * vxy + 3.0 * vv) - f6)
+    f7 += omega * (r * (1.0 / 36.0) * (1.0 + 3.0 * (vy - vx) - 9.0 * vxy + 3.0 * vv) - f7)
+    f8 += omega * (r * (1.0 / 36.0) * (1.0 - 3.0 * (vy - vx) - 9.0 * vxy + 3.0 * vv) - f8)
+    # fmt: on
+
+    # write back to same locations
+    if even:
+        f[idx + 0 * nx + 0, 0] = f0
+        f[idx + 0 * nx - 1, 1] = f2
+        f[idx + 0 * nx + 1, 2] = f1
+        f[idx - 1 * nx + 0, 3] = f4
+        f[idx + 1 * nx + 0, 4] = f3
+        f[idx - 1 * nx - 1, 5] = f6
+        f[idx + 1 * nx + 1, 6] = f5
+        f[idx + 1 * nx - 1, 7] = f8
+        f[idx - 1 * nx + 1, 8] = f7
+    else:
+        f[idx, 0] = f0
+        f[idx, 1] = f1
+        f[idx, 2] = f2
+        f[idx, 3] = f3
+        f[idx, 4] = f4
+        f[idx, 5] = f5
+        f[idx, 6] = f6
+        f[idx, 7] = f7
+        f[idx, 8] = f8
+
+    rho[idx] = r
+    vel[idx, 0] = vx
+    vel[idx, 1] = vy
+
+
+@numba.njit(
+    void(
+        int64,
+        float32[:],
+        float32[:, ::1],
+        float32[:, ::1],
+        float32[:],
+        float32[:, ::1],
+        int32[:],
+        int32[:],
+        jc_arg(NumbaParams),
+        jc_arg(NumbaDomain),
+    ),
+    parallel=True,
+    cache=True,
+)
+def loop_inplace_advdif(
+    iters: int,
+    rho,
+    vel,  # in lattice-units
+    f,
+    conc,
+    g,
+    is_wall,
+    is_fixed,
+    params: NumbaParams,
+    pidx: NumbaDomain,
+):
+    counts = pidx.counts
+
+    assert np.prod(counts) == f.shape[0]
+    assert np.prod(counts) == g.shape[0]
+    assert np.prod(counts) == rho.shape[0]
+    assert np.prod(counts) == vel.shape[0]
+    assert np.prod(counts) == conc.shape[0]
+
+    for i in range(iters):
+        even = i % 2 == 0
+
+        pidx.copy_periodic(f)
+        pidx.copy_periodic(g)
+        for yidx in numba.prange(1, counts[1] - 1):
+            # for yidx in range(1, counts[1] - 1):
+            for xidx in range(1, counts[0] - 1):
+                # for xidx in numba.prange(1, counts[0] - 1):
+                idx = yidx * counts[0] + xidx
+
+                # fmt: off
+                update_f = ( 1 
+                    * (1 - is_wall[idx])  # not wall
+                    * (1- is_fixed[idx])  # not fixed density & velocity / concentration
+                )
+                # fmt: on
+
+                if update_f < 1:
+                    continue
+
+                update_inplace_d2q9_bgk(even, params.w_pos_lu, idx, counts[0], f, rho, vel)
+
+                v = vel[idx]
+                update_inplace_d2q5_bgk(even, params.w_pos_lu, idx, counts[0], g, conc, v)

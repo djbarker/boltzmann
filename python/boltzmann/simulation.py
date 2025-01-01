@@ -167,7 +167,7 @@ class SimulationRunner:
 
         return SimulationRunner(base, meta, loop, step)
 
-    def run(self):
+    def run(self, *, write_checkpoints: bool = True):
         batch_iters = self.meta.time.batch_steps(self.meta.scales.dt)
         logger.info(f"{batch_iters} iters/output")
         logger.info(f"{np.prod(self.meta.domain.counts) / 1e6:,.2f}m cells")
@@ -202,18 +202,19 @@ class SimulationRunner:
 
             self.loop.write_output(self.base, i)
 
-            # write meta-data
-            meta = {"step": i}
-            with open(self.base / "chk.meta.json", "w") as fout:
-                fout.write(json.dumps(meta))
+            if write_checkpoints:
+                # write meta-data
+                meta = {"step": i}
+                with open(self.base / "chk.meta.json", "w") as fout:
+                    fout.write(json.dumps(meta))
 
-            # write fields
-            self.loop.write_checkpoint(self.base)
+                # write fields
+                self.loop.write_checkpoint(self.base)
 
             logger.info(f"Batch {i}: {mlups_batch:.2f} mlups, {mlups_total=:.2f}")
 
 
-def run_sim_cli(sim: SimulationMeta, loop: SimulationLoop):
+def run_sim_cli(sim: SimulationMeta, loop: SimulationLoop, *, write_checkpoints: bool = True):
     """
     The 'main' method for running sims and handling cmd line args.
     """
@@ -230,4 +231,4 @@ def run_sim_cli(sim: SimulationMeta, loop: SimulationLoop):
     else:
         Runner = SimulationRunner
 
-    Runner(base, sim, loop).run()
+    Runner(base, sim, loop).run(write_checkpoints=write_checkpoints)

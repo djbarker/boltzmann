@@ -1,0 +1,20 @@
+[package]
+name = "boltzmann_rs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "boltzmann_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = "0.23.3"
+numpy = "0.23.0"
+num-traits = "0.2"
+rayon = "1.10"
+
+[profile.release]
+opt-level = 3
+overflow-checks = false
+target-feature = "+simd128"

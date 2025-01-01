@@ -21,8 +21,8 @@ class PngWriter(object):
         vmax: float,
         fig_kwargs: dict[str, Any],
     ):
-        cell = domain.unflatten(cell)[1:-1, 1:-1]
-        data = domain.unflatten(data)[1:-1, 1:-1]
+        cell = domain.unflatten(cell)
+        data = domain.unflatten(data)
         data = np.where(cell == 1, np.nan, data)
 
         self.data = data

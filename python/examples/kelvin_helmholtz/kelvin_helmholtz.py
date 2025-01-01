@@ -1,12 +1,13 @@
 # %% Imports
 
-
 import logging
-from pathlib import Path
 import numpy as np
+import matplotlib as mpl
 
-from numba import set_num_threads
-from multiprocessing import cpu_count
+mpl.use("Agg")
+import matplotlib.pyplot as plt
+
+from pathlib import Path
 from pprint import pprint
 from dataclasses import asdict
 
@@ -21,17 +22,16 @@ from boltzmann.core import (
     TimeMeta,
     D2Q9 as D2Q9_py,
     D2Q5 as D2Q5_py,
+    calc_curl_2d,
+    upstream_indices,
 )
 from boltzmann.utils.mpl import PngWriter
-from boltzmann.simulation import Cells, FluidField, ScalarField, SimulationRunner, run_sim_cli
+from boltzmann.simulation import Cells, FluidField, ScalarField, run_sim_cli
+from boltzmann_rs import loop_for_advdif_2d
 
-# be nice
-set_num_threads(cpu_count() - 2)
 
 basic_config()
-
 logger = logging.getLogger(__name__)
-
 logger.info("Starting")
 
 # %% Params
@@ -55,8 +55,8 @@ re_no = v0_si * y_si / nu_si
 logger.info(f"Reynolds no.:  {re_no:,.0f}")
 
 # geometry
-scale = 35
-# scale = 15
+# scale = 35
+scale = 10
 dx = 1.0 / (100 * scale)
 upper = np.array([x_si, y_si])
 
@@ -82,12 +82,14 @@ out_dt_si = dt * n
 domain = Domain.make(upper=upper, dx=dx)
 scales = Scales.make(dx=dx, dt=dt)
 time_meta = TimeMeta.make(
-    dt_output=out_dt_si,
-    # dt_output=dt,
+    # dt_output=out_dt_si,
+    dt_output=dt,
     output_count=250,
 )
 fluid_meta = FluidMeta.make(nu=nu_si, rho=rho_si)
 sim = SimulationMeta(domain, time_meta, scales, fluid_meta)
+
+indices = upstream_indices(domain, D2Q9_py)
 
 logger.info(f"\n{pprint(asdict(sim), sort_dicts=False, width=10)}")
 
@@ -123,15 +125,15 @@ vel_[: domain.counts[1] // 2, :, 0] = -v0_si
 n = 10
 l = x_si / n  # wavelength
 vy_si = v0_si * 0.001 * np.sin(2 * np.pi * (domain.x / l))
-vel_[2:-2, 2:-2, 1] = vy_si[1:-1]
+vel_[1:-1, 1:-1, 1] = vy_si[1:-1]
 
 conc_ = domain.unflatten(tracer.val)
 conc_[domain.counts[1] // 2 :, :] = 1.0
 
 # flag arrays
 # TODO: this is duped between sims
-is_wall = (cells.cells == CellType.BC_WALL.value).astype(np.int32)
-is_fixed = (cells.cells != CellType.FLUID.value).astype(np.int32)
+is_wall = cells.cells == CellType.BC_WALL.value
+is_fixed = cells.cells != CellType.FLUID.value
 
 # set wall velocity to zero
 # (just for nice output, doesn't affect the simulation)
@@ -148,31 +150,7 @@ mem_mb = (cells.size_bytes + fluid.size_bytes + tracer.size_bytes) / 1e6
 logger.info(f"Memory usage: {mem_mb:,.2f} Mb")
 
 
-# %% Compile
-
-logger.info("Compiling using Numba...")
-
-from boltzmann.bz_numba import (  # noqa: E402
-    NumbaDomain,
-    NumbaParams,
-    D2Q5 as D2Q5_nb,
-    D2Q9 as D2Q9_nb,
-    loop_for_2_advdif,
-    calc_curl_2d,
-)
-
-# make numba objects
-g_lu = np.array([0.0, 0.0], dtype=np.float32)
-domain_nb = NumbaDomain(domain.counts)
-params_nb = NumbaParams(dt, domain.dx, sim.w_pos_lu, sim.w_neg_lu, g_lu)
-
 # %% Define simulation loop
-
-import matplotlib as mpl
-
-mpl.use("Agg")
-import matplotlib.pyplot as plt
-
 
 FONT = dict(
     fontsize=14,
@@ -216,7 +194,7 @@ def write_png_vmag(path: Path):
 
 
 def write_png_curl(path: Path):
-    vort = calc_curl_2d(domain_nb, fluid.vel, cells.cells)  # in LU
+    vort = calc_curl_2d(fluid.vel, cells.cells, indices)  # in LU
     vort = vort * ((dx / dt) / dx)  # in SI
     vort = np.tanh(vort / vmax_curl) * vmax_curl
 
@@ -251,27 +229,45 @@ def write_png_conc(path: Path):
 
 class KelvinHelmholtz:
     def loop_for(self, steps: int):
+        if steps % 2 != 0:
+            steps += 1  # even steps please
+
         if np.any(~np.isfinite(fluid.f1)) or np.any(~np.isfinite(tracer.f1)):
             raise ValueError("Non-finite value in f.")
 
         # if np.any(fluid.f1 < 0) or np.any(tracer.f1 < 0):
         #     raise ValueError("Negative value in f.")
 
-        loop_for_2_advdif(
+        # loop_for_2_advdif(
+        #     steps,
+        #     fluid.rho,
+        #     fluid.vel,
+        #     fluid.f1,
+        #     fluid.f2,
+        #     D2Q9_nb,
+        #     tracer.val,
+        #     tracer.f1,
+        #     tracer.f2,
+        #     D2Q5_nb,
+        #     is_wall,
+        #     is_fixed,
+        #     params_nb,
+        #     domain_nb,
+        # )
+
+        loop_for_advdif_2d(
             steps,
+            fluid.f1,
             fluid.rho,
             fluid.vel,
-            fluid.f1,
-            fluid.f2,
-            D2Q9_nb,
-            tracer.val,
             tracer.f1,
-            tracer.f2,
-            D2Q5_nb,
+            tracer.val,
             is_wall,
             is_fixed,
-            params_nb,
-            domain_nb,
+            indices,
+            domain.counts,
+            sim.w_pos_lu,
+            0.5 + (sim.w_pos_lu - 0.5) * 0.5,
         )
 
     def write_output(self, base: Path, step: int):
@@ -293,7 +289,7 @@ class KelvinHelmholtz:
 
 # %% Main Loop
 
-run_sim_cli(sim, KelvinHelmholtz())
+run_sim_cli(sim, KelvinHelmholtz(), write_checkpoints=False)
 
 # render with
 # ffmpeg -i out/curl_%06d.png -i out/vmag_%06d.png -c:v libx264 -crf 10 -r 30 -filter_complex "[1]pad=iw:ih+2:0:2[v1];[0][v1]vstack=inputs=2" -y kh.mp4
