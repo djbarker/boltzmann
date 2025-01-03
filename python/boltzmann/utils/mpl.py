@@ -21,8 +21,8 @@ class PngWriter(object):
         vmax: float,
         fig_kwargs: dict[str, Any],
     ):
-        cell = domain.unflatten(cell)
-        data = domain.unflatten(data)
+        cell = domain.unflatten(cell).T
+        data = domain.unflatten(data).T
         data = np.where(cell == 1, np.nan, data)
 
         self.data = data
@@ -31,9 +31,24 @@ class PngWriter(object):
         ex = domain.upper[1] - domain.lower[1]
         ar = ey / ex
 
+        ext = (
+            domain.lower[0],
+            domain.upper[0],
+            domain.lower[1],
+            domain.upper[1],
+        )
+
         fig = plt.figure(figsize=(10, 10 / ar), **fig_kwargs)
         ax1 = fig.add_subplot(1, 1, 1)
-        ax1.imshow(data, vmin=vmin, vmax=vmax, cmap=cmap, interpolation="none")
+        ax1.imshow(
+            data,
+            extent=ext,
+            vmin=vmin,
+            vmax=vmax,
+            cmap=cmap,
+            interpolation="none",
+            origin="lower",
+        )
 
         plt.axis("off")
 

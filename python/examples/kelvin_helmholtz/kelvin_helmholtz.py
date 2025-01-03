@@ -61,7 +61,7 @@ dx = 1.0 / (100 * scale)
 upper = np.array([x_si, y_si])
 
 # Max Mach number implied dt
-Mmax = 0.2
+Mmax = 0.1
 cs = v0_si / Mmax
 dt_mach = np.sqrt(3) * dx / cs
 
@@ -82,8 +82,8 @@ out_dt_si = dt * n
 domain = Domain.make(upper=upper, dx=dx)
 scales = Scales.make(dx=dx, dt=dt)
 time_meta = TimeMeta.make(
-    # dt_output=out_dt_si,
-    dt_output=dt,
+    dt_output=out_dt_si,
+    # dt_output=dt,
     output_count=250,
 )
 fluid_meta = FluidMeta.make(nu=nu_si, rho=rho_si)
@@ -110,25 +110,22 @@ rho_[:, :] = fluid_meta.rho
 # fixed velocity in- & out-flow
 # (only need to specify one due to periodicity)
 cells_ = domain.unflatten(cells.cells)
-cells_[1, :] = CellType.BC_VELOCITY.value  # bottom
-cells_[-2, :] = CellType.BC_VELOCITY.value  # top
+cells_[:, +0] = CellType.BC_VELOCITY.value  # bottom
+cells_[:, -1] = CellType.BC_VELOCITY.value  # top
 
 # set upper half's velocity & concentration
 vel_ = domain.unflatten(fluid.vel)
-vel_[domain.counts[1] // 2 :, :, 0] = +v0_si
-vel_[: domain.counts[1] // 2, :, 0] = -v0_si
-
-# randomize velocity
-# vel_[1:-1, 1:-1, :] *= 1 + 0.001 * (np.random.uniform(size=vel_[1:-1, 1:-1, :].shape) - 0.5)
+vel_[:, domain.counts[1] // 2 :, 0] = -v0_si
+vel_[:, : domain.counts[1] // 2, 0] = +v0_si
 
 # perturb velocity
 n = 10
 l = x_si / n  # wavelength
 vy_si = v0_si * 0.001 * np.sin(2 * np.pi * (domain.x / l))
-vel_[1:-1, 1:-1, 1] = vy_si[1:-1]
+vel_[:, 1:-1, 1] = vy_si[:, None]
 
 conc_ = domain.unflatten(tracer.val)
-conc_[domain.counts[1] // 2 :, :] = 1.0
+conc_[:, domain.counts[1] // 2 :] = 1.0
 
 # flag arrays
 # TODO: this is duped between sims
@@ -139,8 +136,7 @@ is_fixed = cells.cells != CellType.FLUID.value
 # (just for nice output, doesn't affect the simulation)
 vel_[cells_ == CellType.BC_WALL.value, 0] = 0
 
-# Important convert velocity to lattice units / timestep
-# NOTE: for this sim doesn't matter since velocity starts zero everywhere!
+# IMPORTANT: convert velocity to lattice units / timestep
 vel_[:] = scales.to_lattice_units(vel_, **VELOCITY)
 
 fluid.equilibrate()
@@ -161,13 +157,15 @@ FONT = dict(
 
 
 def png_writer(path: Path, data: np.ndarray, **kwargs) -> PngWriter:
-    return PngWriter(path, domain, cells_, data, **kwargs)
+    fig_kwargs = kwargs.pop("fig_kwargs", {})
+    fig_kwargs["dpi"] = 300
+    return PngWriter(path, domain, cells_, data, fig_kwargs=fig_kwargs, **kwargs)
 
 
 def annotate(ax1, text: str, **kwargs):
     ax1.annotate(
         text,
-        (x_si * 0.05, x_si * 0.95),
+        (y_si * 0.025, y_si * 0.975),
         xytext=(0.25, -1.1),
         textcoords="offset fontsize",
         **kwargs,
@@ -190,6 +188,42 @@ def write_png_vmag(path: Path):
         },
     ) as fig:
         ax1 = fig.gca()
+        n = 70
+        s = domain.counts[0] // n
+        xx, yy = np.meshgrid(
+            domain.x[s // 2 :: s],
+            domain.y[s // 2 :: s],
+        )
+        vx = np.squeeze(vel_[s // 2 :: s, s // 2 :: s, 0::2]).T
+        vy = np.squeeze(vel_[s // 2 :: s, s // 2 :: s, 1::2]).T
+        vm = np.sqrt(vx**2 + vy**2)
+        vx = np.where(vm > 0, vx / vm, 0)
+        vy = np.where(vm > 0, vy / vm, 0)
+        ax1.scatter(
+            xx.flatten(),
+            yy.flatten(),
+            c="#AAAAAA",
+            s=1,
+            marker=".",
+            edgecolors="none",
+            alpha=0.7,
+        )
+        ax1.quiver(
+            xx,
+            yy,
+            vx,
+            vy,
+            scale=1.5 * n,
+            scale_units="width",
+            headwidth=0,
+            headlength=0,
+            headaxislength=0,
+            # pivot="mid",
+            width=3,
+            units="dots",
+            color="#AAAAAA",
+            alpha=0.7,
+        )
         annotate(ax1, "Velocity", c="w")
 
 
@@ -255,6 +289,9 @@ class KelvinHelmholtz:
         #     domain_nb,
         # )
 
+        omega_ns = sim.w_pos_lu
+        omega_ad = sim.w_pos_lu
+
         loop_for_advdif_2d(
             steps,
             fluid.f1,
@@ -266,8 +303,8 @@ class KelvinHelmholtz:
             is_fixed,
             indices,
             domain.counts,
-            sim.w_pos_lu,
-            0.5 + (sim.w_pos_lu - 0.5) * 0.5,
+            omega_ns,
+            omega_ad,
         )
 
     def write_output(self, base: Path, step: int):
