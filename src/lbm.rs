@@ -1,4 +1,4 @@
-use crate::raster::{sub_to_idx, Raster};
+use crate::raster::{raster_row_major, sub_to_idx, Raster};
 use crate::utils::vmod;
 use crate::vect_d::VectD;
 use crate::vect_s::VectS;
@@ -232,7 +232,7 @@ impl<const D: usize, const Q: usize> LBM<D, Q> {
         // initialize offset vectors
         let mut idx: VectD<VectS<i32, Q>> = VectD::zeros(n);
         let mut i = 0;
-        for sub in Raster::new(cnt) {
+        for sub in raster_row_major(cnt) {
             for q in 0..Q {
                 let sub_ = sub - qs[q].cast();
                 let sub_ = vmod(sub_, cnt);
