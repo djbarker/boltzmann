@@ -55,8 +55,8 @@ re_no = v0_si * y_si / nu_si
 logger.info(f"Reynolds no.:  {re_no:,.0f}")
 
 # geometry
-# scale = 35
-scale = 10
+scale = 20
+# scale = 10
 dx = 1.0 / (100 * scale)
 upper = np.array([x_si, y_si])
 
@@ -125,7 +125,7 @@ vy_si = v0_si * 0.001 * np.sin(2 * np.pi * (domain.x / l))
 vel_[:, 1:-1, 1] = vy_si[:, None]
 
 conc_ = domain.unflatten(tracer.val)
-conc_[:, domain.counts[1] // 2 :] = 1.0
+conc_[:, : domain.counts[1] // 2] = 1.0
 
 # flag arrays
 # TODO: this is duped between sims
