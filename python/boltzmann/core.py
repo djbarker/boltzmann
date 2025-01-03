@@ -158,37 +158,36 @@ class Domain:
         dims = [int(np.prod(self.counts))] + dims
         return np.full(dims, fill, dtype)
 
-    def unflatten(self, arr: np.ndarray, rev: bool = True) -> np.ndarray:
+    def unflatten(self, arr: np.ndarray) -> np.ndarray:
         """
         Expands the collapsed spatial index into one for x, y, and (if needed) z.
 
-        For the simulation data is just stored in a flat array where the spatial indices are collapsed,
-        this function undoes that collapsing to let us slice into the array along desired axes.
+        For the simulation, data is just stored in a flat array where the spatial indices are collapsed.
+        This function undoes that collapsing to let us slice into the array along desired axes.
 
-        NOTE: One perculiarity of our data layout is that (in 2D) the y axis is first.
+        NOTE: The returned array has C (row-major) ordering so the last axes are contiguous.
 
         This function is idemponent.
 
         .. code-block::
 
             rho = dom.make_array()    # rho.shape == [nx*nx]
-            rho = dom.unflatten(rho)  # rho.shape == [ny, nx]
+            rho = dom.unflatten(rho)  # rho.shape == [nx, ny]
             vel = dom.make_array(2)   # vel.shape == [nx*nx, 2]
-            vel = dom.unflatten(vel)  # vel.shape == [ny, nx, 2]
+            vel = dom.unflatten(vel)  # vel.shape == [nx, ny, 2]
         """
         n = arr.shape[1:]
         c = tuple(self.counts)
 
         # looks already unflattened
-        if (len(arr.shape) >= self.dims) and (
-            (arr.shape[: self.dims] == c) or (arr.shape[: self.dims] == c[::-1])
-        ):
+        if (arr.ndim >= self.dims) and (arr.shape[: self.dims] == c):
             return arr
 
-        if rev:
-            c = c[::-1]
+        arr_ = np.reshape(arr, c + n, order="C")
 
-        return np.reshape(arr, c + n)
+        assert arr_.base is arr, "Unflattened array should point to the orignal data."
+
+        return arr_
 
 
 @dataclass
@@ -261,9 +260,7 @@ class Scales:
             case (Some(x), Some(t), None):
                 pass
             case _:
-                msg = (
-                    f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
-                )
+                msg = f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
                 raise ValueError(msg)
 
         return Scales(x, t, dm)
@@ -449,6 +446,7 @@ def upstream_indices(domain: Domain, model: Model) -> np.ndarray:
     """
     Return an array of size (cell_count, Q) where for each cell we have calculated the index of the
     cell upstream of each velocity in the model.
+    Indicies are in C / row-major order.
     """
     N = domain.counts.prod()
     D = model.D
@@ -462,19 +460,47 @@ def upstream_indices(domain: Domain, model: Model) -> np.ndarray:
                 *[np.arange(0, domain.counts[i], dtype=np.int32) for i in range(D)],
                 indexing="ij",
             )
-        ][::-1]
+        ]
     ).T
 
-    # model.qs: Q x D  =>  subs: N x D x Q
-    subs = subs[:, :, None] + model.qs.T[None, :, :]
-    subs = np.mod(subs, domain.counts[None, :, None])
+    # breakpoint()
 
+    # Get offsets for the subscripts
+    # model.qs: Q x D  =>  qs_: 1 x D x Q
+    qs_ = model.qs.T[None, :, :]
+
+    # subs: N x D x Q
+    subs = subs[:, :, None] + qs_
+    assert subs.shape == (N, D, Q)
+
+    # breakpoint()
+
+    # Modulo subscripts with the domain counts
+    for d, c in zip(range(D), domain.counts):
+        subs[:, d, :] = np.mod(subs[:, d, :] + c, c)
+
+    # Convert subscripts to raw indices
     # indices: N x Q
     stride = 1
     indices = np.zeros((N, Q), dtype=np.int32)
     for d in range(D):
-        indices += stride * subs[:, d, :]
-        stride *= domain.counts[d]
+        d_ = D - 1 - d
+        indices += stride * subs[:, d_, :]
+        stride *= domain.counts[d_]
+
+    # breakpoint()
+
+    # Sanity check: shape
+    assert indices.shape == (N, Q)
+
+    # Sanity check: zero index component is just the array index
+    tmp1 = np.arange(0, indices.shape[0], 1, dtype=indices.dtype)
+    assert all(indices[:, 0] == tmp1)
+
+    # Sanity check: every cell is upstream of exactly one cell in each direction.
+    for q in range(Q):
+        tmp2 = np.sort(indices[:, q])
+        assert np.all(tmp2 == tmp1), q
 
     return indices
 
@@ -503,15 +529,15 @@ def calc_curl_2d(vel: np.ndarray, cells: np.ndarray, indices: np.ndarray) -> np.
 
     assert vel.shape[0] == indices.shape[0]
 
-    curl = np.zeros((vel.shape[0],))
+    curl = np.zeros((vel.shape[0],), dtype=np.float32)
     for i in range(0, vel.shape[0]):
         idx = indices[i]
         # NOTE: Assumes zero wall velocity.
-        dydx1 = vel[idx[2], 0] * (cells[idx[2]] != CellType.BC_WALL.value)
-        dydx2 = vel[idx[1], 0] * (cells[idx[1]] != CellType.BC_WALL.value)
-        dxdy1 = vel[idx[4], 1] * (cells[idx[4]] != CellType.BC_WALL.value)
-        dxdy2 = vel[idx[3], 1] * (cells[idx[3]] != CellType.BC_WALL.value)
+        dvydx1 = vel[idx[2], 1] * (cells[idx[2]] != CellType.BC_WALL.value)
+        dvydx2 = vel[idx[1], 1] * (cells[idx[1]] != CellType.BC_WALL.value)
+        dvxdy1 = vel[idx[4], 0] * (cells[idx[4]] != CellType.BC_WALL.value)
+        dvxdy2 = vel[idx[3], 0] * (cells[idx[3]] != CellType.BC_WALL.value)
 
-        curl[i] = ((dydx2 - dydx1) - (dxdy2 - dxdy1)) / 2
+        curl[i] = ((dvydx2 - dvydx1) - (dvxdy2 - dvxdy1)) / 2
 
     return curl

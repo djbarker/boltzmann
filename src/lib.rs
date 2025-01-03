@@ -1,18 +1,18 @@
 use std::ptr::slice_from_raw_parts_mut;
 use std::{mem, str, usize};
 
-use lbm::{tensor_prod_q, tensor_prod_w, D1Q3_Q, D1Q3_W, LBM};
+// use lbm::{tensor_prod_q, tensor_prod_w, D1Q3_Q, D1Q3_W, LBM};
 use num_traits::Zero;
 use numpy::ndarray::{arr1, s, Array1, Array2, ArrayViewMut1, ArrayViewMut2};
 // use numpy::{convert::IntoPyArray, ndarray::Dim, npyffi::npy_intp, PyArray, ToPyArray};
 use numpy::{PyArray1, PyReadonlyArray1, PyReadwriteArray1, PyReadwriteArray2};
 use pyo3::prelude::*;
-use raster::{sub_to_idx, Raster};
+use raster::{counts_to_strides, sub_to_idx, Counts, Raster, Sub};
 use utils::vmod;
 use vect_d::{ArrayD, VectD, VectDView};
 use vect_s::VectS;
 
-mod lbm;
+// mod lbm;
 mod raster;
 mod utils;
 mod vect_d;
@@ -117,14 +117,97 @@ impl FieldD2Q9 {
     }
 }
 
+fn update_d2q5_fixed(
+    even: bool,
+    f: &mut impl ArrayD<VectS<f32, 5>>,
+    val: &impl ArrayD<f32>,
+    vel: &impl ArrayD<VectS<f32, 2>>,
+    idx: VectS<i32, 9>, // We can re-use the D2Q9 indices because the first 5 velocities match.
+) {
+    let val = val[idx[0]];
+    let vel = vel[idx[0]];
+    let vx = vel[0];
+    let vy = vel[1];
+    let vv = vx * vx + vy * vy;
+    let vxx = vx * vx;
+    let vyy = vy * vy;
+
+    let feq = [
+        val * (1.0 / 6.0) * (2.0 - 3.0 * vv),
+        val * (1.0 / 12.0) * (2.0 + 6.0 * vx + 9.0 * vxx - 3.0 * vv),
+        val * (1.0 / 12.0) * (2.0 - 6.0 * vx + 9.0 * vxx - 3.0 * vv),
+        val * (1.0 / 12.0) * (2.0 + 6.0 * vy + 9.0 * vyy - 3.0 * vv),
+        val * (1.0 / 12.0) * (2.0 - 6.0 * vy + 9.0 * vyy - 3.0 * vv),
+    ];
+
+    // write back to same locations
+    if even {
+        f[idx[0]][0] = feq[0];
+        f[idx[1]][1] = feq[2];
+        f[idx[2]][2] = feq[1];
+        f[idx[3]][3] = feq[4];
+        f[idx[4]][4] = feq[3];
+    } else {
+        for i in 0..5 {
+            f[idx[0]][i] = feq[i];
+        }
+    }
+}
+
+fn update_d2q9_fixed(
+    even: bool,
+    f: &mut impl ArrayD<VectS<f32, 9>>,
+    rho: &impl ArrayD<f32>,
+    vel: &impl ArrayD<VectS<f32, 2>>,
+    idx: VectS<i32, 9>,
+) {
+    let r = rho[idx[0]];
+    let vel = vel[idx[0]];
+    let vx = vel[0];
+    let vy = vel[1];
+    let vv = vx * vx + vy * vy;
+    let vxx = vx * vx;
+    let vyy = vy * vy;
+    let vxy = vx * vy;
+
+    let feq = [
+        r * (2.0 / 9.0) * (2.0 - 3.0 * vv),
+        r * (1.0 / 18.0) * (2.0 + 6.0 * vx + 9.0 * vxx - 3.0 * vv),
+        r * (1.0 / 18.0) * (2.0 - 6.0 * vx + 9.0 * vxx - 3.0 * vv),
+        r * (1.0 / 18.0) * (2.0 + 6.0 * vy + 9.0 * vyy - 3.0 * vv),
+        r * (1.0 / 18.0) * (2.0 - 6.0 * vy + 9.0 * vyy - 3.0 * vv),
+        r * (1.0 / 36.0) * (1.0 + 3.0 * (vx + vy) + 9.0 * vxy + 3.0 * vv),
+        r * (1.0 / 36.0) * (1.0 - 3.0 * (vx + vy) + 9.0 * vxy + 3.0 * vv),
+        r * (1.0 / 36.0) * (1.0 + 3.0 * (vy - vx) - 9.0 * vxy + 3.0 * vv),
+        r * (1.0 / 36.0) * (1.0 - 3.0 * (vy - vx) - 9.0 * vxy + 3.0 * vv),
+    ];
+
+    // write back to same locations
+    if even {
+        f[idx[0]][0] = feq[0];
+        f[idx[1]][1] = feq[2];
+        f[idx[2]][2] = feq[1];
+        f[idx[3]][3] = feq[4];
+        f[idx[4]][4] = feq[3];
+        f[idx[5]][5] = feq[6];
+        f[idx[6]][6] = feq[5];
+        f[idx[7]][7] = feq[8];
+        f[idx[8]][8] = feq[7];
+    } else {
+        for i in 0..9 {
+            f[idx[0]][i] = feq[i];
+        }
+    }
+}
+
 #[rustfmt::skip]
 fn update_d2q5_bgk(
     even: bool,
     omega: f32,
-     f: &mut impl ArrayD<VectS<f32, 5>>,
-     val: &mut impl ArrayD<f32>,
-     vel: &impl ArrayD<VectS<f32, 2>>,
-    idx: VectS<i32, 9>,
+    f: &mut impl ArrayD<VectS<f32, 5>>,
+    val: &mut impl ArrayD<f32>,
+    vel: &impl ArrayD<VectS<f32, 2>>,
+    idx: VectS<i32, 9>,  // We can re-use the D2Q9 indices because the first 5 velocities match.
 ) {
     // 0:  0  0
     // 1: +1  0
@@ -159,12 +242,14 @@ fn update_d2q5_bgk(
     let vyy = v[1] * v[1];
     
     // calc equilibrium & collide
-    f_[0] += omega * (r * (2.0 / 9.0) * (2.0 - 3.0 * vv) - f_[0]);
-    f_[1] += omega * (r * (1.0 / 18.0) * (2.0 + 6.0 * v[0] + 9.0 * vxx - 3.0 * vv) - f_[1]);
-    f_[2] += omega * (r * (1.0 / 18.0) * (2.0 - 6.0 * v[0] + 9.0 * vxx - 3.0 * vv) - f_[2]);
-    f_[3] += omega * (r * (1.0 / 18.0) * (2.0 + 6.0 * v[1] + 9.0 * vyy - 3.0 * vv) - f_[3]);
-    f_[4] += omega * (r * (1.0 / 18.0) * (2.0 - 6.0 * v[1] + 9.0 * vyy - 3.0 * vv) - f_[4]);
+    f_[0] += omega * (r * (1.0 / 6.0) * (2.0 - 3.0 * vv) - f_[0]);
+    f_[1] += omega * (r * (1.0 / 12.0) * (2.0 + 6.0 * v[0] + 9.0 * vxx - 3.0 * vv) - f_[1]);
+    f_[2] += omega * (r * (1.0 / 12.0) * (2.0 - 6.0 * v[0] + 9.0 * vxx - 3.0 * vv) - f_[2]);
+    f_[3] += omega * (r * (1.0 / 12.0) * (2.0 + 6.0 * v[1] + 9.0 * vyy - 3.0 * vv) - f_[3]);
+    f_[4] += omega * (r * (1.0 / 12.0) * (2.0 - 6.0 * v[1] + 9.0 * vyy - 3.0 * vv) - f_[4]);
     
+    // assert!(((f_.sum() + 1e-7) / (r + 1e-7) - 1.0).abs() < 1e-3, "D2Q5 {} {} {}", f_.sum(), r, even);
+
     // write back to same locations
     if even {
         f[idx[0]][0] = f_[0];
@@ -185,9 +270,9 @@ fn update_d2q5_bgk(
 fn update_d2q9_bgk(
     even: bool,
     omega: f32,
-     f: &mut impl ArrayD<VectS<f32, 9>>,
-     rho: &mut impl ArrayD<f32>,
-     vel: &mut impl ArrayD<VectS<f32, 2>>,
+    f: &mut impl ArrayD<VectS<f32, 9>>,
+    rho: &mut impl ArrayD<f32>,
+    vel: &mut impl ArrayD<VectS<f32, 2>>,
     idx: VectS<i32, 9>,
 ) {
     // 0:  0  0
@@ -228,9 +313,10 @@ fn update_d2q9_bgk(
     });
 
     // calc moments
-    let r = f_.sum();
-    let vx = (f_[1] + f_[5] + f_[8] - f_[3] - f_[6] - f_[7]) / r;
-    let vy = (f_[3] - f_[4] + f_[5] - f_[6] + f_[7] - f_[8]) / r;
+    let mut r = f_.sum();
+    let mut vx = (f_[1] - f_[2] + f_[5] - f_[6] - f_[7] + f_[8]) / r;
+    let mut vy = (f_[3] - f_[4] + f_[5] - f_[6] + f_[7] - f_[8]) / r;
+    
     let vv = vx * vx + vy * vy;
     let vxx = vx * vx;
     let vyy = vy * vy;
@@ -247,6 +333,8 @@ fn update_d2q9_bgk(
     f_[7] += omega * (r * (1.0 / 36.0) * (1.0 + 3.0 * (vy - vx) - 9.0 * vxy + 3.0 * vv) - f_[7]);
     f_[8] += omega * (r * (1.0 / 36.0) * (1.0 - 3.0 * (vy - vx) - 9.0 * vxy + 3.0 * vv) - f_[8]);
     
+    // assert!(((f_.sum() + 1e-7) / (r + 1e-7) - 1.0).abs() < 1e-3, "D2Q9 {} {} {}", f_.sum(), r, even);
+
     // write back to same locations
     if even {
         f[idx[0]][0] = f_[0];
@@ -264,6 +352,7 @@ fn update_d2q9_bgk(
         }
     }
 
+    // TODO: we don't actually need to update this until the end of loop_for
     rho[idx[0]] = r;
     vel[idx[0]] = [vx, vy].into();
 }
@@ -296,35 +385,39 @@ fn loop_for_advdif_2d(
     for iter in 0..iters {
         let even = iter % 2 == 0;
 
+        // let _ = (0..ncells).map(|i| {});
+
         for idx in 0..ncells {
-            let no_update = is_wall[idx] || is_fixed[idx];
-
-            // TODO: streaming from fixed but not wall
-
-            if no_update {
-                continue;
+            if is_wall[idx] {
+                continue; // implicit bounce-back in AA-update pattern
             }
 
-            let uidx = upstream_idx[idx];
-            update_d2q9_bgk(even, omega_ns, f, rho, vel, uidx);
-            update_d2q5_bgk(even, omega_ad, g, conc, vel, uidx);
+            let uidx: VectS<i32, 9> = upstream_idx[idx];
+            if is_fixed[idx] {
+                update_d2q9_fixed(even, f, rho, vel, uidx);
+                update_d2q5_fixed(even, g, conc, vel, uidx);
+            } else {
+                update_d2q9_bgk(even, omega_ns, f, rho, vel, uidx);
+                update_d2q5_bgk(even, omega_ad, g, conc, vel, uidx);
+            }
         }
     }
 }
 
 /// Return an array of size (cell_count, Q) where for each cell we have calculated the index of the
 /// cell upstream of each velocity in the model.
-fn upstream_idx<const D: usize, const Q: usize>(
-    counts: VectS<i32, D>,
+fn upstream_idx<const D: usize, const Q: usize, const ROW_MAJOR: bool>(
+    counts: Counts<D>,
     model: Model<D, Q>,
 ) -> VectD<VectS<i32, Q>> {
-    let mut idx: VectD<VectS<i32, Q>> = VectD::zeros(counts.prod() as usize);
+    let strides = counts_to_strides::<D, ROW_MAJOR>(counts);
+    let mut idx: VectD<VectS<i32, Q>> = VectD::zeros(counts.0.prod() as usize);
     let mut i = 0;
-    for sub in Raster::new(counts) {
+    for sub in Raster::<D, ROW_MAJOR>::new(counts) {
         for q in 0..Q {
-            let sub_ = sub - model.q[q].cast();
-            let sub_ = vmod(sub_, counts);
-            let j = sub_to_idx(sub_, counts);
+            let sub_ = sub.0 - model.q[q].cast();
+            let sub_ = vmod(sub_, counts.0);
+            let j = sub_to_idx(Sub(sub_), strides);
             idx[i][q] = j;
         }
 
