@@ -176,6 +176,7 @@ class SimulationRunner:
             logger.info(f"Resuming from step {self.step}")
         else:
             self.loop.write_output(self.base, self.step)
+            logger.info("Wrote output 0")
 
         cell_count = int(np.prod(self.meta.domain.counts))
         perf_total = PerfInfo()
