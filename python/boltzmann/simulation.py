@@ -45,24 +45,21 @@ class Field:
     model: Model
 
     f1: np.ndarray
-    f2: np.ndarray
 
     def __init__(self, name: str, model: Model, domain: Domain) -> None:
         self.name = name
         self.model = model
         self.f1 = domain.make_array(model.Q)
-        self.f2 = domain.make_array(model.Q)
 
     def save(self, base: Path):
         np.save(base / f"chk.{self.name}.npy", self.f1)
 
     def load(self, base: Path):
         self.f1[:] = np.load(base / f"chk.{self.name}.npy")
-        self.f2[:] = self.f1[:]
 
     @property
     def size_bytes(self) -> int:
-        return self.f1.nbytes + self.f2.nbytes
+        return self.f1.nbytes
 
 
 @dataclass(init=False)
@@ -86,7 +83,6 @@ class FluidField(Field):
 
     def equilibrate(self):
         calc_equilibrium(self.vel, self.rho, self.f1, self.model)
-        self.f2[:] = self.f1[:]
 
     @property
     def size_bytes(self) -> int:
@@ -115,7 +111,6 @@ class ScalarField(Field):
         """
         assert vel.shape[-1] == self.model.D, "Dimension mismatch!"
         calc_equilibrium(vel, self.val, self.f1, self.model)
-        self.f2[:] = self.f1[:]
 
     @property
     def size_bytes(self) -> int:
@@ -215,13 +210,14 @@ class SimulationRunner:
             logger.info(f"Batch {i}: {mlups_batch:.2f} mlups, {mlups_total=:.2f}")
 
 
-def run_sim_cli(sim: SimulationMeta, loop: SimulationLoop, *, write_checkpoints: bool = True):
+def run_sim_cli(sim: SimulationMeta, loop: SimulationLoop):
     """
     The 'main' method for running sims and handling cmd line args.
     """
     parser = ap.ArgumentParser()
     parser.add_argument("--base", type=str, default="out")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--no-checkpoint", action="store_true")
     args = parser.parse_args()
 
     base = Path(args.base)
@@ -231,5 +227,7 @@ def run_sim_cli(sim: SimulationMeta, loop: SimulationLoop, *, write_checkpoints:
         Runner = SimulationRunner.load_checkpoint
     else:
         Runner = SimulationRunner
+
+    write_checkpoints = not args.no_checkpoint
 
     Runner(base, sim, loop).run(write_checkpoints=write_checkpoints)

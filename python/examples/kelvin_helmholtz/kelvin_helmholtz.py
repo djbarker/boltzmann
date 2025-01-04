@@ -55,8 +55,8 @@ re_no = v0_si * y_si / nu_si
 logger.info(f"Reynolds no.:  {re_no:,.0f}")
 
 # geometry
+# scale = 20
 scale = 20
-# scale = 10
 dx = 1.0 / (100 * scale)
 upper = np.array([x_si, y_si])
 
@@ -66,7 +66,7 @@ cs = v0_si / Mmax
 dt_mach = np.sqrt(3) * dx / cs
 
 # Max tau implied dt
-tau_max = 0.6
+tau_max = 0.55
 dt_err = (1 / 3) * (tau_max - 0.5) * dx**2 / nu_si
 
 dt = min(dt_err, dt_mach)
@@ -113,10 +113,10 @@ cells_ = domain.unflatten(cells.cells)
 cells_[:, +0] = CellType.BC_VELOCITY.value  # bottom
 cells_[:, -1] = CellType.BC_VELOCITY.value  # top
 
-# set upper half's velocity & concentration
+# set velocity
 vel_ = domain.unflatten(fluid.vel)
-vel_[:, domain.counts[1] // 2 :, 0] = -v0_si
-vel_[:, : domain.counts[1] // 2, 0] = +v0_si
+vel_[:, : domain.counts[1] // 2, 0] = +v0_si  # lower half
+vel_[:, domain.counts[1] // 2 :, 0] = -v0_si  # upper half
 
 # perturb velocity
 n = 10
@@ -124,8 +124,9 @@ l = x_si / n  # wavelength
 vy_si = v0_si * 0.001 * np.sin(2 * np.pi * (domain.x / l))
 vel_[:, 1:-1, 1] = vy_si[:, None]
 
+# set concentration
 conc_ = domain.unflatten(tracer.val)
-conc_[:, : domain.counts[1] // 2] = 1.0
+conc_[:, : domain.counts[1] // 2] = 1.0  # lower half
 
 # flag arrays
 # TODO: this is duped between sims
@@ -194,8 +195,8 @@ def write_png_vmag(path: Path):
             domain.x[s // 2 :: s],
             domain.y[s // 2 :: s],
         )
-        vx = np.squeeze(vel_[s // 2 :: s, s // 2 :: s, 0::2]).T
-        vy = np.squeeze(vel_[s // 2 :: s, s // 2 :: s, 1::2]).T
+        vx = np.squeeze(vel_[s // 2 :: s, s // 2 :: s, 0::2]).T[:, ::-1]
+        vy = np.squeeze(vel_[s // 2 :: s, s // 2 :: s, 1::2]).T[:, ::-1]
         vm = np.sqrt(vx**2 + vy**2)
         vx = np.where(vm > 0, vx / vm, 0)
         vy = np.where(vm > 0, vy / vm, 0)
@@ -203,7 +204,7 @@ def write_png_vmag(path: Path):
             xx.flatten(),
             yy.flatten(),
             c="#AAAAAA",
-            s=1,
+            s=3,
             marker=".",
             edgecolors="none",
             alpha=0.7,
@@ -326,7 +327,7 @@ class KelvinHelmholtz:
 
 # %% Main Loop
 
-run_sim_cli(sim, KelvinHelmholtz(), write_checkpoints=False)
+run_sim_cli(sim, KelvinHelmholtz())
 
 # render with
 # ffmpeg -i out/curl_%06d.png -i out/vmag_%06d.png -c:v libx264 -crf 10 -r 30 -filter_complex "[1]pad=iw:ih+2:0:2[v1];[0][v1]vstack=inputs=2" -y kh.mp4
