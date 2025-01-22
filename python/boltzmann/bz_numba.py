@@ -431,10 +431,10 @@ def calc_curl_2d(pidx: NumbaDomain, v: np.ndarray, cell: np.ndarray) -> np.ndarr
 
             # NOTE: Assumes zero wall velocity.
             # fmt: off
-            dydx1 = v[idx - counts[0], 0] * (cell[idx - counts[0]] != CellType.BC_WALL.value)
-            dydx2 = v[idx + counts[0], 0] * (cell[idx + counts[0]] != CellType.BC_WALL.value)
-            dxdy1 = v[idx -         1, 1] * (cell[idx -         1] != CellType.BC_WALL.value)
-            dxdy2 = v[idx +         1, 1] * (cell[idx +         1] != CellType.BC_WALL.value)
+            dydx1 = v[idx - counts[0], 0] * (cell[idx - counts[0]] != CellType.WALL.value)
+            dydx2 = v[idx + counts[0], 0] * (cell[idx + counts[0]] != CellType.WALL.value)
+            dxdy1 = v[idx -         1, 1] * (cell[idx -         1] != CellType.WALL.value)
+            dxdy2 = v[idx +         1, 1] * (cell[idx +         1] != CellType.WALL.value)
             # fmt: on
 
             curl[idx] = ((dydx2 - dydx1) - (dxdy2 - dxdy1)) / 2

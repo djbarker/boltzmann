@@ -1,15 +1,44 @@
 use std::{
     ops::{Index, IndexMut},
-    ptr::slice_from_raw_parts_mut,
-    str,
+    ptr::{slice_from_raw_parts, slice_from_raw_parts_mut},
 };
 
 use num_traits::{One, Zero};
-use numpy::{Element, PyReadwriteArray1, PyReadwriteArray2, PyUntypedArrayMethods};
+use numpy::{PyReadwriteArray1, PyReadwriteArray2, PyUntypedArrayMethods};
 
 use crate::vect_s::VectS;
 
-/// A trait for arrays (vectors) we can index into with i32 without bounds checking.
+/// Allows access to the underlying primative type.
+/// When storing a primative this is just `Self`, but for [`VectS`] it will return the element type.
+pub trait Data {
+    const STRIDE: usize;
+    type Elem;
+}
+
+impl Data for f32 {
+    const STRIDE: usize = 1;
+    type Elem = Self;
+}
+
+impl Data for i32 {
+    const STRIDE: usize = 1;
+    type Elem = Self;
+}
+
+impl Data for bool {
+    const STRIDE: usize = 1;
+    type Elem = Self;
+}
+
+impl<T, const D: usize> Data for VectS<T, D> {
+    const STRIDE: usize = D;
+    type Elem = T;
+}
+
+/// A trait for arrays (vectors) we can index into with i32 without bounds checking, and easily
+/// convert to various ptr and slice types of the undlerying type for interacting with Python
+/// (see [`Data`].)
+///
 /// The underlying type will either be a [`VectD`] or a [`VectDView`].
 /// [`VectD`] owns its data, wheras [`VectDView`] points to data owned by somebody else.
 /// Both are mutable.
@@ -24,8 +53,16 @@ use crate::vect_s::VectS;
 /// with the genericness.
 ///
 /// TODO: I'm not happy about the naming of these three things.
-pub trait ArrayD<T>: Index<i32, Output = T> + IndexMut<i32, Output = T> {
+pub trait ArrayD<T>: Index<i32, Output = T> + IndexMut<i32, Output = T>
+where
+    T: Data,
+{
     fn len(&self) -> i32;
+    fn as_ptr(&self) -> *const T::Elem;
+    fn as_mut_ptr(&mut self) -> *mut T::Elem;
+    fn as_mut_slice_ptr(&mut self) -> *mut [T::Elem];
+    fn as_slice(&self) -> &[T::Elem];
+    fn as_mut_slice(&mut self) -> &mut [T::Elem];
 }
 
 #[derive(Debug, Clone)]
@@ -65,9 +102,32 @@ impl<T, const N: usize> From<[T; N]> for VectD<T> {
     }
 }
 
-impl<T> ArrayD<T> for VectD<T> {
+impl<T> ArrayD<T> for VectD<T>
+where
+    T: Data,
+{
     fn len(&self) -> i32 {
         self.data.len() as i32
+    }
+
+    fn as_ptr(&self) -> *const T::Elem {
+        self.data.as_ptr() as *const T::Elem
+    }
+
+    fn as_mut_ptr(&mut self) -> *mut T::Elem {
+        self.data.as_mut_ptr() as *mut T::Elem
+    }
+
+    fn as_mut_slice_ptr(&mut self) -> *mut [T::Elem] {
+        slice_from_raw_parts_mut(self.as_mut_ptr(), self.len() as usize)
+    }
+
+    fn as_slice(&self) -> &[T::Elem] {
+        unsafe { &*slice_from_raw_parts(self.as_ptr(), self.len() as usize) }
+    }
+
+    fn as_mut_slice(&mut self) -> &mut [T::Elem] {
+        unsafe { &mut *self.as_mut_slice_ptr() }
     }
 }
 
@@ -75,51 +135,84 @@ impl<T> Index<i32> for VectD<T> {
     type Output = T;
 
     fn index(&self, index: i32) -> &Self::Output {
-        return unsafe { &self.data.get_unchecked(index as usize) };
+        unsafe { &self.data.get_unchecked(index as usize) }
     }
 }
 
 impl<T> IndexMut<i32> for VectD<T> {
     fn index_mut(&mut self, index: i32) -> &mut Self::Output {
-        return unsafe { self.data.get_unchecked_mut(index as usize) };
+        unsafe { self.data.get_unchecked_mut(index as usize) }
     }
 }
 
-pub struct VectDView<T> {
+pub struct VectDView<T>
+where
+    T: Data,
+{
     pub data: *mut [T],
-    pub size: i32,
+    pub size: i32, // Includes the stride.
 }
 
-impl<T> ArrayD<T> for VectDView<T> {
+impl<T> ArrayD<T> for VectDView<T>
+where
+    T: Data,
+{
     fn len(&self) -> i32 {
-        self.size
+        self.size / (T::STRIDE as i32)
+    }
+
+    fn as_ptr(&self) -> *const T::Elem {
+        unsafe { (*self.data).as_ptr() as *const T::Elem }
+    }
+    fn as_mut_ptr(&mut self) -> *mut T::Elem {
+        unsafe { (*self.data).as_mut_ptr() as *mut T::Elem }
+    }
+
+    fn as_mut_slice_ptr(&mut self) -> *mut [T::Elem] {
+        slice_from_raw_parts_mut(self.as_mut_ptr(), self.size as usize)
+    }
+
+    fn as_slice(&self) -> &[T::Elem] {
+        unsafe { &(*(self.data as *const [T::Elem])) }
+    }
+
+    fn as_mut_slice(&mut self) -> &mut [T::Elem] {
+        unsafe { &mut (*(self.data as *mut [T::Elem])) }
     }
 }
 
-impl<T> Index<i32> for VectDView<T> {
+impl<T> Index<i32> for VectDView<T>
+where
+    T: Data,
+{
     type Output = T;
 
     fn index(&self, index: i32) -> &Self::Output {
-        return unsafe { &(*self.data).get_unchecked(index as usize) };
+        unsafe { &(*self.data).get_unchecked(index as usize) }
     }
 }
 
-impl<T> IndexMut<i32> for VectDView<T> {
-    fn index_mut(&mut self, index: i32) -> &mut Self::Output {
-        return unsafe { (*self.data).get_unchecked_mut(index as usize) };
-    }
-}
-
-impl<T> From<PyReadwriteArray1<'_, T>> for VectDView<T>
+impl<T> IndexMut<i32> for VectDView<T>
 where
-    T: numpy::Element,
+    T: Data,
 {
-    fn from(mut arr: PyReadwriteArray1<T>) -> Self {
-        let n = arr.len();
+    fn index_mut(&mut self, index: i32) -> &mut Self::Output {
+        unsafe { (*self.data).get_unchecked_mut(index as usize) }
+    }
+}
+
+impl<T> From<PyReadwriteArray1<'_, T::Elem>> for VectDView<T>
+where
+    T: Data,
+    T::Elem: numpy::Element,
+{
+    fn from(mut arr: PyReadwriteArray1<T::Elem>) -> Self {
+        assert_eq!(arr.len() % T::STRIDE, 0); // Whole number of Ts please.
+        let n = arr.len() / T::STRIDE; // Number of T objects.
         let p = arr.as_array_mut().as_mut_ptr();
         Self {
-            data: slice_from_raw_parts_mut(p, n),
-            size: n as i32,
+            data: slice_from_raw_parts_mut(p as *mut T, n),
+            size: arr.len() as i32,
         }
     }
 }
@@ -129,13 +222,17 @@ where
     T: numpy::Element,
 {
     fn from(mut arr: PyReadwriteArray2<'_, T>) -> Self {
-        assert_eq!(D * size_of::<T>(), size_of::<VectS<T, D>>());
-        let n = arr.len() / D; // number of VectS objects
+        assert_eq!(D * size_of::<T>(), size_of::<VectS<T, D>>()); // Correct sizes please.
+        assert_eq!(arr.len() % D, 0); // Whole number of VectS please.
+        let n = arr.len() / D; // Number of VectS objects.
         let p = arr.as_array_mut().as_mut_ptr();
         let p = p as *mut VectS<T, D>;
         Self {
             data: slice_from_raw_parts_mut(p, n),
-            size: n as i32,
+            size: arr.len() as i32,
         }
     }
 }
+
+pub type VectDView1<T> = VectDView<T>;
+pub type VectDView2<T, const D: usize> = VectDView<VectS<T, D>>;

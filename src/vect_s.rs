@@ -362,17 +362,3 @@ where
         }
     }
 }
-
-// Would be nice to implement numpy::Element for VectS so we can use it with the numpy crate,
-// but it seems a bunch of the methods needed are private.
-// unsafe impl numpy::Element for VectS<f32, 2> {
-//     const IS_COPY: bool = true;
-
-//     fn get_dtype(py: pyo3::Python<'_>) -> pyo3::Bound<'_, numpy::PyArrayDescr> {
-//         PyArrayDescr::from_npy_type(py, NPY_TYPES::NPY_FLOAT)
-//     }
-
-//     fn clone_ref(&self, _py: pyo3::Python<'_>) -> Self {
-//         ::std::clone::Clone::clone(self)
-//     }
-// }

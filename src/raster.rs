@@ -86,9 +86,9 @@ pub fn raster_next<const D: usize, const ROW_MAJOR: bool>(
 }
 
 /// The first invalid subscript.
-pub fn raster_end<const D: usize, const RowMajor: bool>(counts: Counts<D>) -> Sub<D> {
+pub fn raster_end<const D: usize, const ROW_MAJOR: bool>(counts: Counts<D>) -> Sub<D> {
     let end = counts.0 - VectS::one();
-    raster_next::<D, RowMajor>(Sub(end), counts)
+    raster_next::<D, ROW_MAJOR>(Sub(end), counts)
 }
 
 pub fn raster_next_row_major<const D: usize>(sub: Sub<D>, counts: Counts<D>) -> Sub<D> {
@@ -108,29 +108,29 @@ pub fn raster_end_col_major<const D: usize>(counts: Counts<D>) -> Sub<D> {
 }
 
 /// Struct which provides convenient iteration over subscripts.
-pub struct Raster<const D: usize, const RowMajor: bool> {
+pub struct Raster<const D: usize, const ROW_MAJOR: bool> {
     sub: Sub<D>,
     end: Sub<D>,
     cnt: Counts<D>,
 }
 
-impl<const D: usize, const RowMajor: bool> Raster<D, RowMajor> {
-    pub fn new(counts: Counts<D>) -> Raster<D, RowMajor> {
+impl<const D: usize, const ROW_MAJOR: bool> Raster<D, ROW_MAJOR> {
+    pub fn new(counts: Counts<D>) -> Raster<D, ROW_MAJOR> {
         let mut sub = VectS::zero();
         sub[0] -= 1;
         Raster {
             sub: Sub(sub),
-            end: raster_end::<D, RowMajor>(counts),
+            end: raster_end::<D, ROW_MAJOR>(counts),
             cnt: counts,
         }
     }
 }
 
-impl<const D: usize, const RowMajor: bool> Iterator for Raster<D, RowMajor> {
+impl<const D: usize, const ROW_MAJOR: bool> Iterator for Raster<D, ROW_MAJOR> {
     type Item = Sub<D>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.sub = raster_next::<D, RowMajor>(self.sub, self.cnt);
+        self.sub = raster_next::<D, ROW_MAJOR>(self.sub, self.cnt);
         if self.sub.0 == self.end.0 {
             return None;
         } else {
@@ -150,7 +150,7 @@ pub fn raster_col_major<const D: usize>(counts: Counts<D>) -> Raster<D, false> {
 }
 
 /// Wrap the compile-time generic [`Raster`] objects in a runtime dynamic enum.
-enum RasterDyn<const D: usize> {
+pub enum RasterDyn<const D: usize> {
     RasterRowMaj(Raster<D, true>),
     RasterColMaj(Raster<D, false>),
 }

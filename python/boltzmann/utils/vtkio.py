@@ -27,9 +27,9 @@ def write_vti(
     curl_T = np.copy(curl.T)
     cell_T = np.copy(cell.T)
 
-    v_T[cell_T == CellType.BC_WALL.value, :] = np.nan
-    rho_T[cell_T == CellType.BC_WALL.value] = np.nan
-    curl_T[cell_T == CellType.BC_WALL.value] = np.nan
+    v_T[cell_T == CellType.WALL.value, :] = np.nan
+    rho_T[cell_T == CellType.WALL.value] = np.nan
+    curl_T[cell_T == CellType.WALL.value] = np.nan
 
     # cut off periodic part
     v_T = v_T[1:-1, 1:-1]

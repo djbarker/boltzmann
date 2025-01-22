@@ -92,18 +92,18 @@ fluid = FluidField(
 )
 
 cells_ = domain.unflatten(cells.cells)
-cells_[:, 1] = CellType.BC_WALL.value
-cells_[:, -2] = CellType.BC_WALL.value
+cells_[:, 1] = CellType.WALL.value
+cells_[:, -2] = CellType.WALL.value
 
 # flag arrays
 # TODO: this is duped between sims
-is_wall = (cells.cells == CellType.BC_WALL.value).astype(np.int32)
+is_wall = (cells.cells == CellType.WALL.value).astype(np.int32)
 is_fixed = (cells.cells != CellType.FLUID.value).astype(np.int32)
 
 # set wall velocity to zero
 # (just for nice output, doesn't affect the simulation)
 vel_ = domain.unflatten(fluid.vel)
-vel_[cells_ == CellType.BC_WALL.value, :] = 0
+vel_[cells_ == CellType.WALL.value, :] = 0
 
 # Important convert velocity to lattice units / timestep
 # TODO: should be somewhere inside the simulation class

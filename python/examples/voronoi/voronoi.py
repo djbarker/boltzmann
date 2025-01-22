@@ -120,7 +120,7 @@ cell_[1:-1, 1:-1] = 1 - VV
 pidx.copy_periodic(cell)
 
 # flag arrays
-is_wall = (cell == CellType.BC_WALL.value).astype(np.int32)
+is_wall = (cell == CellType.WALL.value).astype(np.int32)
 update_vel = (cell == CellType.FLUID.value).astype(np.int32)
 
 # initial f is equilibrium for desired values of v and rho

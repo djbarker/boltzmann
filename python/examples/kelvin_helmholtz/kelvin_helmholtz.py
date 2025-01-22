@@ -27,7 +27,7 @@ from boltzmann.core import (
 )
 from boltzmann.utils.mpl import PngWriter
 from boltzmann.simulation import Cells, FluidField, ScalarField, run_sim_cli
-from boltzmann_rs import loop_for_advdif_2d
+from boltzmann_rs import loop_for_advdif_2d, loop_for_advdif_2d_opencl
 
 
 basic_config()
@@ -37,8 +37,8 @@ logger.info("Starting")
 # %% Params
 
 # dimensions [m]
-y_si = 0.5
-x_si = 1.5
+y_si = 1.0
+x_si = 3.0
 
 # flow velocity [m/s]
 v0_si = 1.0
@@ -47,18 +47,19 @@ vmax_vmag = 1.6 * v0_si
 vmax_curl = 30 * v0_si
 vmax_conc = 1.025
 
-
 nu_si = 1e-4
 rho_si = 1000
+
+# geometry
+# scale = 20
+scale = 10
+dx = 1.0 / (100 * scale)
+upper = np.array([x_si, y_si])
+
 
 re_no = v0_si * y_si / nu_si
 logger.info(f"Reynolds no.:  {re_no:,.0f}")
 
-# geometry
-# scale = 20
-scale = 20
-dx = 1.0 / (100 * scale)
-upper = np.array([x_si, y_si])
 
 # Max Mach number implied dt
 Mmax = 0.1
@@ -73,7 +74,7 @@ dt = min(dt_err, dt_mach)
 
 # dimensionless time does not depend on viscosity, purely on distances
 fps = 30
-out_dx_si = x_si / (5 * fps)  # want to output when flow has moved this far
+out_dx_si = x_si / (10 * fps)  # want to output when flow has moved this far
 sim_dx_si = v0_si * dt  # flow moves this far in dt (i.e. one iteration)
 n = out_dx_si / sim_dx_si
 n = int(n + 1e-8)
@@ -110,8 +111,8 @@ rho_[:, :] = fluid_meta.rho
 # fixed velocity in- & out-flow
 # (only need to specify one due to periodicity)
 cells_ = domain.unflatten(cells.cells)
-cells_[:, +0] = CellType.BC_VELOCITY.value  # bottom
-cells_[:, -1] = CellType.BC_VELOCITY.value  # top
+cells_[:, +0] = CellType.FIXED.value  # bottom
+cells_[:, -1] = CellType.FIXED.value  # top
 
 # set velocity
 vel_ = domain.unflatten(fluid.vel)
@@ -130,12 +131,12 @@ conc_[:, : domain.counts[1] // 2] = 1.0  # lower half
 
 # flag arrays
 # TODO: this is duped between sims
-is_wall = cells.cells == CellType.BC_WALL.value
+is_wall = cells.cells == CellType.WALL.value
 is_fixed = cells.cells != CellType.FLUID.value
 
 # set wall velocity to zero
 # (just for nice output, doesn't affect the simulation)
-vel_[cells_ == CellType.BC_WALL.value, 0] = 0
+vel_[cells_ == CellType.WALL.value, 0] = 0
 
 # IMPORTANT: convert velocity to lattice units / timestep
 vel_[:] = scales.to_lattice_units(vel_, **VELOCITY)
@@ -220,7 +221,7 @@ def write_png_vmag(path: Path):
             headlength=0,
             headaxislength=0,
             # pivot="mid",
-            width=3,
+            width=2,
             units="dots",
             color="#AAAAAA",
             alpha=0.7,
@@ -273,23 +274,6 @@ class KelvinHelmholtz:
         # if np.any(fluid.f1 < 0) or np.any(tracer.f1 < 0):
         #     raise ValueError("Negative value in f.")
 
-        # loop_for_2_advdif(
-        #     steps,
-        #     fluid.rho,
-        #     fluid.vel,
-        #     fluid.f1,
-        #     fluid.f2,
-        #     D2Q9_nb,
-        #     tracer.val,
-        #     tracer.f1,
-        #     tracer.f2,
-        #     D2Q5_nb,
-        #     is_wall,
-        #     is_fixed,
-        #     params_nb,
-        #     domain_nb,
-        # )
-
         omega_ns = sim.w_pos_lu
         omega_ad = sim.w_pos_lu
 
@@ -300,8 +284,7 @@ class KelvinHelmholtz:
             fluid.vel,
             tracer.f1,
             tracer.val,
-            is_wall,
-            is_fixed,
+            cells.cells,
             indices,
             domain.counts,
             omega_ns,
@@ -309,6 +292,9 @@ class KelvinHelmholtz:
         )
 
     def write_output(self, base: Path, step: int):
+        # logger.warning(f"Skipping output {step}")
+        # return
+
         assert vel_.base is fluid.vel
         write_png_curl(base / f"curl_{step:06d}.png")
         write_png_conc(base / f"conc_{step:06d}.png")

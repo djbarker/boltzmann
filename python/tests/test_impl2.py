@@ -166,7 +166,7 @@ def test_stream_bounceback():
     f2_ = unflatten(dom, f2)
 
     # a wall in the centre cell
-    wall[sub_to_idx(dom.counts, 2, 2)] = CellType.BC_WALL.value
+    wall[sub_to_idx(dom.counts, 2, 2)] = CellType.WALL.value
 
     x = np.array(range(3))
     y = np.array(range(3))

@@ -389,9 +389,8 @@ class SimulationMeta:
 # Cell type
 class CellType(Enum):
     FLUID = 0
-    BC_WALL = 1
-    BC_VELOCITY = 2
-    FIXED_PRESSURE = 3
+    WALL = 1
+    FIXED = 2
 
 
 class Model:
@@ -533,10 +532,10 @@ def calc_curl_2d(vel: np.ndarray, cells: np.ndarray, indices: np.ndarray) -> np.
     for i in range(0, vel.shape[0]):
         idx = indices[i]
         # NOTE: Assumes zero wall velocity.
-        dvydx1 = vel[idx[2], 1] * (cells[idx[2]] != CellType.BC_WALL.value)
-        dvydx2 = vel[idx[1], 1] * (cells[idx[1]] != CellType.BC_WALL.value)
-        dvxdy1 = vel[idx[4], 0] * (cells[idx[4]] != CellType.BC_WALL.value)
-        dvxdy2 = vel[idx[3], 0] * (cells[idx[3]] != CellType.BC_WALL.value)
+        dvydx1 = vel[idx[2], 1] * (cells[idx[2]] != CellType.WALL.value)
+        dvydx2 = vel[idx[1], 1] * (cells[idx[1]] != CellType.WALL.value)
+        dvxdy1 = vel[idx[4], 0] * (cells[idx[4]] != CellType.WALL.value)
+        dvxdy2 = vel[idx[3], 0] * (cells[idx[3]] != CellType.WALL.value)
 
         curl[i] = ((dvydx2 - dvydx1) - (dvxdy2 - dvxdy1)) / 2
 

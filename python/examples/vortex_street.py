@@ -96,7 +96,7 @@ YY = flatten(pidx, YY)
 # fixed velocity in- & out-flow
 # (only need to specify one due to periodicity)
 cell_ = unflatten(pidx, cell)
-cell_[:, 1] = CellType.BC_VELOCITY.value
+cell_[:, 1] = CellType.FIXED.value
 
 
 # reduce velocity around cylinder centre to reduce initial sound waves
@@ -107,7 +107,7 @@ vel_si[:, 0] = v0_si * (
 # --- Cylinder
 mask = ((XX - cx_si) ** 2 + (YY - cy_si) ** 2) < r_si**2.0
 mask = mask.flatten()
-cell[mask] = CellType.BC_WALL.value
+cell[mask] = CellType.WALL.value
 
 # --- Tapered
 # xs = np.linspace(cx_si, cx_si + 0.05, 500)
@@ -129,7 +129,7 @@ cell[mask] = CellType.BC_WALL.value
 
 from scipy.ndimage import distance_transform_edt
 
-WW = 1 - 1 * (cell == CellType.BC_WALL.value)
+WW = 1 - 1 * (cell == CellType.WALL.value)
 WW = unflatten(pidx, WW)
 DD = distance_transform_edt(WW).clip(0, 75)
 DD = DD / np.max(DD)
@@ -141,7 +141,7 @@ vel_si[:, 0] = v0_si * DD
 pidx.copy_periodic(cell)
 
 # flag arrays
-is_wall = (cell == CellType.BC_WALL.value).astype(np.int32)
+is_wall = (cell == CellType.WALL.value).astype(np.int32)
 update_vel = (cell == CellType.FLUID.value).astype(np.int32)
 
 # set wall velocity to zero
