@@ -26,7 +26,15 @@ from boltzmann.core import (
 )
 from boltzmann.utils.mpl import PngWriter
 from boltzmann.simulation import Cells, FluidField, ScalarField, run_sim_cli
-from boltzmann_rs import loop_for_advdif_2d, loop_for_advdif_2d_opencl, calc_curl_2d
+from boltzmann_rs import (
+    loop_for_advdif_2d,
+    loop_for_advdif_2d_opencl,
+    calc_curl_2d,
+    OpenCLCtx,
+    Fluid as OpenCLFluid,
+    Scalar as OpenCLScalar,
+    Cells as OpenCLCells,
+)
 
 
 basic_config()
@@ -264,6 +272,12 @@ def write_png_conc(path: Path):
 
 
 class KelvinHelmholtz:
+    def __init__(self) -> None:
+        self.opencl = OpenCLCtx()
+        self.fluid = OpenCLFluid(self.opencl, fluid.f1, fluid.rho, fluid.vel)
+        self.scalar = OpenCLScalar(self.opencl, tracer.f1, tracer.val)
+        self.cells = OpenCLCells(self.opencl, cells.cells, indices)
+
     def loop_for(self, steps: int):
         if steps % 2 != 0:
             steps += 1  # even steps please
@@ -279,17 +293,18 @@ class KelvinHelmholtz:
 
         loop_for_advdif_2d_opencl(
             steps,
-            fluid.f1,
-            fluid.rho,
-            fluid.vel,
-            tracer.f1,
-            tracer.val,
-            cells.cells,
-            indices,
+            self.opencl,
+            self.fluid,
+            self.scalar,
+            self.cells,
             domain.counts,
             omega_ns,
             omega_ad,
         )
+
+        # Read back from device memory to host memory (i.e. our numpy arrays).
+        self.fluid.read(self.opencl, fluid.f1, fluid.rho, fluid.vel)
+        self.scalar.read(self.opencl, tracer.f1, tracer.val)
 
     def write_output(self, base: Path, step: int):
         # logger.warning(f"Skipping output {step}")

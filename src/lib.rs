@@ -1,10 +1,10 @@
+use std::sync::{Arc, Mutex};
 use std::{ptr, str, usize};
 
 use numpy::{PyReadwriteArray1, PyReadwriteArray2};
 use opencl3::command_queue::{CommandQueue, CL_QUEUE_PROFILING_ENABLE};
 use opencl3::context::Context;
 use opencl3::device::{get_all_devices, Device, CL_DEVICE_TYPE_DEFAULT};
-use opencl3::event::Event;
 use opencl3::kernel::{ExecuteKernel, Kernel};
 use opencl3::memory::{Buffer, CL_MEM_READ_WRITE};
 use opencl3::program::Program;
@@ -12,7 +12,7 @@ use opencl3::types::{cl_event, CL_BLOCKING};
 use pyo3::prelude::*;
 use raster::{counts_to_strides, sub_to_idx, Counts, Raster, Sub};
 use utils::vmod;
-use vect_d::{ArrayD, Data, VectD, VectDView, VectDViewScalar, VectDViewVector};
+use vect_d::{ArrayD, VectD, VectDView, VectDViewScalar, VectDViewVector};
 use vect_s::VectS;
 
 // mod lbm;
@@ -382,148 +382,124 @@ fn loop_for_advdif_2d(
     }
 }
 
-const UPDATE_D2Q9_BGK_SRC: &str = include_str!("lib.cl");
-
 /// See: opencl3 example [`basic.rs`](https://github.com/kenba/opencl3/blob/main/examples/basic.rs)
-pub fn loop_for_advdif_2d_opencl(
+fn loop_for_advdif_2d_opencl(
     iters: usize,
-    f: &mut VectDViewVector<f32, 9>,
-    rho: &mut VectDViewScalar<f32>,
-    vel: &mut VectDViewVector<f32, 2>, // in lattice-units
-    g: &mut VectDViewVector<f32, 5>,
-    conc: &mut VectDViewScalar<f32>,
-    cell: &VectDViewScalar<i32>,
-    upstream_idx: &VectDViewVector<i32, 9>,
-    counts: VectS<i32, 2>,
-    omega_ns: f32, // in lattice-units
-    omega_ad: f32, // in lattice-units
+    ctx: &OpenCLCtx,
+    fluid: &mut Fluid,
+    scalar: &mut Scalar,
+    cells: &Cells,
+    counts: VectS<i32, 2>, // TODO: can't I just store this on the context?
+    omega_ns: f32,         // in lattice-units
+    omega_ad: f32,         // in lattice-units
 ) {
-    let device_id = *get_all_devices(CL_DEVICE_TYPE_DEFAULT) //CL_DEVICE_TYPE_GPU
-        .expect("error getting platform")
-        .first()
-        .expect("no device found in platform");
-    let device = Device::new(device_id);
-    let context = Context::from_device(&device).expect("Context::from_device failed");
-    let queue = CommandQueue::create_default(&context, CL_QUEUE_PROFILING_ENABLE)
-        .expect("CommandQueue::create_default failed");
+    let queue = &ctx.queue;
+    let d2q9 = &ctx.d2q9_kernel;
+    let d2q5 = &ctx.d2q5_kernel;
 
-    let program = Program::create_and_build_from_source(&context, UPDATE_D2Q9_BGK_SRC, "")
-        .expect("Program::create_and_build_from_source failed");
-    let kernel = Kernel::create(&program, "update_d2q9_bgk").expect("Kernel::create failed");
+    let mut events: Vec<cl_event> = Vec::default();
 
-    // NOTE: Lack of generic closures also makes this a tad verbose because we must pass `&context`.
-
-    fn make_buffer<T: Data>(context: &Context, arr: &VectDView<T>) -> Buffer<T::Elem> {
-        unsafe {
-            Buffer::create(
-                context,
-                CL_MEM_READ_WRITE,
-                arr.elem_count() as usize,
-                ptr::null_mut(),
-            )
-            .expect("Buffer::create() failed.")
-        }
-    }
-
-    // Create OpenCL device buffers & write our data to them.
-    let mut f_dev = make_buffer(&context, f);
-    let mut rho_dev = make_buffer(&context, rho);
-    let mut vel_dev = make_buffer(&context, vel);
-    let mut idx_dev = make_buffer(&context, upstream_idx);
-    let mut cell_dev = make_buffer(&context, cell);
-
-    macro_rules! enqueue_write {
-        ($arr_from:ident, $arr_to:ident) => {
-            unsafe {
-                queue
-                    .enqueue_write_buffer(
-                        &mut $arr_to,
-                        CL_BLOCKING,
-                        0,
-                        (&($arr_from)).as_slice(),
-                        &[], // ignore events ... why?
-                    )
-                    .expect(&*format!(
-                        "enqueue_write_buffer failed {}",
-                        stringify!($arr_from)
-                    ))
-            }
+    macro_rules! _exec_kernel_inner {
+        // Base case.
+        ($kernel:expr) => {
+            $kernel
+        };
+        // Almost-base case.
+        // This seems unnecessary; why not just do this in the recurse case and rely on the base case?
+        // But it _is_ needed, see: https://users.rust-lang.org/t/tail-recursive-macros/905/3.
+        ($kernel:expr, $arg:expr) => {
+            $kernel.set_arg($arg)
+        };
+        // Recurse case.
+        ($builder:expr, $arg:expr, $($args:expr),+) => {
+            _exec_kernel_inner!{
+                _exec_kernel_inner!{$builder, $arg}
+            , $($args),*}
         };
     }
 
-    let _f_write = enqueue_write!(f, f_dev);
-    let _rho_write = enqueue_write!(rho, rho_dev);
-    let _vel_write = enqueue_write!(vel, vel_dev);
-    let _idx_write = enqueue_write!(upstream_idx, idx_dev);
-    let _cell_write = enqueue_write!(cell, cell_dev);
-
-    let mut events: Vec<cl_event> = Vec::default();
+    /// Run the specified kernel with the given arguments.
+    ///
+    /// Translates the given arguments into the correct sequence of [`ExecuteKernel::set_arg`] calls,
+    /// specifies the work size, and runs the kernel.
+    macro_rules! exec_kernel {
+        // Entry case.
+        ($kernel:expr, $($args:expr),*) => {
+            _exec_kernel_inner!{ ExecuteKernel::new($kernel), $($args),*}
+                .set_global_work_size(counts.prod() as usize)
+                .enqueue_nd_range(&queue)
+                .expect("ExecuteKernel::new failed.")
+        };
+    }
 
     for iter in 0..iters {
         let even = (1 - iter % 2) as i32;
 
-        let kernel_event = unsafe {
-            ExecuteKernel::new(&kernel)
+        // let _ = unsafe {
+        //     exec_kernel!(
+        //         d2q9,
+        //         &even,
+        //         &omega_ns,
+        //         &mut fluid.f,
+        //         &mut fluid.rho,
+        //         &mut fluid.vel,
+        //         &cells.cell_type,
+        //         &cells.offset_idx
+        //     )
+        // };
+
+        // let _ = unsafe {
+        //     exec_kernel!(
+        //         d2q5,
+        //         &even,
+        //         &omega_ad,
+        //         &mut scalar.f,
+        //         &mut scalar.val,
+        //      &fluid.vel
+        //         &cells.cell_type,
+        //         &cells.offset_idx
+        //     )
+        // };
+
+        let d2q9_event = unsafe {
+            ExecuteKernel::new(&d2q9)
                 .set_arg(&even)
                 .set_arg(&omega_ns)
-                .set_arg(&mut f_dev)
-                .set_arg(&mut rho_dev)
-                .set_arg(&mut vel_dev)
-                .set_arg(&cell_dev)
-                .set_arg(&idx_dev)
+                .set_arg(&mut fluid.f)
+                .set_arg(&mut fluid.rho)
+                .set_arg(&mut fluid.vel)
+                .set_arg(&cells.cell_type)
+                .set_arg(&cells.offset_idx)
                 .set_global_work_size(counts.prod() as usize)
-                // .set_wait_event(&f_write)
-                // .set_wait_event(&rho_write)
-                // .set_wait_event(&vel_write)
-                // .set_wait_event(&idx_write)
-                // .set_wait_event(&cell_write)
                 .enqueue_nd_range(&queue)
                 .expect("ExecuteKernel::new failed.")
         };
 
-        events.push(kernel_event.get());
-
-        // Wait for kernel to execute.
+        events.push(d2q9_event.get());
         queue.finish().expect("queue.finish failed");
 
-        // Read back from OpenCL device buffers into our host arrays.
-        fn enqueue_read<T: Data>(
-            queue: &CommandQueue,
-            events: &[cl_event],
-            buf: &Buffer<T::Elem>,
-            arr: &mut VectDView<T>,
-        ) -> Event {
-            unsafe {
-                queue
-                    .enqueue_read_buffer(buf, CL_BLOCKING, 0, arr.as_mut_slice(), events)
-                    .expect("enqueue_read_buffer failed f")
-            }
-        }
+        // let d2q5_event = unsafe {
+        //     ExecuteKernel::new(&d2q5)
+        //         .set_arg(&even)
+        //         .set_arg(&omega_ad)
+        //         .set_arg(&mut scalar.f)
+        //         .set_arg(&mut scalar.val)
+        //         .set_arg(&fluid.vel)
+        //         .set_arg(&cells.cell_type)
+        //         .set_arg(&cells.offset_idx)
+        //         .set_global_work_size(counts.prod() as usize)
+        //         .enqueue_nd_range(&queue)
+        //         .expect("ExecuteKernel::new failed.")
+        // };
 
-        let _read_f = enqueue_read(&queue, &[], &f_dev, f);
-        let _read_rho = enqueue_read(&queue, &[], &rho_dev, rho);
-        let _read_vel = enqueue_read(&queue, &[], &vel_dev, vel);
-
-        // Wait for the read events to complete.
-        // read_f.wait().expect("Wait failed.");
-        // read_rho.wait().expect("Wait failed.");
-        // read_vel.wait().expect("Wait failed.");
-
-        // Do Advection-Diffusion the old-school way
-        for idx in 0..counts.prod() {
-            let uidx: VectS<i32, 9> = upstream_idx[idx];
-            if cell[idx] == 2 {
-                update_d2q5_fixed(even != 0, g, conc, vel, uidx);
-            } else {
-                update_d2q5_bgk(even != 0, omega_ad, g, conc, vel, uidx);
-            }
-        }
+        // events.push(d2q5_event.get());
+        // queue.finish().expect("queue.finish failed");
     }
 }
 
 /// Return an array of size (cell_count, Q) where for each cell we have calculated the index of the
 /// cell upstream of each velocity in the model.
-fn upstream_idx<const D: usize, const Q: usize, const ROW_MAJOR: bool>(
+pub fn upstream_idx<const D: usize, const Q: usize, const ROW_MAJOR: bool>(
     counts: Counts<D>,
     model: Model<D, Q>,
 ) -> VectD<VectS<i32, Q>> {
@@ -542,6 +518,305 @@ fn upstream_idx<const D: usize, const Q: usize, const ROW_MAJOR: bool>(
     }
 
     return idx;
+}
+
+const OPENCL_SRC: &str = include_str!("lib.cl");
+
+/// Long-lived OpenCL context.
+/// Exists so we do not need to recreate everthing for each batch of iterations.
+struct OpenCLCtx {
+    _device: Device,
+    context: Context,
+    queue: CommandQueue,
+    // TODO: Need to make this more generic to handle different sim requirements.
+    d2q9_kernel: Kernel,
+    d2q5_kernel: Kernel,
+}
+
+#[pyclass(name = "OpenCLCtx")]
+
+struct OpenCLCtxPy {
+    ctx: Arc<Mutex<OpenCLCtx>>,
+}
+
+#[pymethods]
+impl OpenCLCtxPy {
+    #[new]
+    fn new() -> Self {
+        let device_id = *get_all_devices(CL_DEVICE_TYPE_DEFAULT) //CL_DEVICE_TYPE_GPU
+            .expect("error getting platform")
+            .first()
+            .expect("no device found in platform");
+        let device = Device::new(device_id);
+        let context = Context::from_device(&device).expect("Context::from_device failed");
+        let queue = CommandQueue::create_default(&context, CL_QUEUE_PROFILING_ENABLE)
+            .expect("CommandQueue::create_default failed");
+
+        let program = Program::create_and_build_from_source(&context, OPENCL_SRC, "")
+            .expect("Program::create_and_build_from_source failed");
+        let d2q9 = Kernel::create(&program, "update_d2q9_bgk").expect("Kernel::create failed D2Q9");
+        let d2q5 = Kernel::create(&program, "update_d2q5_bgk").expect("Kernel::create failed D2Q5");
+
+        Self {
+            ctx: Arc::new(Mutex::new(OpenCLCtx {
+                _device: device,
+                context: context,
+                queue: queue,
+                d2q9_kernel: d2q9,
+                d2q5_kernel: d2q5,
+            })),
+        }
+    }
+}
+
+/// Long-lived container for OpenCL device buffers.
+/// Exists so we do not need to recreate the buffers for each batch of iterations.
+#[pyclass]
+struct Fluid {
+    f: Buffer<f32>,
+    rho: Buffer<f32>,
+    vel: Buffer<f32>,
+}
+
+/// Construct an OpenCL [`Buffer`] from the passed [`VectDView`].
+macro_rules! make_buffer {
+    ($ctx:expr, $arr:expr) => {
+        unsafe {
+            Buffer::create(
+                $ctx,
+                CL_MEM_READ_WRITE,
+                ($arr).elem_count() as usize,
+                ptr::null_mut(),
+            )
+            .expect(&*format!(
+                "Buffer::create() failed for '{}'.",
+                stringify!($arr)
+            ))
+        }
+    };
+}
+
+/// Write our host array to the OpenCL [`Buffer`].
+///
+/// NOTE: Not much benefit of this being a macro over a function except for the error logging.
+macro_rules! enqueue_write {
+    ($queue:expr, $arr_host:expr, $arr_dev:expr) => {
+        unsafe {
+            $queue
+                .enqueue_write_buffer(
+                    &mut $arr_dev,
+                    CL_BLOCKING,
+                    0,
+                    (&($arr_host)).as_slice(),
+                    &[], // ignore events ... why?
+                )
+                .expect(&*format!(
+                    "enqueue_write_buffer failed {}",
+                    stringify!($arr_host)
+                ))
+        }
+    };
+}
+
+// Read back from OpenCL device buffers into our host arrays.
+macro_rules! enqueue_read {
+    ($queue:expr, $arr_host:expr, $arr_dev:expr) => {
+        unsafe {
+            $queue
+                .enqueue_read_buffer(
+                    $arr_dev,
+                    CL_BLOCKING,
+                    0,
+                    ($arr_host).as_mut_slice(),
+                    &[], // ignore events ... why?
+                )
+                .expect("enqueue_read_buffer failed f")
+        }
+    };
+}
+
+#[pymethods]
+impl Fluid {
+    #[new]
+    pub fn new(
+        cl: Bound<'_, OpenCLCtxPy>,
+        f: PyReadwriteArray2<f32>,
+        rho: PyReadwriteArray1<f32>,
+        vel: PyReadwriteArray2<f32>,
+    ) -> Self {
+        // Construct views into the numpy arrays.
+        let f = VectDViewVector::<f32, 9>::from(f);
+        let rho = VectDViewScalar::<f32>::from(rho);
+        let vel = VectDViewVector::<f32, 2>::from(vel);
+
+        // Make the OpenCL buffers.
+        let cl = cl.borrow();
+        let cl = cl.ctx.lock().unwrap();
+        let ctx = &cl.context;
+        let queue = &cl.queue;
+
+        let mut out = Self {
+            f: make_buffer!(ctx, f),
+            rho: make_buffer!(ctx, rho),
+            vel: make_buffer!(ctx, vel),
+        };
+
+        // Copy data into the buffers
+        let _write_f = enqueue_write!(queue, f, out.f);
+        let _write_r = enqueue_write!(queue, rho, out.rho);
+        let _write_v = enqueue_write!(queue, vel, out.vel);
+
+        queue.finish().expect("queue.finish() failed [Fluid]");
+
+        out
+    }
+
+    /// Read the data back from the OpenCL buffers into our numpy arrays.
+    pub fn read(
+        &self,
+        cl: Bound<'_, OpenCLCtxPy>,
+        f: PyReadwriteArray2<f32>,
+        rho: PyReadwriteArray1<f32>,
+        vel: PyReadwriteArray2<f32>,
+    ) {
+        // Construct views into the numpy arrays.
+        let mut f = VectDViewVector::<f32, 9>::from(f);
+        let mut rho = VectDViewScalar::<f32>::from(rho);
+        let mut vel = VectDViewVector::<f32, 2>::from(vel);
+
+        // Copy data into the arrays
+        let cl = cl.borrow();
+        let cl = cl.ctx.lock().unwrap();
+        let queue = &cl.queue;
+
+        let _read_f = enqueue_read!(queue, f, &self.f);
+        let _read_r = enqueue_read!(queue, rho, &self.rho);
+        let _read_v = enqueue_read!(queue, vel, &self.vel);
+    }
+}
+
+/// Long-lived container for OpenCL device buffers.
+///
+/// Exists so we do not need to recreate the buffers for each batch of iterations.
+#[pyclass]
+struct Scalar {
+    f: Buffer<f32>,
+    val: Buffer<f32>,
+}
+
+#[pymethods]
+impl Scalar {
+    #[new]
+    pub fn new(
+        cl: Bound<'_, OpenCLCtxPy>,
+        f: PyReadwriteArray2<f32>,
+        val: PyReadwriteArray1<f32>,
+    ) -> Self {
+        // Construct views into the numpy arrays.
+        let f = VectDViewVector::<f32, 5>::from(f);
+        let val = VectDViewScalar::<f32>::from(val);
+
+        // Make the OpenCL buffers.
+        let cl = cl.borrow();
+        let cl = cl.ctx.lock().unwrap();
+        let ctx = &cl.context;
+        let queue = &cl.queue;
+
+        let mut out = Self {
+            f: make_buffer!(ctx, f),
+            val: make_buffer!(ctx, val),
+        };
+
+        // Copy data into the buffers
+        let _write_f = enqueue_write!(queue, f, out.f);
+        let _write_r = enqueue_write!(queue, val, out.val);
+
+        queue.finish().expect("queue.finish() failed [Scalar]");
+
+        out
+    }
+
+    /// Read the data back from the OpenCL buffers into our numpy arrays.
+    pub fn read(
+        &self,
+        cl: Bound<'_, OpenCLCtxPy>,
+        f: PyReadwriteArray2<f32>,
+        val: PyReadwriteArray1<f32>,
+    ) {
+        // Construct views into the numpy arrays.
+        let mut f = VectDViewVector::<f32, 5>::from(f);
+        let mut val = VectDViewScalar::<f32>::from(val);
+
+        // Copy data into the arrays
+        let cl = cl.borrow();
+        let cl = cl.ctx.lock().unwrap();
+        let queue = &cl.queue;
+
+        let _read_f = enqueue_read!(queue, f, &self.f);
+        let _read_c = enqueue_read!(queue, val, &self.val);
+    }
+}
+
+#[pyclass]
+struct Cells {
+    /// The type of the cell as given by [`CellType`].
+    cell_type: Buffer<i32>,
+
+    /// The _upstream_ cell indices in each direction.
+    offset_idx: Buffer<i32>,
+}
+
+#[pymethods]
+impl Cells {
+    #[new]
+    pub fn new(
+        cl: Bound<'_, OpenCLCtxPy>,
+        cell_types: PyReadwriteArray1<i32>,
+        offset_idx: PyReadwriteArray2<i32>,
+    ) -> Self {
+        // Construct views into the numpy arrays.
+        let cell_type = VectDViewScalar::<i32>::from(cell_types);
+        let offset_idx = VectDViewVector::<i32, 9>::from(offset_idx);
+
+        // Make the OpenCL buffers.
+        let cl = cl.borrow();
+        let cl = cl.ctx.lock().unwrap();
+        let ctx = &cl.context;
+        let queue = &cl.queue;
+
+        let mut out = Self {
+            cell_type: make_buffer!(ctx, cell_type),
+            offset_idx: make_buffer!(ctx, offset_idx),
+        };
+
+        // Copy data into the buffers
+        let _c_write = enqueue_write!(queue, cell_type, out.cell_type);
+        let _i_write = enqueue_write!(queue, cell_type, out.offset_idx);
+
+        queue.finish().expect("queue.finish() failed [Cells]");
+
+        out
+    }
+
+    /// Read the data back from the OpenCL buffers into our numpy arrays.
+    pub fn read(
+        &self,
+        cl: Bound<'_, OpenCLCtxPy>,
+        cell_types: PyReadwriteArray1<i32>,
+        offset_idx: PyReadwriteArray2<i32>,
+    ) {
+        // Construct views into the numpy arrays.
+        let mut cell_type = VectDViewScalar::<i32>::from(cell_types);
+        let mut offset_idx = VectDViewVector::<i32, 9>::from(offset_idx);
+
+        // Copy data into the arrays
+        let cl = cl.borrow();
+        let cl = cl.ctx.lock().unwrap();
+        let queue = &cl.queue;
+
+        let _read_c = enqueue_read!(queue, cell_type, &self.cell_type);
+        let _read_i = enqueue_read!(queue, offset_idx, &self.offset_idx);
+    }
 }
 
 /// A Python module implemented in Rust.
@@ -602,26 +877,27 @@ fn boltzmann_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     fn loop_for_advdif_2d_opencl_py<'py>(
         _py: Python<'py>,
         iters: usize,
-        f: PyReadwriteArray2<f32>,
-        rho: PyReadwriteArray1<f32>,
-        vel: PyReadwriteArray2<f32>, // in lattice-units
-        g: PyReadwriteArray2<f32>,
-        conc: PyReadwriteArray1<f32>,
-        cell: PyReadwriteArray1<i32>,
-        upstream_idx: PyReadwriteArray2<i32>,
+        ctx: Bound<'py, OpenCLCtxPy>,
+        fluid: Bound<'py, Fluid>,
+        scalar: Bound<'py, Scalar>,
+        cells: Bound<'py, Cells>,
         counts: PyReadwriteArray1<i32>,
         omega_ns: f32, // in lattice-units
         omega_ad: f32, // in lattice-units
     ) -> PyResult<()> {
+        // Aquire context lock
+        let ctx = ctx.borrow();
+        let ctx = ctx
+            .ctx
+            .lock()
+            .expect("Unable to aquire OpenCL context lock.");
+
         loop_for_advdif_2d_opencl(
             iters,
-            &mut VectDView::<VectS<f32, 9>>::from(f),
-            &mut VectDView::<f32>::from(rho),
-            &mut VectDView::<VectS<f32, 2>>::from(vel),
-            &mut VectDView::<VectS<f32, 5>>::from(g),
-            &mut VectDView::<f32>::from(conc),
-            &VectDView::<i32>::from(cell),
-            &VectDView::<VectS<i32, 9>>::from(upstream_idx),
+            &ctx,
+            &mut fluid.borrow_mut(),
+            &mut scalar.borrow_mut(),
+            &mut cells.borrow_mut(),
             VectS::<i32, 2>::from(counts),
             omega_ns,
             omega_ad,
@@ -629,6 +905,11 @@ fn boltzmann_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
         return Ok(());
     }
+
+    m.add_class::<OpenCLCtxPy>()?;
+    m.add_class::<Fluid>()?;
+    m.add_class::<Scalar>()?;
+    m.add_class::<Cells>()?;
 
     Ok(())
 }
