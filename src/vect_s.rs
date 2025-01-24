@@ -4,9 +4,7 @@ use std::{
 };
 
 use num_traits::{AsPrimitive, One, Zero};
-use numpy::{
-    npyffi::NPY_TYPES, PyArrayDescr, PyArrayMethods, PyReadwriteArray1, PyUntypedArrayMethods,
-};
+use numpy::{PyArrayMethods, PyReadwriteArray1, PyUntypedArrayMethods};
 
 /// A statically sized vector (i.e. size known at compile time)
 /// This is a thin wrapper around an array which provides some convenience methods.

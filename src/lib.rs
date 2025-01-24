@@ -1,12 +1,5 @@
 use std::{ptr, str, usize};
 
-// use numpy::ndarray::iter::Axes;
-// use numpy::ndarray::{
-//     ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut, ArrayViewMut1, ArrayViewMut2, Data,
-//     DataMut, Dimension, RawData, ViewRepr,
-// };
-// use lbm::{tensor_prod_q, tensor_prod_w, D1Q3_Q, D1Q3_W, LBM};
-// use numpy::{convert::IntoPyArray, ndarray::Dim, npyffi::npy_intp, PyArray, ToPyArray};
 use numpy::{PyReadwriteArray1, PyReadwriteArray2};
 use opencl3::command_queue::{CommandQueue, CL_QUEUE_PROFILING_ENABLE};
 use opencl3::context::Context;
@@ -19,10 +12,11 @@ use opencl3::types::{cl_event, CL_BLOCKING};
 use pyo3::prelude::*;
 use raster::{counts_to_strides, sub_to_idx, Counts, Raster, Sub};
 use utils::vmod;
-use vect_d::{ArrayD, Data, VectD, VectDView, VectDView1, VectDView2};
+use vect_d::{ArrayD, Data, VectD, VectDView, VectDViewScalar, VectDViewVector};
 use vect_s::VectS;
 
 // mod lbm;
+pub mod domain;
 pub mod raster;
 pub mod utils;
 pub mod vect_d;
@@ -67,31 +61,39 @@ pub static D2Q9: Model<2, 9> = Model::<2, 9> {
     ],
 };
 
-// fn calc_curl_2d(vel: &VectDView2<f32, 2>, cells: &VectDView1<i32>, indices: &V) -> np.ndarray:
-//     """
-//     All quantities in lattice-units
-//     """
+/// Calculate the 2D curl (i.e. the z component of the 3D curl).
+/// All quantities are in lattice units.
+/// TODO: openCL version
+/// TODO: would be nice to be able to _return_ the array to python
+fn calc_curl_2d(
+    vel: &VectDViewVector<f32, 2>,
+    cells: &VectDViewScalar<i32>,
+    indices: &VectDViewVector<i32, 9>,
+    curl: &mut VectDViewScalar<f32>,
+) {
+    assert_eq!(vel.data_count(), indices.data_count());
 
-//     assert vel.shape[0] == indices.shape[0]
+    fn btof32(b: bool) -> f32 {
+        (b as i32) as f32
+    }
 
-//     curl = np.zeros((vel.shape[0],), dtype=np.float32)
-//     for i in range(0, vel.shape[0]):
-//         idx = indices[i]
-//         # NOTE: Assumes zero wall velocity.
-//         dvydx1 = vel[idx[2], 1] * (cells[idx[2]] != CellType.WALL.value)
-//         dvydx2 = vel[idx[1], 1] * (cells[idx[1]] != CellType.WALL.value)
-//         dvxdy1 = vel[idx[4], 0] * (cells[idx[4]] != CellType.WALL.value)
-//         dvxdy2 = vel[idx[3], 0] * (cells[idx[3]] != CellType.WALL.value)
+    for i in 0..vel.data_count() {
+        let idx = indices[i];
+        // NOTE: Assumes zero wall velocity.
+        let dvydx1 = vel[idx[2]][1] * btof32(cells[idx[2]] != (CellType::WALL as i32));
+        let dvydx2 = vel[idx[1]][1] * btof32(cells[idx[1]] != (CellType::WALL as i32));
+        let dvxdy1 = vel[idx[4]][0] * btof32(cells[idx[4]] != (CellType::WALL as i32));
+        let dvxdy2 = vel[idx[3]][0] * btof32(cells[idx[3]] != (CellType::WALL as i32));
 
-//         curl[i] = ((dvydx2 - dvydx1) - (dvxdy2 - dvxdy1)) / 2
-
-//     return curl
+        curl[i] = ((dvydx2 - dvydx1) - (dvxdy2 - dvxdy1)) / 2.0;
+    }
+}
 
 fn update_d2q5_fixed(
     even: bool,
-    f: &mut VectDView2<f32, 5>,
-    val: &VectDView1<f32>,
-    vel: &VectDView2<f32, 2>,
+    f: &mut VectDViewVector<f32, 5>,
+    val: &VectDViewScalar<f32>,
+    vel: &VectDViewVector<f32, 2>,
     idx: VectS<i32, 9>, // We can re-use the D2Q9 indices because the first 5 velocities match.
 ) {
     let val = val[idx[0]];
@@ -336,13 +338,13 @@ enum CellType {
 
 fn loop_for_advdif_2d(
     iters: usize,
-    f: &mut VectDView2<f32, 9>,
+    f: &mut VectDViewVector<f32, 9>,
     rho: &mut VectDView<f32>,
-    vel: &mut VectDView2<f32, 2>, // in lattice-units
-    g: &mut VectDView2<f32, 5>,
+    vel: &mut VectDViewVector<f32, 2>, // in lattice-units
+    g: &mut VectDViewVector<f32, 5>,
     conc: &mut VectDView<f32>,
     cells: &VectDView<i32>,
-    upstream_idx: &VectDView2<i32, 9>,
+    upstream_idx: &VectDViewVector<i32, 9>,
     counts: VectS<i32, 2>,
     omega_ns: f32, // in lattice-units
     omega_ad: f32, // in lattice-units
@@ -350,11 +352,11 @@ fn loop_for_advdif_2d(
     let ncells = counts.prod();
 
     // Some sanity checks:
-    assert_eq!(ncells, f.len(), "f");
-    assert_eq!(ncells, rho.len(), "rho");
-    assert_eq!(ncells, vel.len(), "vel");
-    assert_eq!(ncells, g.len(), "g");
-    assert_eq!(ncells, conc.len(), "conc");
+    assert_eq!(ncells, f.data_count(), "f");
+    assert_eq!(ncells, rho.data_count(), "rho");
+    assert_eq!(ncells, vel.data_count(), "vel");
+    assert_eq!(ncells, g.data_count(), "g");
+    assert_eq!(ncells, conc.data_count(), "conc");
 
     let iters = if iters % 2 == 0 { iters } else { iters + 1 };
 
@@ -380,150 +382,31 @@ fn loop_for_advdif_2d(
     }
 }
 
-// const UPDATE_D2Q9_BGK_SRC: &str = include_str!("lib.rs");
-const UPDATE_D2Q9_BGK_SRC: &str = r#"kernel void update_d2q9_bgk(int even, float omega, global float *f,
-                            global float *rho, global float *vel,
-                            global int *cell, global int *idx) {
-
-  const size_t ir = get_global_id(0); // offset for rho
-  const size_t ii = ir * 9;           // offset for idx
-  const size_t iv = ir * 2;           // offset for vel
-
-  const int c = cell[ir];
-  const bool wall = c == 1;
-  const bool fixed = c == 2;
-
-  if (wall) {
-    // wall => do nothing
-    return;
-  }
-
-  // Array access conversion:
-  //
-  // rust:   f[idx[n]][m]  -->  opencl:   f[idx[ii + n] * 9 + m]
-  // rust: vel[idx[n]][m]  -->  opencl: vel[idx[ii + n] * 2 + m]
-  // rust: rho[idx[n]]     -->  opencl: rho[idx[ii + n]
-
-  float f_[9];
-  if (even) {
-    f_[0] = f[9 * idx[ii + 0] + 0];
-    f_[1] = f[9 * idx[ii + 1] + 1];
-    f_[2] = f[9 * idx[ii + 2] + 2];
-    f_[3] = f[9 * idx[ii + 3] + 3];
-    f_[4] = f[9 * idx[ii + 4] + 4];
-    f_[5] = f[9 * idx[ii + 5] + 5];
-    f_[6] = f[9 * idx[ii + 6] + 6];
-    f_[7] = f[9 * idx[ii + 7] + 7];
-    f_[8] = f[9 * idx[ii + 8] + 8];
-
-  } else {
-    f_[0] = f[9 * idx[ii + 0] + 0];
-    f_[1] = f[9 * idx[ii + 0] + 2];
-    f_[2] = f[9 * idx[ii + 0] + 1];
-    f_[3] = f[9 * idx[ii + 0] + 4];
-    f_[4] = f[9 * idx[ii + 0] + 3];
-    f_[5] = f[9 * idx[ii + 0] + 6];
-    f_[6] = f[9 * idx[ii + 0] + 5];
-    f_[7] = f[9 * idx[ii + 0] + 8];
-    f_[8] = f[9 * idx[ii + 0] + 7];
-  }
-
-  // calc moments
-  float r =
-      f_[0] + f_[1] + f_[2] + f_[3] + f_[4] + f_[5] + f_[6] + f_[7] + f_[8];
-  float vx = (f_[1] - f_[2] + f_[5] - f_[6] - f_[7] + f_[8]) / r;
-  float vy = (f_[3] - f_[4] + f_[5] - f_[6] + f_[7] - f_[8]) / r;
-
-  if (fixed) {
-    omega = 1.0;
-    r = rho[ir];
-    vx = vel[iv + 0];
-    vy = vel[iv + 1];
-  }
-
-  const float vv = vx * vx + vy * vy;
-  const float vxx = vx * vx;
-  const float vyy = vy * vy;
-  const float vxy = vx * vy;
-
-  // calc equilibrium & collide
-  f_[0] += omega * (r * (2.0 / 9.0) * (2.0 - 3.0 * vv) - f_[0]);
-  f_[1] += omega *
-           (r * (1.0 / 18.0) * (2.0 + 6.0 * vx + 9.0 * vxx - 3.0 * vv) - f_[1]);
-  f_[2] += omega *
-           (r * (1.0 / 18.0) * (2.0 - 6.0 * vx + 9.0 * vxx - 3.0 * vv) - f_[2]);
-  f_[3] += omega *
-           (r * (1.0 / 18.0) * (2.0 + 6.0 * vy + 9.0 * vyy - 3.0 * vv) - f_[3]);
-  f_[4] += omega *
-           (r * (1.0 / 18.0) * (2.0 - 6.0 * vy + 9.0 * vyy - 3.0 * vv) - f_[4]);
-  f_[5] += omega *
-           (r * (1.0 / 36.0) * (1.0 + 3.0 * (vx + vy) + 9.0 * vxy + 3.0 * vv) -
-            f_[5]);
-  f_[6] += omega *
-           (r * (1.0 / 36.0) * (1.0 - 3.0 * (vx + vy) + 9.0 * vxy + 3.0 * vv) -
-            f_[6]);
-  f_[7] += omega *
-           (r * (1.0 / 36.0) * (1.0 + 3.0 * (vy - vx) - 9.0 * vxy + 3.0 * vv) -
-            f_[7]);
-  f_[8] += omega *
-           (r * (1.0 / 36.0) * (1.0 - 3.0 * (vy - vx) - 9.0 * vxy + 3.0 * vv) -
-            f_[8]);
-
-  // write back to same locations
-  if (even) {
-    f[9 * idx[ii + 0] + 0] = f_[0];
-    f[9 * idx[ii + 1] + 1] = f_[2];
-    f[9 * idx[ii + 2] + 2] = f_[1];
-    f[9 * idx[ii + 3] + 3] = f_[4];
-    f[9 * idx[ii + 4] + 4] = f_[3];
-    f[9 * idx[ii + 5] + 5] = f_[6];
-    f[9 * idx[ii + 6] + 6] = f_[5];
-    f[9 * idx[ii + 7] + 7] = f_[8];
-    f[9 * idx[ii + 8] + 8] = f_[7];
-  } else {
-    for (int i = 0; i < 9; i++) {
-      f[9 * idx[ii + 0] + i] = f_[i];
-    }
-  }
-
-  // TODO: we don't actually need to update this until the end of loop_for
-  if (!fixed) {
-    rho[1 * idx[ii + 0]] = r;
-    vel[2 * idx[ii + 0] + 0] = vx;
-    vel[2 * idx[ii + 0] + 1] = vy;
-  }
-}
-"#;
+const UPDATE_D2Q9_BGK_SRC: &str = include_str!("lib.cl");
 
 /// See: opencl3 example [`basic.rs`](https://github.com/kenba/opencl3/blob/main/examples/basic.rs)
 pub fn loop_for_advdif_2d_opencl(
     iters: usize,
-    f: &mut VectDView2<f32, 9>,
-    rho: &mut VectDView1<f32>,
-    vel: &mut VectDView2<f32, 2>, // in lattice-units
-    g: &mut VectDView2<f32, 5>,
-    conc: &mut VectDView1<f32>,
-    cell: &VectDView1<i32>,
-    upstream_idx: &VectDView2<i32, 9>,
+    f: &mut VectDViewVector<f32, 9>,
+    rho: &mut VectDViewScalar<f32>,
+    vel: &mut VectDViewVector<f32, 2>, // in lattice-units
+    g: &mut VectDViewVector<f32, 5>,
+    conc: &mut VectDViewScalar<f32>,
+    cell: &VectDViewScalar<i32>,
+    upstream_idx: &VectDViewVector<i32, 9>,
     counts: VectS<i32, 2>,
     omega_ns: f32, // in lattice-units
     omega_ad: f32, // in lattice-units
 ) {
-    // Find a usable device for this application
     let device_id = *get_all_devices(CL_DEVICE_TYPE_DEFAULT) //CL_DEVICE_TYPE_GPU
         .expect("error getting platform")
         .first()
         .expect("no device found in platform");
     let device = Device::new(device_id);
-
-    // Create a Context on an OpenCL device
     let context = Context::from_device(&device).expect("Context::from_device failed");
-
-    // Create a command_queue on the Context's device
     let queue = CommandQueue::create_default(&context, CL_QUEUE_PROFILING_ENABLE)
         .expect("CommandQueue::create_default failed");
 
-    // Build the OpenCL program source and create the kernel.
     let program = Program::create_and_build_from_source(&context, UPDATE_D2Q9_BGK_SRC, "")
         .expect("Program::create_and_build_from_source failed");
     let kernel = Kernel::create(&program, "update_d2q9_bgk").expect("Kernel::create failed");
@@ -535,54 +418,50 @@ pub fn loop_for_advdif_2d_opencl(
             Buffer::create(
                 context,
                 CL_MEM_READ_WRITE,
-                arr.len() as usize,
+                arr.elem_count() as usize,
                 ptr::null_mut(),
             )
             .expect("Buffer::create() failed.")
         }
     }
 
-    // Create OpenCL device buffers
+    // Create OpenCL device buffers & write our data to them.
     let mut f_dev = make_buffer(&context, f);
     let mut rho_dev = make_buffer(&context, rho);
     let mut vel_dev = make_buffer(&context, vel);
     let mut idx_dev = make_buffer(&context, upstream_idx);
     let mut cell_dev = make_buffer(&context, cell);
 
-    /// Write from our host arrays to our OpenCL device buffers.
-    fn enqueue_write<T: Data>(
-        queue: &CommandQueue,
-        buf: &mut Buffer<T::Elem>,
-        arr: &VectDView<T>,
-    ) -> Event {
-        unsafe {
-            queue
-                .enqueue_write_buffer(
-                    buf,
-                    CL_BLOCKING,
-                    0,
-                    arr.as_slice(),
-                    &[], // ignore events ... why?
-                )
-                .expect("enqueue_write_buffer failed f")
-        }
+    macro_rules! enqueue_write {
+        ($arr_from:ident, $arr_to:ident) => {
+            unsafe {
+                queue
+                    .enqueue_write_buffer(
+                        &mut $arr_to,
+                        CL_BLOCKING,
+                        0,
+                        (&($arr_from)).as_slice(),
+                        &[], // ignore events ... why?
+                    )
+                    .expect(&*format!(
+                        "enqueue_write_buffer failed {}",
+                        stringify!($arr_from)
+                    ))
+            }
+        };
     }
 
-    let _f_write = enqueue_write(&queue, &mut f_dev, f);
-    let _rho_write = enqueue_write(&queue, &mut rho_dev, rho);
-    let _vel_write = enqueue_write(&queue, &mut vel_dev, vel);
-    let _idx_write = enqueue_write(&queue, &mut idx_dev, upstream_idx);
-    let _cell_write = enqueue_write(&queue, &mut cell_dev, cell);
+    let _f_write = enqueue_write!(f, f_dev);
+    let _rho_write = enqueue_write!(rho, rho_dev);
+    let _vel_write = enqueue_write!(vel, vel_dev);
+    let _idx_write = enqueue_write!(upstream_idx, idx_dev);
+    let _cell_write = enqueue_write!(cell, cell_dev);
 
     let mut events: Vec<cl_event> = Vec::default();
 
     for iter in 0..iters {
         let even = (1 - iter % 2) as i32;
 
-        // Use the ExecuteKernel builder to set the kernel buffer and
-        // cl_float value arguments, before setting the one dimensional
-        // global_work_size for the call to enqueue_nd_range.
-        // Unwraps the Result to get the kernel execution event.
         let kernel_event = unsafe {
             ExecuteKernel::new(&kernel)
                 .set_arg(&even)
@@ -654,7 +533,7 @@ fn upstream_idx<const D: usize, const Q: usize, const ROW_MAJOR: bool>(
     for sub in Raster::<D, ROW_MAJOR>::new(counts) {
         for q in 0..Q {
             let sub_ = sub.0 - model.q[q].cast();
-            let sub_ = vmod(sub_, counts.0);
+            let sub_ = vmod(&sub_, &counts.0);
             let j = sub_to_idx(Sub(sub_), strides);
             idx[i][q] = j;
         }
@@ -665,34 +544,24 @@ fn upstream_idx<const D: usize, const Q: usize, const ROW_MAJOR: bool>(
     return idx;
 }
 
-fn test_1(x: &mut impl ArrayD<f32>) {
-    x[1] = 1.0;
-}
-
-fn test_2(x: &mut impl ArrayD<VectS<f32, 2>>) {
-    x[1][0] = 1.0;
-    x[1][1] = 42.0;
-}
-
 /// A Python module implemented in Rust.
 #[pymodule]
 fn boltzmann_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyfn(m)]
-    #[pyo3(name = "test_1")]
-    fn test_1_py<'py>(_py: Python<'py>, x: PyReadwriteArray1<f32>) -> PyResult<()> {
-        let mut x_: VectDView<f32> = x.into();
-        test_1(&mut x_);
-
-        return Ok(());
-    }
-
-    #[pyfn(m)]
-    #[pyo3(name = "test_2")]
-    fn test_2_py<'py>(_py: Python<'py>, x: PyReadwriteArray2<f32>) -> PyResult<()> {
-        let mut x_: VectDView<VectS<f32, 2>> = x.into();
-        test_2(&mut x_);
-
-        return Ok(());
+    #[pyo3(name = "calc_curl_2d")]
+    fn calc_curl_2d_py<'py>(
+        _py: Python<'py>,
+        vel: PyReadwriteArray2<f32>,
+        cells: PyReadwriteArray1<i32>,
+        indices: PyReadwriteArray2<i32>,
+        curl: PyReadwriteArray1<f32>,
+    ) {
+        calc_curl_2d(
+            &VectDView::from(vel),
+            &VectDView::from(cells),
+            &VectDView::from(indices),
+            &mut VectDView::from(curl),
+        );
     }
 
     #[pyfn(m)]
@@ -713,13 +582,13 @@ fn boltzmann_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     ) -> PyResult<()> {
         loop_for_advdif_2d(
             iters,
-            &mut VectDView::<VectS<f32, 9>>::from(f),
-            &mut VectDView::<f32>::from(rho),
-            &mut VectDView::<VectS<f32, 2>>::from(vel),
-            &mut VectDView::<VectS<f32, 5>>::from(g),
-            &mut VectDView::<f32>::from(conc),
-            &VectDView::<i32>::from(cells),
-            &VectDView::<VectS<i32, 9>>::from(upstream_idx),
+            &mut VectDView::from(f),
+            &mut VectDView::from(rho),
+            &mut VectDView::from(vel),
+            &mut VectDView::from(g),
+            &mut VectDView::from(conc),
+            &VectDView::from(cells),
+            &VectDView::from(upstream_idx),
             VectS::<i32, 2>::from(counts),
             omega_ns,
             omega_ad,

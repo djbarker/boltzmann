@@ -22,12 +22,11 @@ from boltzmann.core import (
     TimeMeta,
     D2Q9 as D2Q9_py,
     D2Q5 as D2Q5_py,
-    calc_curl_2d,
     upstream_indices,
 )
 from boltzmann.utils.mpl import PngWriter
 from boltzmann.simulation import Cells, FluidField, ScalarField, run_sim_cli
-from boltzmann_rs import loop_for_advdif_2d, loop_for_advdif_2d_opencl
+from boltzmann_rs import loop_for_advdif_2d, loop_for_advdif_2d_opencl, calc_curl_2d
 
 
 basic_config()
@@ -230,7 +229,8 @@ def write_png_vmag(path: Path):
 
 
 def write_png_curl(path: Path):
-    vort = calc_curl_2d(fluid.vel, cells.cells, indices)  # in LU
+    vort = np.zeros_like(fluid.rho)
+    calc_curl_2d(fluid.vel, cells.cells, indices, vort)  # in LU
     vort = vort * ((dx / dt) / dx)  # in SI
     vort = np.tanh(vort / vmax_curl) * vmax_curl
 
@@ -277,7 +277,7 @@ class KelvinHelmholtz:
         omega_ns = sim.w_pos_lu
         omega_ad = sim.w_pos_lu
 
-        loop_for_advdif_2d(
+        loop_for_advdif_2d_opencl(
             steps,
             fluid.f1,
             fluid.rho,

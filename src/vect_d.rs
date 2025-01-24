@@ -57,15 +57,19 @@ pub trait ArrayD<T>: Index<i32, Output = T> + IndexMut<i32, Output = T>
 where
     T: Data,
 {
-    fn len(&self) -> i32;
+    fn data_count(&self) -> i32;
+    fn elem_count(&self) -> i32 {
+        self.data_count() * (T::STRIDE as i32)
+    }
     fn as_ptr(&self) -> *const T::Elem;
+    fn as_slice_ptr(&self) -> *const [T::Elem];
+    fn as_slice(&self) -> &[T::Elem];
     fn as_mut_ptr(&mut self) -> *mut T::Elem;
     fn as_mut_slice_ptr(&mut self) -> *mut [T::Elem];
-    fn as_slice(&self) -> &[T::Elem];
     fn as_mut_slice(&mut self) -> &mut [T::Elem];
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct VectD<T> {
     pub data: Vec<T>,
 }
@@ -106,7 +110,7 @@ impl<T> ArrayD<T> for VectD<T>
 where
     T: Data,
 {
-    fn len(&self) -> i32 {
+    fn data_count(&self) -> i32 {
         self.data.len() as i32
     }
 
@@ -114,16 +118,20 @@ where
         self.data.as_ptr() as *const T::Elem
     }
 
+    fn as_slice_ptr(&self) -> *const [T::Elem] {
+        slice_from_raw_parts(self.as_ptr(), self.elem_count() as usize)
+    }
+
+    fn as_slice(&self) -> &[T::Elem] {
+        unsafe { &*self.as_slice_ptr() }
+    }
+
     fn as_mut_ptr(&mut self) -> *mut T::Elem {
         self.data.as_mut_ptr() as *mut T::Elem
     }
 
     fn as_mut_slice_ptr(&mut self) -> *mut [T::Elem] {
-        slice_from_raw_parts_mut(self.as_mut_ptr(), self.len() as usize)
-    }
-
-    fn as_slice(&self) -> &[T::Elem] {
-        unsafe { &*slice_from_raw_parts(self.as_ptr(), self.len() as usize) }
+        slice_from_raw_parts_mut(self.as_mut_ptr(), self.elem_count() as usize)
     }
 
     fn as_mut_slice(&mut self) -> &mut [T::Elem] {
@@ -150,34 +158,39 @@ where
     T: Data,
 {
     pub data: *mut [T],
-    pub size: i32, // Includes the stride.
 }
 
 impl<T> ArrayD<T> for VectDView<T>
 where
     T: Data,
 {
-    fn len(&self) -> i32 {
-        self.size / (T::STRIDE as i32)
+    fn data_count(&self) -> i32 {
+        self.data.len() as i32
     }
 
     fn as_ptr(&self) -> *const T::Elem {
         unsafe { (*self.data).as_ptr() as *const T::Elem }
     }
+
+    fn as_slice_ptr(&self) -> *const [T::Elem] {
+        slice_from_raw_parts(self.as_ptr(), self.elem_count() as usize)
+    }
+
+    fn as_slice(&self) -> &[T::Elem] {
+        unsafe { &*self.as_slice_ptr() }
+    }
+
     fn as_mut_ptr(&mut self) -> *mut T::Elem {
         unsafe { (*self.data).as_mut_ptr() as *mut T::Elem }
     }
 
     fn as_mut_slice_ptr(&mut self) -> *mut [T::Elem] {
-        slice_from_raw_parts_mut(self.as_mut_ptr(), self.size as usize)
-    }
-
-    fn as_slice(&self) -> &[T::Elem] {
-        unsafe { &(*(self.data as *const [T::Elem])) }
+        slice_from_raw_parts_mut(self.as_mut_ptr(), self.elem_count() as usize)
     }
 
     fn as_mut_slice(&mut self) -> &mut [T::Elem] {
-        unsafe { &mut (*(self.data as *mut [T::Elem])) }
+        // unsafe { &mut (*(self.data as *mut [T::Elem])) }
+        unsafe { &mut *self.as_mut_slice_ptr() }
     }
 }
 
@@ -212,7 +225,6 @@ where
         let p = arr.as_array_mut().as_mut_ptr();
         Self {
             data: slice_from_raw_parts_mut(p as *mut T, n),
-            size: arr.len() as i32,
         }
     }
 }
@@ -229,10 +241,9 @@ where
         let p = p as *mut VectS<T, D>;
         Self {
             data: slice_from_raw_parts_mut(p, n),
-            size: arr.len() as i32,
         }
     }
 }
 
-pub type VectDView1<T> = VectDView<T>;
-pub type VectDView2<T, const D: usize> = VectDView<VectS<T, D>>;
+pub type VectDViewScalar<T> = VectDView<T>;
+pub type VectDViewVector<T, const D: usize> = VectDView<VectS<T, D>>;
