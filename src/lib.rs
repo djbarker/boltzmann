@@ -5,6 +5,7 @@ use numpy::{PyReadwriteArray1, PyReadwriteArray2};
 use opencl3::command_queue::{CommandQueue, CL_QUEUE_PROFILING_ENABLE};
 use opencl3::context::Context;
 use opencl3::device::{get_all_devices, Device, CL_DEVICE_TYPE_DEFAULT};
+use opencl3::event::Event;
 use opencl3::kernel::{ExecuteKernel, Kernel};
 use opencl3::memory::{Buffer, CL_MEM_READ_WRITE};
 use opencl3::program::Program;
@@ -12,7 +13,7 @@ use opencl3::types::{cl_event, CL_BLOCKING};
 use pyo3::prelude::*;
 use raster::{counts_to_strides, sub_to_idx, Counts, Raster, Sub};
 use utils::vmod;
-use vect_d::{ArrayD, VectD, VectDView, VectDViewScalar, VectDViewVector};
+use vect_d::{ArrayD, Data, VectD, VectDView, VectDViewScalar, VectDViewVector};
 use vect_s::VectS;
 
 // mod lbm;
@@ -330,7 +331,7 @@ fn update_d2q9_bgk(
 }
 
 #[repr(C)]
-enum CellType {
+pub enum CellType {
     FLUID = 0,
     WALL = 1,
     FIXED = 2,
@@ -478,22 +479,22 @@ fn loop_for_advdif_2d_opencl(
         events.push(d2q9_event.get());
         queue.finish().expect("queue.finish failed");
 
-        // let d2q5_event = unsafe {
-        //     ExecuteKernel::new(&d2q5)
-        //         .set_arg(&even)
-        //         .set_arg(&omega_ad)
-        //         .set_arg(&mut scalar.f)
-        //         .set_arg(&mut scalar.val)
-        //         .set_arg(&fluid.vel)
-        //         .set_arg(&cells.cell_type)
-        //         .set_arg(&cells.offset_idx)
-        //         .set_global_work_size(counts.prod() as usize)
-        //         .enqueue_nd_range(&queue)
-        //         .expect("ExecuteKernel::new failed.")
-        // };
+        let d2q5_event = unsafe {
+            ExecuteKernel::new(&d2q5)
+                .set_arg(&even)
+                .set_arg(&omega_ad)
+                .set_arg(&mut scalar.f)
+                .set_arg(&mut scalar.val)
+                .set_arg(&fluid.vel)
+                .set_arg(&cells.cell_type)
+                .set_arg(&cells.offset_idx)
+                .set_global_work_size(counts.prod() as usize)
+                .enqueue_nd_range(&queue)
+                .expect("ExecuteKernel::new failed.")
+        };
 
-        // events.push(d2q5_event.get());
-        // queue.finish().expect("queue.finish failed");
+        events.push(d2q5_event.get());
+        queue.finish().expect("queue.finish failed");
     }
 }
 
@@ -579,60 +580,54 @@ struct Fluid {
 }
 
 /// Construct an OpenCL [`Buffer`] from the passed [`VectDView`].
-macro_rules! make_buffer {
-    ($ctx:expr, $arr:expr) => {
-        unsafe {
-            Buffer::create(
-                $ctx,
-                CL_MEM_READ_WRITE,
-                ($arr).elem_count() as usize,
-                ptr::null_mut(),
-            )
-            .expect(&*format!(
-                "Buffer::create() failed for '{}'.",
-                stringify!($arr)
-            ))
-        }
-    };
+fn make_buffer<T: Data>(ctx: &Context, arr_host: &VectDView<T>) -> Buffer<T::Elem> {
+    unsafe {
+        Buffer::create(
+            ctx,
+            CL_MEM_READ_WRITE,
+            arr_host.elem_count() as usize,
+            ptr::null_mut(),
+        )
+        .expect("Buffer::create() failed")
+    }
 }
 
 /// Write our host array to the OpenCL [`Buffer`].
-///
-/// NOTE: Not much benefit of this being a macro over a function except for the error logging.
-macro_rules! enqueue_write {
-    ($queue:expr, $arr_host:expr, $arr_dev:expr) => {
-        unsafe {
-            $queue
-                .enqueue_write_buffer(
-                    &mut $arr_dev,
-                    CL_BLOCKING,
-                    0,
-                    (&($arr_host)).as_slice(),
-                    &[], // ignore events ... why?
-                )
-                .expect(&*format!(
-                    "enqueue_write_buffer failed {}",
-                    stringify!($arr_host)
-                ))
-        }
-    };
+fn enqueue_write<T: Data>(
+    queue: &CommandQueue,
+    arr_host: &VectDView<T>,
+    arr_dev: &mut Buffer<T::Elem>,
+) -> Event {
+    unsafe {
+        queue
+            .enqueue_write_buffer(
+                arr_dev,
+                CL_BLOCKING,
+                0,
+                arr_host.as_slice(),
+                &[], // ignore events ... why?
+            )
+            .expect("enqueue_write_buffer failed")
+    }
 }
 
 // Read back from OpenCL device buffers into our host arrays.
-macro_rules! enqueue_read {
-    ($queue:expr, $arr_host:expr, $arr_dev:expr) => {
-        unsafe {
-            $queue
-                .enqueue_read_buffer(
-                    $arr_dev,
-                    CL_BLOCKING,
-                    0,
-                    ($arr_host).as_mut_slice(),
-                    &[], // ignore events ... why?
-                )
-                .expect("enqueue_read_buffer failed f")
-        }
-    };
+fn enqueue_read<T: Data>(
+    queue: &CommandQueue,
+    arr_host: &mut VectDView<T>,
+    arr_dev: &Buffer<T::Elem>,
+) -> Event {
+    unsafe {
+        queue
+            .enqueue_read_buffer(
+                arr_dev,
+                CL_BLOCKING,
+                0,
+                arr_host.as_mut_slice(),
+                &[], // ignore events ... why?
+            )
+            .expect("enqueue_read_buffer failed")
+    }
 }
 
 #[pymethods]
@@ -656,15 +651,15 @@ impl Fluid {
         let queue = &cl.queue;
 
         let mut out = Self {
-            f: make_buffer!(ctx, f),
-            rho: make_buffer!(ctx, rho),
-            vel: make_buffer!(ctx, vel),
+            f: make_buffer(ctx, &f),
+            rho: make_buffer(ctx, &rho),
+            vel: make_buffer(ctx, &vel),
         };
 
         // Copy data into the buffers
-        let _write_f = enqueue_write!(queue, f, out.f);
-        let _write_r = enqueue_write!(queue, rho, out.rho);
-        let _write_v = enqueue_write!(queue, vel, out.vel);
+        let _write_f = enqueue_write(queue, &f, &mut out.f);
+        let _write_r = enqueue_write(queue, &rho, &mut out.rho);
+        let _write_v = enqueue_write(queue, &vel, &mut out.vel);
 
         queue.finish().expect("queue.finish() failed [Fluid]");
 
@@ -689,9 +684,9 @@ impl Fluid {
         let cl = cl.ctx.lock().unwrap();
         let queue = &cl.queue;
 
-        let _read_f = enqueue_read!(queue, f, &self.f);
-        let _read_r = enqueue_read!(queue, rho, &self.rho);
-        let _read_v = enqueue_read!(queue, vel, &self.vel);
+        let _read_f = enqueue_read(queue, &mut f, &self.f);
+        let _read_r = enqueue_read(queue, &mut rho, &self.rho);
+        let _read_v = enqueue_read(queue, &mut vel, &self.vel);
     }
 }
 
@@ -723,13 +718,13 @@ impl Scalar {
         let queue = &cl.queue;
 
         let mut out = Self {
-            f: make_buffer!(ctx, f),
-            val: make_buffer!(ctx, val),
+            f: make_buffer(ctx, &f),
+            val: make_buffer(ctx, &val),
         };
 
         // Copy data into the buffers
-        let _write_f = enqueue_write!(queue, f, out.f);
-        let _write_r = enqueue_write!(queue, val, out.val);
+        let _write_f = enqueue_write(queue, &f, &mut out.f);
+        let _write_r = enqueue_write(queue, &val, &mut out.val);
 
         queue.finish().expect("queue.finish() failed [Scalar]");
 
@@ -752,8 +747,8 @@ impl Scalar {
         let cl = cl.ctx.lock().unwrap();
         let queue = &cl.queue;
 
-        let _read_f = enqueue_read!(queue, f, &self.f);
-        let _read_c = enqueue_read!(queue, val, &self.val);
+        let _read_f = enqueue_read(queue, &mut f, &self.f);
+        let _read_c = enqueue_read(queue, &mut val, &self.val);
     }
 }
 
@@ -785,13 +780,13 @@ impl Cells {
         let queue = &cl.queue;
 
         let mut out = Self {
-            cell_type: make_buffer!(ctx, cell_type),
-            offset_idx: make_buffer!(ctx, offset_idx),
+            cell_type: make_buffer(ctx, &cell_type),
+            offset_idx: make_buffer(ctx, &offset_idx),
         };
 
         // Copy data into the buffers
-        let _c_write = enqueue_write!(queue, cell_type, out.cell_type);
-        let _i_write = enqueue_write!(queue, cell_type, out.offset_idx);
+        let _c_write = enqueue_write(queue, &cell_type, &mut out.cell_type);
+        let _i_write = enqueue_write(queue, &offset_idx, &mut out.offset_idx);
 
         queue.finish().expect("queue.finish() failed [Cells]");
 
@@ -814,8 +809,8 @@ impl Cells {
         let cl = cl.ctx.lock().unwrap();
         let queue = &cl.queue;
 
-        let _read_c = enqueue_read!(queue, cell_type, &self.cell_type);
-        let _read_i = enqueue_read!(queue, offset_idx, &self.offset_idx);
+        let _read_c = enqueue_read(queue, &mut cell_type, &self.cell_type);
+        let _read_i = enqueue_read(queue, &mut offset_idx, &self.offset_idx);
     }
 }
 
