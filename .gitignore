@@ -78,3 +78,6 @@ docs/_build/
 *.mp4
 **/out/
 **/checkpoint_*
+
+# TODO list
+todo.md
