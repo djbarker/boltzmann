@@ -5,6 +5,7 @@ kernel void update_d2q9_bgk(int even, float omega, global float *f,
   const size_t ir = get_global_id(0); // offset for rho
   const size_t ii = ir * 9;           // offset for idx
   const size_t iv = ir * 2;           // offset for vel
+  const size_t if_ = ir * 9;          // offset for f
 
   const int c = cell[ir];
   const bool wall = c == 1;
@@ -34,15 +35,15 @@ kernel void update_d2q9_bgk(int even, float omega, global float *f,
     f_[7] = f[9 * idx[ii + 7] + 7];
     f_[8] = f[9 * idx[ii + 8] + 8];
   } else {
-    f_[0] = f[9 * idx[ii + 0] + 0];
-    f_[1] = f[9 * idx[ii + 0] + 2];
-    f_[2] = f[9 * idx[ii + 0] + 1];
-    f_[3] = f[9 * idx[ii + 0] + 4];
-    f_[4] = f[9 * idx[ii + 0] + 3];
-    f_[5] = f[9 * idx[ii + 0] + 6];
-    f_[6] = f[9 * idx[ii + 0] + 5];
-    f_[7] = f[9 * idx[ii + 0] + 8];
-    f_[8] = f[9 * idx[ii + 0] + 7];
+    f_[0] = f[if_ + 0];
+    f_[1] = f[if_ + 2];
+    f_[2] = f[if_ + 1];
+    f_[3] = f[if_ + 4];
+    f_[4] = f[if_ + 3];
+    f_[5] = f[if_ + 6];
+    f_[6] = f[if_ + 5];
+    f_[7] = f[if_ + 8];
+    f_[8] = f[if_ + 7];
   }
 
   // calc moments
@@ -89,16 +90,14 @@ kernel void update_d2q9_bgk(int even, float omega, global float *f,
     f[9 * idx[ii + 8] + 8] = f_[7];
   } else {
     for (int i = 0; i < 9; i++) {
-      f[9 * idx[ii + 0] + i] = f_[i];
+      f[if_ + i] = f_[i];
     }
   }
 
   // Why do ir and iv not work here?
-  if (!fixed) { // TODO: guard not needed
-    rho[ir] = r;
-    vel[iv + 0] = vx;
-    vel[iv + 1] = vy;
-  }
+  rho[ir] = r;
+  vel[iv + 0] = vx;
+  vel[iv + 1] = vy;
 }
 
 kernel void update_d2q5_bgk(int even, float omega, global float *f,
@@ -108,6 +107,7 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
   const size_t ic = get_global_id(0); // offset for conc (val)
   const size_t ii = ic * 9;           // offset for idx (D2Q9 offsets)
   const size_t iv = ic * 2;           // offset for vel
+  const size_t if_ = ic * 5;          // offset for f
 
   const int c = cell[ic];
   const bool wall = c == 1;
@@ -133,11 +133,11 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
     f_[3] = f[5 * idx[ii + 3] + 3];
     f_[4] = f[5 * idx[ii + 4] + 4];
   } else {
-    f_[0] = f[5 * idx[ii + 0] + 0];
-    f_[1] = f[5 * idx[ii + 0] + 2];
-    f_[2] = f[5 * idx[ii + 0] + 1];
-    f_[3] = f[5 * idx[ii + 0] + 4];
-    f_[4] = f[5 * idx[ii + 0] + 3];
+    f_[0] = f[if_ + 0];
+    f_[1] = f[if_ + 2];
+    f_[2] = f[if_ + 1];
+    f_[3] = f[if_ + 4];
+    f_[4] = f[if_ + 3];
   }
 
   // calc moments
@@ -173,7 +173,7 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
     f[5 * idx[ii + 4] + 4] = f_[3];
   } else {
     for (int i = 0; i < 5; i++) {
-      f[5 * idx[ii + 0] + i] = f_[i];
+      f[if_ + i] = f_[i];
     }
   }
 
