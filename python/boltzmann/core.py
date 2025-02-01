@@ -5,7 +5,7 @@ import numpy as np
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Sequence, Type
+from typing import Sequence, Type, overload
 
 from boltzmann.utils.option import Some, to_opt, map_opt, Option, unwrap
 
@@ -118,7 +118,9 @@ class Domain:
 
     def get_dim(self, dim: int) -> np.ndarray:
         assert dim < self.dims, f"Invalid dim! [{dim=}, {self.dims=}]"
-        return np.linspace(self.lower[dim], self.upper[dim], self.counts[dim])
+        return np.linspace(
+            self.lower[dim] + self.dx / 2, self.upper[dim] - self.dx / 2, self.counts[dim]
+        )
 
     @property
     def x(self) -> np.ndarray:
@@ -277,6 +279,14 @@ class Scales:
         self, value: float | np.ndarray, L: int = 0, T: int = 0, M: int = 0
     ) -> float | np.ndarray:
         return value * pow(self.dx, -L) * pow(self.dt, -T) * pow(self.dm, -M)
+
+    @overload
+    def to_physical_units(
+        self, value: np.ndarray, L: int = 0, T: int = 0, M: int = 0
+    ) -> np.ndarray: ...
+
+    @overload
+    def to_physical_units(self, value: float, L: int = 0, T: int = 0, M: int = 0) -> float: ...
 
     def to_physical_units(
         self, value: float | np.ndarray, L: int = 0, T: int = 0, M: int = 0
