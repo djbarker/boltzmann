@@ -44,22 +44,22 @@ class Field:
     name: str
     model: Model
 
-    f1: np.ndarray
+    f: np.ndarray
 
     def __init__(self, name: str, model: Model, domain: Domain) -> None:
         self.name = name
         self.model = model
-        self.f1 = domain.make_array(model.Q)
+        self.f = domain.make_array(model.Q)
 
     def save(self, base: Path):
-        np.save(base / f"chk.{self.name}.npy", self.f1)
+        np.save(base / f"chk.{self.name}.npy", self.f)
 
     def load(self, base: Path):
-        self.f1[:] = np.load(base / f"chk.{self.name}.npy")
+        self.f[:] = np.load(base / f"chk.{self.name}.npy")
 
     @property
     def size_bytes(self) -> int:
-        return self.f1.nbytes
+        return self.f.nbytes
 
 
 @dataclass(init=False)
@@ -78,11 +78,11 @@ class FluidField(Field):
 
     def macro(self):
         # careful to repopulate existing arrays
-        self.rho[:] = np.sum(self.f1, axis=-1)
-        self.vel[:] = np.dot(self.f1, self.model.qs) / self.rho[:, np.newaxis]
+        self.rho[:] = np.sum(self.f, axis=-1)
+        self.vel[:] = np.dot(self.f, self.model.qs) / self.rho[:, np.newaxis]
 
     def equilibrate(self):
-        calc_equilibrium(self.vel, self.rho, self.f1, self.model)
+        calc_equilibrium(self.vel, self.rho, self.f, self.model)
 
     @property
     def size_bytes(self) -> int:
@@ -103,14 +103,14 @@ class ScalarField(Field):
 
     def macro(self):
         # careful to repopulate existing arrays
-        self.val[:] = np.sum(self.f1, axis=-1)
+        self.val[:] = np.sum(self.f, axis=-1)
 
     def equilibrate(self, vel: np.ndarray):
         """
         Like Fluid.equilibrate but velocity field is externally imposed.
         """
         assert vel.shape[-1] == self.model.D, "Dimension mismatch!"
-        calc_equilibrium(vel, self.val, self.f1, self.model)
+        calc_equilibrium(vel, self.val, self.f, self.model)
 
     @property
     def size_bytes(self) -> int:
@@ -180,7 +180,7 @@ class SimulationRunner:
             # give the cpu fans a chance ...
             curr = datetime.datetime.now()
             diff = curr - self.last
-            if diff > datetime.timedelta(minutes=10):
+            if diff > datetime.timedelta(minutes=4, seconds=30):
                 time.sleep(30)
             self.last = curr
 
