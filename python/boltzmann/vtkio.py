@@ -38,11 +38,11 @@ class VtiWriter:
         self.default = None
 
     def add_data(self, key: str, val: np.ndarray, *, default: bool = False):
-        assert val.shape[0] == np.prod(self.dom.counts + 2)
+        assert val.shape[0] == np.prod(self.dom.counts)
         assert np.ndim(val) <= 2
         if np.ndim(val) == 1:
             val = val[:, None]
-        self.data[key] = self.dom.unflatten(_to3d(val), rev=True)[1:-1, 1:-1]
+        self.data[key] = self.dom.unflatten(_to3d(val))
 
         match self.default, default:
             case None, True:
@@ -51,7 +51,7 @@ class VtiWriter:
                 raise ValueError(f"Default key already set! [old={self.default!r}, new={key!r}]")
 
     def write(self):
-        counts = self.dom.counts - 2
+        counts = self.dom.counts
 
         img_data = vtk.vtkImageData()
         nx, ny = list(counts)
@@ -61,7 +61,9 @@ class VtiWriter:
 
         for name, np_data in self.data.items():
             vtk_type = to_vtk_type(np_data.dtype)
-            vtk_data = numpy_to_vtk(num_array=np_data.ravel(), deep=False, array_type=vtk_type)
+            vtk_data = numpy_to_vtk(
+                num_array=np_data.ravel(order="F"), deep=False, array_type=vtk_type
+            )
             vtk_data.SetName(name)
             vtk_data.SetNumberOfComponents(np_data.shape[-1])
             pnt_data.AddArray(vtk_data)

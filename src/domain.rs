@@ -1,7 +1,3 @@
-use numpy::ndarray::Data;
-
-use crate::vect_d::VectD;
-
 /// Calculate the domain decomposition counts in each dimension.
 ///
 /// The decomposition is always such that subdomain cuboids have their verticies touching,

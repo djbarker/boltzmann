@@ -5,7 +5,6 @@ use ndarray::{
     arr1, arr2, Array, Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, Axis, Dimension,
     ShapeBuilder, Zip,
 };
-use num_traits::Zero;
 use numpy::{Ix1, Ix2, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyReadwriteArray1};
 use opencl3::command_queue::{CommandQueue, CL_QUEUE_PROFILING_ENABLE};
 use opencl3::context::Context;
@@ -18,11 +17,9 @@ use opencl3::types::{cl_event, CL_BLOCKING};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use raster::StrideOrder::RowMajor;
-use raster::{counts_to_strides, raster_row_major, sub_to_idx, StrideOrder};
+use raster::{counts_to_strides, raster_row_major, sub_to_idx, Ix, IxLike};
 use utils::vmod_nd;
 
-// mod lbm;
-pub mod domain;
 pub mod raster;
 pub mod utils;
 pub mod vect_d;
@@ -94,11 +91,8 @@ impl VelocitySet {
         for q in 0..self.Q() {
             let q_ = ax0!(self.qs, q).mapv(|x| x as f32);
             let vq = vel.dot(&q_);
-            let qq = q_.dot(&q_);
-            let vOv = outer(vel, vel);
-            let qOq = outer(q_.view(), q_.view());
-            let vvqq = doubledot(vOv.view(), (qOq - I.clone()).view());
-            out[q] = rho * self.ws[q] * (1.0 + vq + 0.5 * vvqq)
+            let vv = vel.dot(&vel);
+            out[q] = rho * self.ws[q] * (1.0 + 3.0 * vq + 4.5 * vq * vq - (3.0 / 2.0) * vv)
         }
         out
     }
@@ -155,16 +149,16 @@ pub enum EqnType {
 
 /// Return an array of size (cell_count, q) where for each cell we have calculated the index of the
 /// cell upstream of each velocity in the model.
-pub fn upstream_idx(counts: &Array1<i32>, model: VelocitySet) -> Array2<i32> {
+pub fn upstream_idx(counts: &Array1<Ix>, model: VelocitySet) -> Array2<i32> {
     let strides = counts_to_strides(counts, RowMajor);
     let mut idx = Array2::zeros([cell_count(counts), model.Q()]);
     let mut i = 0;
     for sub in raster_row_major(counts.clone()) {
         for q in 0..model.Q() {
-            let sub_ = sub.clone() - ax0!(model.qs, q);
+            let sub_ = sub.clone() + ax0!(model.qs, q).mapv(|q| q as Ix);
             let sub_ = vmod_nd(sub_, &counts);
             let j = sub_to_idx(&sub_, &strides);
-            idx[(i, q)] = j;
+            idx[(i, q)] = j as Ix;
         }
 
         i += 1;
@@ -180,24 +174,38 @@ pub fn upstream_idx(counts: &Array1<i32>, model: VelocitySet) -> Array2<i32> {
 fn calc_curl_2d(
     vel: &ArrayView2<f32>,
     cells: &ArrayView1<i32>,
-    indices: &ArrayView2<i32>,
+    counts: &ArrayView1<impl Into<Ix> + Copy>,
     curl: &mut ArrayViewMut1<f32>,
 ) {
-    assert_eq!(vel.dim().0, indices.dim().0);
+    assert_eq!(vel.dim().0, cells.dim());
 
     fn is_wall(c: i32) -> f32 {
         ((c == (CellType::WALL as i32)) as i32) as f32
     }
 
-    for i in 0..vel.dim().0 {
-        let idx = indices.index_axis(Axis(0), i);
-        // NOTE: Assumes zero wall velocity.
-        let dvydx1: f32 = vel[(idx[2] as usize, 1)] * is_wall(cells[idx[2] as usize]);
-        let dvydx2: f32 = vel[(idx[1] as usize, 1)] * is_wall(cells[idx[1] as usize]);
-        let dvxdy1: f32 = vel[(idx[4] as usize, 0)] * is_wall(cells[idx[4] as usize]);
-        let dvxdy2: f32 = vel[(idx[3] as usize, 0)] * is_wall(cells[idx[3] as usize]);
+    let counts = counts.to_owned().mapv(|x| x.into());
+    let strides = &counts_to_strides(&counts, RowMajor);
 
-        curl[i] = ((dvydx2 - dvydx1) - (dvxdy2 - dvxdy1)) / 2.0;
+    let offset = |sub: &Array1<Ix>, off: [Ix; 2]| {
+        let off = arr1(&off);
+        sub_to_idx(&vmod_nd(sub + off, &counts), &strides)
+    };
+
+    for sub in raster_row_major(counts.clone()) {
+        let idx = sub_to_idx(&sub, strides);
+
+        let idx_x1 = offset(&sub, [-1, 0]);
+        let idx_x2 = offset(&sub, [1, 0]);
+        let idx_y1 = offset(&sub, [0, -1]);
+        let idx_y2 = offset(&sub, [0, 1]);
+
+        // NOTE: Assumes zero wall velocity.
+        let dvydx1: f32 = vel[(idx_x1, 1)] * (1.0 - is_wall(cells[idx_x1]));
+        let dvydx2: f32 = vel[(idx_x2, 1)] * (1.0 - is_wall(cells[idx_x2]));
+        let dvxdy1: f32 = vel[(idx_y1, 0)] * (1.0 - is_wall(cells[idx_y1]));
+        let dvxdy2: f32 = vel[(idx_y2, 0)] * (1.0 - is_wall(cells[idx_y2]));
+
+        curl[idx] = ((dvydx2 - dvydx1) - (dvxdy2 - dvxdy1)) / 2.0;
     }
 }
 
@@ -299,6 +307,7 @@ impl<T, D: Dimension> Data<T, D> {
 
     // Read back from OpenCL device buffers into our host arrays.
     fn enqueue_read(&mut self, queue: &CommandQueue) -> Event {
+        assert_eq!(self.host.len(), self.host.as_slice().unwrap().len());
         unsafe {
             queue
                 .enqueue_read_buffer(
@@ -316,6 +325,10 @@ impl<T, D: Dimension> Data<T, D> {
 type Data1d<T> = Data<T, Ix1>;
 type Data2d<T> = Data<T, Ix2>;
 
+trait MemUsage {
+    fn size_bytes(&self) -> usize;
+}
+
 /// Long-lived container for the fluid Host and OpenCL device buffers.
 /// This owns the simulation data and we expose a view to Python.
 struct Fluid {
@@ -326,7 +339,7 @@ struct Fluid {
 }
 
 impl Fluid {
-    pub fn new(opencl: &OpenCLCtx, counts: &Array1<i32>, q: usize) -> Self {
+    pub fn new(opencl: &OpenCLCtx, counts: &Array1<Ix>, q: usize) -> Self {
         let n = cell_count(counts);
         let d = counts.dim();
 
@@ -369,6 +382,12 @@ impl Fluid {
             .for_each(|&r, v, mut f| {
                 f.assign(&self.model.feq(r, v));
             });
+    }
+}
+
+impl MemUsage for Fluid {
+    fn size_bytes(&self) -> usize {
+        std::mem::size_of::<f32>() * (self.f.host.len() + self.rho.host.len() + self.vel.host.len())
     }
 }
 
@@ -426,6 +445,12 @@ impl Scalar {
     }
 }
 
+impl MemUsage for Scalar {
+    fn size_bytes(&self) -> usize {
+        std::mem::size_of::<f32>() * (self.g.host.len() + self.C.host.len())
+    }
+}
+
 struct Cells {
     /// The type of the cell as given by [`CellType`].
     typ: Data1d<i32>,
@@ -434,16 +459,16 @@ struct Cells {
     idx: Data2d<i32>,
 
     /// Cell count in each dimension.
-    counts: Array1<i32>,
+    counts: Array1<Ix>,
 }
 
 /// Return the total number of cells for the given dimension sizes.
-fn cell_count(counts: &Array1<i32>) -> usize {
-    counts.product_axis(Axis(0))[()] as usize
+fn cell_count(counts: &Array1<Ix>) -> usize {
+    counts.product() as usize
 }
 
 impl Cells {
-    pub fn new(opencl: &OpenCLCtx, counts: &Array1<i32>, q: usize) -> Self {
+    pub fn new(opencl: &OpenCLCtx, counts: &Array1<Ix>, q: usize) -> Self {
         let n = cell_count(counts);
         let d = counts.dim();
 
@@ -451,21 +476,32 @@ impl Cells {
         let mut out = Self {
             typ: Data::new(opencl, [n], 0),
             idx: Data::new(opencl, [n, q], 0),
-            counts: counts.to_owned(),
+            counts: counts.clone(),
         };
 
         // Populate the upstream indices
         out.idx.host = upstream_idx(counts, VelocitySet::make(d, q));
 
-        // Cell types do not change so we can write them here and forget about it
-        // c.f. [`Fluid`] and [`Scalar`] where we read them before loop for because they can be set from Python.
-        let queue = &opencl.queue;
-        out.typ.enqueue_write(queue, "typ");
-        out.idx.enqueue_write(queue, "idx");
-
-        queue.finish().expect("queue.finish() failed [Cells::new]");
+        out.write_to_dev(opencl);
 
         out
+    }
+
+    // Copy data from our host arrays into the OpenCL buffers.
+    pub fn write_to_dev(&mut self, opencl: &OpenCLCtx) {
+        let queue = &opencl.queue;
+        let _write_t = self.typ.enqueue_write(queue, "typ");
+        let _write_i = self.idx.enqueue_write(queue, "idx");
+
+        queue
+            .finish()
+            .expect("queue.finish() failed [Cells::write_to_dev]");
+    }
+}
+
+impl MemUsage for Cells {
+    fn size_bytes(&self) -> usize {
+        std::mem::size_of::<i32>() * (self.typ.host.len() + self.idx.host.len())
     }
 }
 
@@ -476,9 +512,31 @@ struct Simulation {
     tracer: Option<Scalar>,
     omega_ns: f32,
     omega_ad: f32,
+    gravity: Array1<f32>,
 }
 
 impl Simulation {
+    pub fn new(counts: Array1<impl IxLike>, q: usize, omega_ns: f32) -> Self {
+        let counts = counts.mapv(|c| c.into());
+        let opencl = OpenCLCtx::new();
+        let cells = Cells::new(&opencl, &counts, q);
+        let fluid = Fluid::new(&opencl, &counts, q);
+
+        Self {
+            opencl: opencl,
+            cells: cells,
+            fluid: fluid,
+            tracer: None,
+            omega_ns: omega_ns,
+            omega_ad: f32::NAN,
+            gravity: Array1::zeros([counts.dim()]),
+        }
+    }
+
+    pub fn set_gravity(&mut self, gravity: Array1<f32>) {
+        self.gravity = gravity;
+    }
+
     pub fn add_tracer(&mut self, tracer: Scalar, omega_ad: f32) {
         self.tracer = Some(tracer);
         self.omega_ad = omega_ad;
@@ -486,6 +544,8 @@ impl Simulation {
 
     /// Calculate distribution function from macroscopic variables & copy data to OpenCL buffers.
     pub fn finalize(&mut self) {
+        self.cells.write_to_dev(&self.opencl);
+
         self.fluid.equilibrate();
         self.fluid.write_to_dev(&self.opencl);
 
@@ -496,8 +556,14 @@ impl Simulation {
     }
 
     /// See: opencl3 example [`basic.rs`](https://github.com/kenba/opencl3/blob/main/examples/basic.rs)
-    pub fn loop_for(&mut self, iters: usize) {
+    pub fn iterate(&mut self, iters: usize) {
+        if iters % 2 != 0 {
+            panic!("iters must be even")
+        }
+
         let queue: &CommandQueue = &self.opencl.queue;
+
+        let cell_count = cell_count(&self.cells.counts);
 
         // TODO: make this generic over [`D`], [`Q`] and [`EqnType`]!
         let d2q9 = &self.opencl.d2q9_ns_kernel;
@@ -532,40 +598,28 @@ impl Simulation {
             // Entry case.
             ($kernel:expr, $($args:expr),*) => {
                 _exec_kernel_inner!{ ExecuteKernel::new($kernel), $($args),*}
-                    .set_global_work_size(counts.prod() as usize)
+                    .set_global_work_size(cell_count)
                     .enqueue_nd_range(&queue)
                     .expect("ExecuteKernel::new failed.")
             };
         }
 
-        let cell_count: usize = self.cells.counts.product_axis(Axis(0))[()] as usize;
-
         for iter in 0..iters {
+            // We cannot pass bools to OpenCL so get an interger with values 0 or 1.
             let even = (1 - iter % 2) as i32;
 
-            // let _ = unsafe {
+            // let d2q9_event = unsafe {
             //     exec_kernel!(
             //         d2q9,
             //         &even,
-            //         &omega_ns,
-            //         &mut fluid.f,
-            //         &mut fluid.rho,
-            //         &mut fluid.vel,
-            //         &cells.cell_type,
-            //         &cells.offset_idx
-            //     )
-            // };
-
-            // let _ = unsafe {
-            //     exec_kernel!(
-            //         d2q5,
-            //         &even,
-            //         &omega_ad,
-            //         &mut scalar.f,
-            //         &mut scalar.val,
-            //      &fluid.vel
-            //         &cells.cell_type,
-            //         &cells.offset_idx
+            //         &self.omega_ns,
+            //         &self.gravity[0],
+            //         &self.gravity[1],
+            //         &mut self.fluid.f.dev,
+            //         &mut self.fluid.rho.dev,
+            //         &mut self.fluid.vel.dev,
+            //         &self.cells.typ.dev,
+            //         &self.cells.idx.dev
             //     )
             // };
 
@@ -573,6 +627,8 @@ impl Simulation {
                 ExecuteKernel::new(&d2q9)
                     .set_arg(&even)
                     .set_arg(&self.omega_ns)
+                    .set_arg(&self.gravity[0])
+                    .set_arg(&self.gravity[1])
                     .set_arg(&mut self.fluid.f.dev)
                     .set_arg(&mut self.fluid.rho.dev)
                     .set_arg(&mut self.fluid.vel.dev)
@@ -586,6 +642,10 @@ impl Simulation {
             events.push(d2q9_event.get());
             queue.finish().expect("queue.finish failed");
 
+            // We do this if let binding on every iteration.
+            // I assume it's cheap but I wonder if that's really so.
+            // One could imagine we make the iteration generic and it gets a list of funcs to call.
+            // The borrow checker may kill us here though. :(
             if let Some(ref mut tracer) = &mut self.tracer {
                 let d2q5_event = unsafe {
                     ExecuteKernel::new(&d2q5)
@@ -614,8 +674,7 @@ impl Simulation {
     }
 }
 
-#[pyclass]
-
+#[pyclass(name = "Fluid")]
 struct FluidPy {
     sim: Arc<Mutex<Simulation>>,
 }
@@ -642,9 +701,14 @@ impl FluidPy {
         let array = &borrow.sim.lock().unwrap().fluid.vel.host;
         unsafe { PyArray2::borrow_from_array(array, this.into_any()) }
     }
+
+    #[getter]
+    fn size_bytes(&self) -> usize {
+        self.sim.lock().unwrap().fluid.size_bytes()
+    }
 }
 
-#[pyclass]
+#[pyclass(name = "Scalar")]
 struct ScalarPy {
     sim: Arc<Mutex<Simulation>>,
 }
@@ -678,10 +742,50 @@ impl ScalarPy {
             panic!("No tracer configured")
         }
     }
+
+    #[getter]
+    fn size_bytes(&self) -> usize {
+        self.sim
+            .lock()
+            .unwrap()
+            .tracer
+            .as_ref()
+            .unwrap()
+            .size_bytes()
+    }
+}
+
+#[pyclass(name = "Domain")]
+struct DomainPy {
+    sim: Arc<Mutex<Simulation>>,
+}
+
+#[pymethods]
+impl DomainPy {
+    #[getter]
+    fn cell_type<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArray1<i32>> {
+        let borrow = this.borrow();
+        let sim = borrow.sim.lock().unwrap();
+        let array = &sim.cells.typ.host;
+        unsafe { PyArray1::borrow_from_array(array, this.into_any()) }
+    }
+
+    #[getter]
+    fn offset_idx<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArray2<i32>> {
+        let borrow = this.borrow();
+        let sim = borrow.sim.lock().unwrap();
+        let array = &sim.cells.idx.host;
+        unsafe { PyArray2::borrow_from_array(array, this.into_any()) }
+    }
+
+    #[getter]
+    fn size_bytes(&self) -> usize {
+        self.sim.lock().unwrap().cells.size_bytes()
+    }
 }
 
 /// Wrap the core [`Simulation`] class in an [`Arc`] + [`Mutex`] so it's threadsafe for Python.
-#[pyclass]
+#[pyclass(name = "Simulation")]
 struct SimulationPy {
     sim: Arc<Mutex<Simulation>>,
 }
@@ -696,46 +800,45 @@ impl SimulationPy {
 impl SimulationPy {
     #[new]
     fn new(counts: PyReadonlyArray1<i32>, q: usize, omega_ns: f32) -> Self {
-        let opencl = OpenCLCtx::new();
         let counts = counts.as_array().to_owned();
-        let cells = Cells::new(&opencl, &counts, q);
-        let fluid = Fluid::new(&opencl, &counts, q);
-
         Self {
-            sim: Arc::new(Mutex::new(Simulation {
-                opencl: opencl,
-                cells: cells,
-                fluid: fluid,
-                tracer: None,
-                omega_ns: omega_ns,
-                omega_ad: f32::NAN,
-            })),
+            sim: Arc::new(Mutex::new(Simulation::new(counts, q, omega_ns))),
         }
     }
 
-    /// Once we've initialized the density, velocity, etc arrays in Python we must call [`SimulationPy::finalize`] before calling [`SimulationPy::loop_for`].
+    /// Once we've initialized the density, velocity, etc arrays in Python we must call [`SimulationPy::finalize`] before calling [`SimulationPy::iterate`].
     /// This calculates the equilibrium distribution function and copies the necessary data to the OpenCL device buffers.
     fn finalize(&mut self) {
         self.sim().finalize();
     }
 
-    fn loop_for(&mut self, iters: usize) {
-        self.sim().loop_for(iters)
+    fn iterate(&mut self, iters: usize) {
+        self.sim().iterate(iters)
+    }
+
+    fn set_gravity(&mut self, gravity: PyReadonlyArray1<f32>) {
+        let gravity = gravity.as_array().to_owned();
+        self.sim().set_gravity(gravity);
     }
 
     fn add_tracer(&mut self, q: usize, omega_ad: f32) {
         let mut sim = self.sim();
         let c = &sim.cells.counts;
-        let d = c.dim();
         let tracer = Scalar::new(&sim.opencl, c, q);
         sim.add_tracer(tracer, omega_ad)
     }
 
-    // fn get_rho<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArray1<f32>> {
-    //     let borrow = this.borrow();
-    //     let array = &borrow.sim.lock().unwrap().fluid.rho.host;
-    //     unsafe { PyArray1::borrow_from_array(array, this.into_any()) }
-    // }
+    #[getter]
+    fn domain<'py>(this: Bound<'py, Self>) -> Bound<'py, DomainPy> {
+        let this = this.borrow();
+        Bound::new(
+            this.py(),
+            DomainPy {
+                sim: this.sim.clone(),
+            },
+        )
+        .expect("Bound::new DomainPy failed.")
+    }
 
     #[getter]
     fn fluid<'py>(this: Bound<'py, Self>) -> Bound<'py, FluidPy> {
@@ -753,7 +856,7 @@ impl SimulationPy {
     fn tracer<'py>(this: Bound<'py, Self>) -> PyResult<Bound<'py, ScalarPy>> {
         let this = this.borrow();
         let sim = this.sim.lock().unwrap();
-        if let Some(ref tracer) = sim.tracer {
+        if sim.tracer.is_some() {
             let bound = Bound::new(
                 this.py(),
                 ScalarPy {
@@ -779,18 +882,21 @@ fn boltzmann_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
         _py: Python<'py>,
         vel: PyReadonlyArray2<f32>,
         cells: PyReadonlyArray1<i32>,
-        indices: PyReadonlyArray2<i32>,
+        counts: PyReadonlyArray1<Ix>,
         mut curl: PyReadwriteArray1<f32>,
     ) {
         calc_curl_2d(
             &vel.as_array(),
             &cells.as_array(),
-            &indices.as_array(),
+            &counts.as_array(),
             &mut curl.as_array_mut(),
         );
     }
 
     m.add_class::<SimulationPy>()?;
+    m.add_class::<FluidPy>()?;
+    m.add_class::<ScalarPy>()?;
+    m.add_class::<DomainPy>()?;
 
     Ok(())
 }

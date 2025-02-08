@@ -119,7 +119,9 @@ class Domain:
     def get_dim(self, dim: int) -> np.ndarray:
         assert dim < self.dims, f"Invalid dim! [{dim=}, {self.dims=}]"
         return np.linspace(
-            self.lower[dim] + self.dx / 2, self.upper[dim] - self.dx / 2, self.counts[dim]
+            self.lower[dim] + self.dx / 2,
+            self.upper[dim] - self.dx / 2,
+            self.counts[dim],
         )
 
     @property
@@ -187,7 +189,8 @@ class Domain:
 
         arr_ = np.reshape(arr, c + n, order="C")
 
-        assert arr_.base is arr, "Unflattened array should point to the orignal data."
+        # This check is nice but seems to falsely fail now data is allocated in Rust.
+        # assert arr_.base is arr, "Unflattened array should point to the orignal data."
 
         return arr_
 
@@ -262,7 +265,9 @@ class Scales:
             case (Some(x), Some(t), None):
                 pass
             case _:
-                msg = f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
+                msg = (
+                    f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
+                )
                 raise ValueError(msg)
 
         return Scales(x, t, dm)
@@ -286,7 +291,9 @@ class Scales:
     ) -> np.ndarray: ...
 
     @overload
-    def to_physical_units(self, value: float, L: int = 0, T: int = 0, M: int = 0) -> float: ...
+    def to_physical_units(
+        self, value: float, L: int = 0, T: int = 0, M: int = 0
+    ) -> float: ...
 
     def to_physical_units(
         self, value: float | np.ndarray, L: int = 0, T: int = 0, M: int = 0

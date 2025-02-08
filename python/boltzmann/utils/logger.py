@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import datetime
 import logging
 import os
@@ -86,3 +87,15 @@ class PerfTimer:
 
 def tick() -> PerfTimer:
     return PerfTimer(datetime.datetime.now(), 0)
+
+
+@contextmanager
+def time(logger: logging.Logger, events: int = 1):
+    """
+    Time the contents of a with-statement, and log the result.
+    """
+    timer = tick()
+    try:
+        yield
+    finally:
+        logger.info(timer.tock(events=events))

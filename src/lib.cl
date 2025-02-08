@@ -1,6 +1,6 @@
-kernel void update_d2q9_bgk(int even, float omega, global float *f,
+kernel void update_d2q9_bgk(int even, float omega, float gx, float gy, global float *f,
                             global float *rho, global float *vel,
-                            global int *cell, global int *idx) {
+                           global int *cell, global int *idx) {
 
   const size_t ir = get_global_id(0); // offset for rho
   const size_t ii = ir * 9;           // offset for idx
@@ -9,11 +9,11 @@ kernel void update_d2q9_bgk(int even, float omega, global float *f,
 
   const int c = cell[ir];
   const bool wall = c == 1;
-  const bool fixed = c == 2;
+  const bool fixed = c == 2; 
 
   if (wall) {
     // wall => do nothing
-    return;
+    return; 
   }
 
   // Array access conversion:
@@ -51,6 +51,9 @@ kernel void update_d2q9_bgk(int even, float omega, global float *f,
       f_[0] + f_[1] + f_[2] + f_[3] + f_[4] + f_[5] + f_[6] + f_[7] + f_[8];
   float vx = (f_[1] - f_[2] + f_[5] - f_[6] - f_[7] + f_[8]) / r;
   float vy = (f_[3] - f_[4] + f_[5] - f_[6] + f_[7] - f_[8]) / r;
+
+  vx += (gx / omega);
+  vy += (gy / omega);
 
   if (fixed) {
     omega = 1.0;
@@ -94,7 +97,6 @@ kernel void update_d2q9_bgk(int even, float omega, global float *f,
     }
   }
 
-  // Why do ir and iv not work here?
   rho[ir] = r;
   vel[iv + 0] = vx;
   vel[iv + 1] = vy;

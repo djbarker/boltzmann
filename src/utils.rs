@@ -1,6 +1,6 @@
 use std::ops::{Add, Rem};
 
-use ndarray::{Array, DimAdd, Dimension};
+use ndarray::{Array, Dimension};
 
 use crate::vect_s::VectS;
 
