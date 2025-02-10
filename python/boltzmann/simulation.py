@@ -205,9 +205,7 @@ class SimulationRunner:
 
     def run(self, *, write_checkpoints: bool = True):
         batch_iters = self.meta.time.batch_steps(self.meta.scales.dt)
-        batch_iters = 2 * int(
-            batch_iters / 2 + 0.5
-        )  # iters must be even due to AA pattern
+        batch_iters = 2 * int(batch_iters / 2 + 0.5)  # iters must be even due to AA pattern
         logger.info(f"{batch_iters} iters/output")
         logger.info(f"{np.prod(self.meta.domain.counts) / 1e6:,.2f}m cells")
 
@@ -228,13 +226,13 @@ class SimulationRunner:
                 time.sleep(30)
             self.last = curr
 
-            perf_batch = tick()
+            timer = tick()
 
             self.loop.loop_for(batch_iters)
 
             # tock() before checkpointing so it's not included in the mlups calculation
 
-            perf_batch = perf_batch.tock(events=cell_count * batch_iters)
+            perf_batch = timer.tock(events=cell_count * batch_iters)
             perf_total = perf_total + perf_batch
 
             mlups_batch = perf_batch.events / (1e6 * perf_batch.seconds)
@@ -251,7 +249,11 @@ class SimulationRunner:
                 # write fields
                 self.loop.write_checkpoint(self.base)
 
-            logger.info(f"Batch {i}: {mlups_batch:.2f} mlups, {mlups_total=:.2f}")
+            perf_out = timer.tock() - perf_batch
+
+            logger.info(
+                f"Batch {i}: {mlups_batch:7.2f} MLUP/s, sim {perf_batch.seconds:.1f}s, out {perf_out.seconds:.1f}s"
+            )
 
 
 def run_sim_cli(sim: SimulationMeta, loop: SimulationLoop):
