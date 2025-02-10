@@ -4,6 +4,7 @@ import logging
 import os
 
 from dataclasses import dataclass, field
+from typing import Any, Generator
 
 
 def basic_config(logger: logging.Logger | None = None, level: int | str | None = None):
@@ -57,6 +58,15 @@ class PerfInfo:
             self.micros + rhs.micros,
         )
 
+    def __sub__(self, rhs: "PerfInfo") -> "PerfInfo":
+        if not isinstance(rhs, PerfInfo):
+            raise TypeError(f"rhs must be PerfInfo. [{rhs=!r}]")
+
+        return PerfInfo(
+            self.events - rhs.events,
+            self.micros - rhs.micros,
+        )
+
     def __iadd__(self, rhs: "PerfInfo") -> "PerfInfo":
         if not isinstance(rhs, PerfInfo):
             raise TypeError(f"rhs must be PerfInfo. [{rhs=!r}]")
@@ -90,12 +100,17 @@ def tick() -> PerfTimer:
 
 
 @contextmanager
-def time(logger: logging.Logger, events: int = 1):
+def time(
+    logger: logging.Logger, message: str = "", events: int = 1, *, silent: bool = False
+) -> Generator[PerfTimer, Any, Any]:
     """
     Time the contents of a with-statement, and log the result.
     """
     timer = tick()
     try:
-        yield
+        yield timer
     finally:
-        logger.info(timer.tock(events=events))
+        if not silent:
+            if message != "":
+                message = f"{message}: "
+            logger.info(f"{message}{timer.tock(events=events)}")

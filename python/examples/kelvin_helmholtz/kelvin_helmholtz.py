@@ -7,11 +7,12 @@ import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 
+from PIL import ImageDraw, ImageFont
 from pathlib import Path
 from pprint import pprint
 from dataclasses import asdict
 
-from boltzmann.utils.logger import basic_config
+from boltzmann.utils.logger import basic_config, time
 from boltzmann.core import (
     VELOCITY,
     Domain,
@@ -33,6 +34,8 @@ basic_config()
 logger = logging.getLogger(__name__)
 logger.info("Starting")
 
+verbose = False
+
 # %% Params
 
 # https://www.sciencedirect.com/science/article/pii/S0898122118306278
@@ -43,18 +46,19 @@ y_si = 2.0
 x_si = y_si * aspect_ratio
 
 # flow velocity [m/s]
-v0_si = 1.0
+# v0_si = 1.0
+v0_si = 5.0
 
 # vmax_vmag = 1.6 * v0_si
 vmax_vmag = 1.3 * v0_si
 vmax_curl = 30 * v0_si
 vmax_conc = 1.025
 
-nu_si = 1e-4
+nu_si = 1e-6
 rho_si = 1000
 
 # geometry
-scale = 10
+scale = 30
 # scale = 5
 dx = 1.0 / (100 * scale)
 upper = np.array([x_si, y_si])
@@ -129,6 +133,10 @@ vel_[:, 1:-1, 1] = vy_si[:, None]
 conc_ = domain.unflatten(sim.tracer.val)
 conc_[:, : domain.counts[1] // 2] = 1.0  # lower half
 
+# allocate extra arrays for plotting to avoid reallocating each step
+vmag_ = np.zeros_like(conc_)
+curl_ = np.zeros_like(conc_)
+
 # IMPORTANT: convert velocity to lattice units / timestep
 vel_[:] = scales.to_lattice_units(vel_, **VELOCITY)
 
@@ -140,123 +148,25 @@ logger.info(f"Memory usage: {mem_mb:,.2f} MB")
 
 # %% Define simulation loop
 
-FONT = dict(
-    fontsize=14,
-    fontfamily="sans-serif",
-    fontstyle="italic",
-    fontweight="bold",
-)
+# FONT = dict(
+#     fontsize=14,
+#     fontfamily="sans-serif",
+#     fontstyle="italic",
+#     fontweight="bold",
+# )
+
+fsz = domain.counts[1] // 15
+fox = domain.counts[1] // 60
+foy = 0
+
+try:
+    FONT = ImageFont.truetype("/home/dan/micromamba/envs/boltzmann/fonts/Inconsolata-Bold.ttf", fsz)
+except OSError as e:
+    raise OSError("Couldn't load True-Type Font file") from e
 
 
 def png_writer(path: Path, data: np.ndarray, **kwargs) -> PngWriter:
-    fig_kwargs = kwargs.pop("fig_kwargs", {})
-    fig_kwargs["dpi"] = 300
-    return PngWriter(path, domain, cells_, data, fig_kwargs=fig_kwargs, **kwargs)
-
-
-def annotate(ax1, text: str, **kwargs):
-    ax1.annotate(
-        text,
-        (y_si * 0.025, y_si * 0.975),
-        xytext=(0.25, -1.1),
-        textcoords="offset fontsize",
-        **kwargs,
-        **FONT,
-    )
-
-
-def write_png_vmag(path: Path):
-    # vmag = np.sqrt(np.sum(scales.to_physical_units(vel_, **VELOCITY) ** 2, axis=-1))
-    vmag = scales.to_physical_units(vel_, **VELOCITY)[:, :, 1]
-    vmag = np.tanh(vmag / vmax_vmag) * vmax_vmag
-
-    with png_writer(
-        path,
-        vmag,
-        # cmap=plt.cm.inferno,  # type: ignore
-        # vmin=0,
-        cmap=plt.cm.Spectral,  # type: ignore
-        vmin=-vmax_vmag,
-        vmax=vmax_vmag,
-        fig_kwargs={
-            "facecolor": "#888888",
-        },
-    ) as fig:
-        ax1 = fig.gca()
-        # Plot the quivers.
-        if False:
-            n = 70
-            s = domain.counts[0] // n
-            xx, yy = np.meshgrid(
-                domain.x[s // 2 :: s],
-                domain.y[s // 2 :: s],
-            )
-            vx = np.squeeze(vel_[s // 2 :: s, s // 2 :: s, 0::2]).T[:, ::-1]
-            vy = np.squeeze(vel_[s // 2 :: s, s // 2 :: s, 1::2]).T[:, ::-1]
-            vm = np.sqrt(vx**2 + vy**2)
-            vx = np.where(vm > 0, vx / vm, 0)
-            vy = np.where(vm > 0, vy / vm, 0)
-            ax1.scatter(
-                xx.flatten(),
-                yy.flatten(),
-                c="#AAAAAA",
-                s=3,
-                marker=".",
-                edgecolors="none",
-                alpha=0.7,
-            )
-            ax1.quiver(
-                xx,
-                yy,
-                vx,
-                vy,
-                scale=1.5 * n,
-                scale_units="width",
-                headwidth=0,
-                headlength=0,
-                headaxislength=0,
-                # pivot="mid",
-                width=2,
-                units="dots",
-                color="#AAAAAA",
-                alpha=0.7,
-            )
-        annotate(ax1, "Velocity", c="w")
-
-
-def write_png_curl(path: Path):
-    vort = np.zeros_like(sim.fluid.rho)
-    calc_curl_2d(sim.fluid.vel, sim.domain.cell_type, cnt, vort)  # in LU
-    vort = vort * ((dx / dt) / dx)  # in SI
-    vort = np.tanh(vort / vmax_curl) * vmax_curl
-
-    with png_writer(
-        path,
-        vort,
-        cmap=plt.cm.RdBu,  # type: ignore
-        vmin=-vmax_curl,
-        vmax=vmax_curl,
-        fig_kwargs={
-            "facecolor": "#E0E0E0",
-        },
-    ) as fig:
-        ax1 = fig.gca()
-        annotate(ax1, "Vorticity", c="k")
-
-
-def write_png_conc(path: Path):
-    with png_writer(
-        path,
-        conc_,
-        cmap=plt.cm.cividis,  # type: ignore
-        vmin=0,
-        vmax=vmax_conc,
-        fig_kwargs={
-            "facecolor": "#E0E0E0",
-        },
-    ) as fig:
-        ax1 = fig.gca()
-        annotate(ax1, "Tracer", c="w")
+    return PngWriter(path, domain, cells_, data, **kwargs)
 
 
 class KelvinHelmholtz:
@@ -267,13 +177,53 @@ class KelvinHelmholtz:
         sim.iterate(steps)
 
     def write_output(self, base: Path, step: int):
-        write_png_curl(base / f"curl_{step:06d}.png")
-        write_png_conc(base / f"conc_{step:06d}.png")
-        write_png_vmag(base / f"vmag_{step:06d}.png")
+        global conc_, curl_, vmag_
+        with time(logger, "calc curl", silent=not verbose):
+            curl__ = curl_.reshape(sim.fluid.rho.shape)
+            calc_curl_2d(sim.fluid.vel, sim.domain.cell_type, cnt, curl__)  # in LU
+            curl_[:] = curl_ * ((dx / dt) / dx)  # in SI
+            curl_[:] = np.tanh(curl_ / vmax_curl) * vmax_curl
+
+        with time(logger, "calc vmag", silent=not verbose):
+            vmag_[:] = np.sqrt(np.sum(vel_**2, -1))
+            vmag_[:] = scales.to_physical_units(vmag_, **VELOCITY)
+            vmag_[:] = np.tanh(vmag_ / vmax_vmag) * vmax_vmag
+
+        with time(logger, "writing output", 1, silent=not verbose):
+            with png_writer(
+                base / f"vmag_{step:06d}.png",
+                vmag_,
+                cmap=plt.cm.inferno,  # type: ignore
+                vmin=0,
+                vmax=vmax_vmag,
+            ) as img:
+                draw = ImageDraw.Draw(img)
+                draw.text((fox, foy), "Velocity", (255, 255, 255), font=FONT)
+
+            with png_writer(
+                base / f"conc_{step:06d}.png",
+                conc_,
+                cmap=plt.cm.cividis,  # type: ignore
+                vmin=0,
+                vmax=vmax_conc,
+            ) as img:
+                draw = ImageDraw.Draw(img)
+                draw.text((fox, foy), "Tracer", (255, 255, 255), font=FONT)
+
+            with png_writer(
+                base / f"curl_{step:06d}.png",
+                curl_,
+                cmap=plt.cm.RdBu,  # type: ignore
+                vmin=-vmax_curl,
+                vmax=vmax_curl,
+            ) as img:
+                draw = ImageDraw.Draw(img)
+                draw.text((fox, foy), "Vorticity", (0, 0, 0), font=FONT)
 
     def write_checkpoint(self, base: Path):
-        save_fluid(base, sim.fluid)
-        save_scalar(base, sim.tracer)
+        with time(logger, "writing checkpoint", 1, silent=not verbose):
+            save_fluid(base, sim.fluid)
+            save_scalar(base, sim.tracer)
 
     def read_checkpoint(self, base: Path):
         load_fluid(base, sim.fluid)
@@ -286,7 +236,7 @@ class KelvinHelmholtz:
 run_sim_cli(sim_meta, KelvinHelmholtz())
 
 # render with
-# FPS=30 ffmpeg -framerate $FPS -i out/conc_%06d.png -framerate $FPS -i out/curl_%06d.png -c:v libx264 -crf 10 -filter_complex "[1]pad=iw:ih+2:0:2[v1];[0][v1]vstack=inputs=2" -y kh.mp4
+# FPS=30 ffmpeg -framerate $FPS -i out/conc_%06d.png -framerate $FPS -i out/curl_%06d.png                                      -c:v libx264 -crf 10 -filter_complex "[1]pad=iw:ih+2:0:2[v1];[0][v1]vstack=inputs=2" -y kh.mp4
 # FPS=30 ffmpeg -framerate $FPS -i out/conc_%06d.png -framerate $FPS -i out/curl_%06d.png -framerate $FPS -i out/vmag_%06d.png -c:v libx264 -crf 10 -filter_complex "[1]pad=iw:ih+2:0:2[v1];[2]pad=iw:ih+2:0:2[v2];[0][v1][v2]vstack=inputs=3" -y kh4.mp4
 
 import sys
@@ -304,7 +254,7 @@ import boltzmann_rs as bz
 from boltzmann.utils.logger import basic_config, time
 
 basic_config()
-logger = logging.getLogger(__file__)
+logger = logging.getLogger("kh")
 
 cnt = np.array([1000, 1000], dtype=np.int32)
 sim = bz.Simulation(cnt, q=9, omega_ns=0.51)
