@@ -35,6 +35,13 @@ impl StrideOrder {
             ColumnMajor => d + 1,
         }
     }
+
+    fn reverse(&self) -> StrideOrder {
+        match self {
+            RowMajor => ColumnMajor,
+            ColumnMajor => RowMajor,
+        }
+    }
 }
 
 /// Convert domain counts into array strides along each dimension.
@@ -56,6 +63,19 @@ pub fn counts_to_strides(counts: &Array1<Ix>, order: StrideOrder) -> Array1<Ix> 
 /// See also [`counts_to_strides`] for the second argument.
 pub fn sub_to_idx(sub: &Array1<Ix>, strides: &Array1<Ix>) -> usize {
     (strides * sub).sum() as usize
+}
+
+/// Convert an index into a subscript.
+pub fn idx_to_sub(idx: usize, strides: &Array1<Ix>, order: StrideOrder) -> Array1<Ix> {
+    let ndim = strides.dim();
+    let mut idx = idx as Ix;
+    let mut sub = Array1::zeros([ndim]);
+    for d in 0..ndim {
+        let d = order.reverse().sub_idx(ndim, d);
+        sub[d] = idx / strides[d];
+        idx = idx % strides[d];
+    }
+    sub
 }
 
 /// Move to the next subscript.
@@ -242,5 +262,27 @@ mod tests {
 
         sub = raster_next(sub, &cnt, RowMajor);
         assert_eq!(sub, raster_end(&cnt, RowMajor))
+    }
+
+    #[test]
+    fn test_idx_to_sub_col_major() {
+        let cnt = arr1(&[7, 5, 3]);
+        let strides = counts_to_strides(&cnt, ColumnMajor);
+        for sub1 in raster_col_major(cnt) {
+            let idx = sub_to_idx(&sub1, &strides);
+            let sub2 = idx_to_sub(idx, &strides, ColumnMajor);
+            assert_eq!(sub1, sub2);
+        }
+    }
+
+    #[test]
+    fn test_idx_to_sub_row_major() {
+        let cnt = arr1(&[7, 5, 3]);
+        let strides = counts_to_strides(&cnt, RowMajor);
+        for sub1 in raster_row_major(cnt) {
+            let idx = sub_to_idx(&sub1, &strides);
+            let sub2 = idx_to_sub(idx, &strides, RowMajor);
+            assert_eq!(sub1, sub2);
+        }
     }
 }

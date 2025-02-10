@@ -1,3 +1,4 @@
+use std::iter::zip;
 use std::ptr;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -8,7 +9,9 @@ use ndarray::{
 use numpy::{Ix1, Ix2, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyReadwriteArray1};
 use opencl3::command_queue::{CommandQueue, CL_QUEUE_PROFILING_ENABLE};
 use opencl3::context::Context;
-use opencl3::device::{get_all_devices, Device, CL_DEVICE_TYPE_DEFAULT};
+use opencl3::device::{
+    get_all_devices, Device, CL_DEVICE_TYPE_CPU, CL_DEVICE_TYPE_DEFAULT, CL_DEVICE_TYPE_GPU,
+};
 use opencl3::event::Event;
 use opencl3::kernel::{ExecuteKernel, Kernel};
 use opencl3::memory::{Buffer, CL_MEM_READ_WRITE};
@@ -17,7 +20,8 @@ use opencl3::types::{cl_event, CL_BLOCKING};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use raster::StrideOrder::RowMajor;
-use raster::{counts_to_strides, raster_row_major, sub_to_idx, Ix, IxLike};
+use raster::{counts_to_strides, idx_to_sub, raster_row_major, sub_to_idx, Ix, IxLike};
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use utils::vmod_nd;
 
 pub mod raster;
@@ -191,22 +195,43 @@ fn calc_curl_2d(
         sub_to_idx(&vmod_nd(sub + off, &counts), &strides)
     };
 
-    for sub in raster_row_major(counts.clone()) {
-        let idx = sub_to_idx(&sub, strides);
+    curl.as_slice_mut()
+        .unwrap()
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(idx, c)| {
+            let sub = idx_to_sub(idx, &strides, RowMajor);
 
-        let idx_x1 = offset(&sub, [-1, 0]);
-        let idx_x2 = offset(&sub, [1, 0]);
-        let idx_y1 = offset(&sub, [0, -1]);
-        let idx_y2 = offset(&sub, [0, 1]);
+            let idx_x1 = offset(&sub, [-1, 0]);
+            let idx_x2 = offset(&sub, [1, 0]);
+            let idx_y1 = offset(&sub, [0, -1]);
+            let idx_y2 = offset(&sub, [0, 1]);
 
-        // NOTE: Assumes zero wall velocity.
-        let dvydx1: f32 = vel[(idx_x1, 1)] * (1.0 - is_wall(cells[idx_x1]));
-        let dvydx2: f32 = vel[(idx_x2, 1)] * (1.0 - is_wall(cells[idx_x2]));
-        let dvxdy1: f32 = vel[(idx_y1, 0)] * (1.0 - is_wall(cells[idx_y1]));
-        let dvxdy2: f32 = vel[(idx_y2, 0)] * (1.0 - is_wall(cells[idx_y2]));
+            // NOTE: Assumes zero wall velocity.
+            let dvydx1: f32 = vel[(idx_x1, 1)] * (1.0 - is_wall(cells[idx_x1]));
+            let dvydx2: f32 = vel[(idx_x2, 1)] * (1.0 - is_wall(cells[idx_x2]));
+            let dvxdy1: f32 = vel[(idx_y1, 0)] * (1.0 - is_wall(cells[idx_y1]));
+            let dvxdy2: f32 = vel[(idx_y2, 0)] * (1.0 - is_wall(cells[idx_y2]));
 
-        curl[idx] = ((dvydx2 - dvydx1) - (dvxdy2 - dvxdy1)) / 2.0;
-    }
+            *c = ((dvydx2 - dvydx1) - (dvxdy2 - dvxdy1)) / 2.0;
+        });
+
+    // for sub in raster_row_major(counts.clone()) {
+    //     let idx = sub_to_idx(&sub, strides);
+
+    //     let idx_x1 = offset(&sub, [-1, 0]);
+    //     let idx_x2 = offset(&sub, [1, 0]);
+    //     let idx_y1 = offset(&sub, [0, -1]);
+    //     let idx_y2 = offset(&sub, [0, 1]);
+
+    //     // NOTE: Assumes zero wall velocity.
+    //     let dvydx1: f32 = vel[(idx_x1, 1)] * (1.0 - is_wall(cells[idx_x1]));
+    //     let dvydx2: f32 = vel[(idx_x2, 1)] * (1.0 - is_wall(cells[idx_x2]));
+    //     let dvxdy1: f32 = vel[(idx_y1, 0)] * (1.0 - is_wall(cells[idx_y1]));
+    //     let dvxdy2: f32 = vel[(idx_y2, 0)] * (1.0 - is_wall(cells[idx_y2]));
+
+    //     curl[idx] = ((dvydx2 - dvydx1) - (dvxdy2 - dvxdy1)) / 2.0;
+    // }
 }
 
 #[repr(C)]
@@ -230,7 +255,8 @@ struct OpenCLCtx {
 
 impl OpenCLCtx {
     fn new() -> Self {
-        let device_id = *get_all_devices(CL_DEVICE_TYPE_DEFAULT) //CL_DEVICE_TYPE_GPU
+        // GPU: CL_DEVICE_TYPE_GPU, CPU: CL_DEVICE_TYPE_CPU
+        let device_id = *get_all_devices(CL_DEVICE_TYPE_GPU)
             .expect("error getting platform")
             .first()
             .expect("no device found in platform");
@@ -543,14 +569,18 @@ impl Simulation {
     }
 
     /// Calculate distribution function from macroscopic variables & copy data to OpenCL buffers.
-    pub fn finalize(&mut self) {
+    pub fn finalize(&mut self, equilibrate: bool) {
         self.cells.write_to_dev(&self.opencl);
 
-        self.fluid.equilibrate();
+        if equilibrate {
+            self.fluid.equilibrate();
+        }
         self.fluid.write_to_dev(&self.opencl);
 
         if let Some(ref mut tracer) = self.tracer {
-            tracer.equilibrate(self.fluid.vel.host.view());
+            if equilibrate {
+                tracer.equilibrate(self.fluid.vel.host.view());
+            }
             tracer.write_to_dev(&self.opencl);
         }
     }
@@ -808,8 +838,8 @@ impl SimulationPy {
 
     /// Once we've initialized the density, velocity, etc arrays in Python we must call [`SimulationPy::finalize`] before calling [`SimulationPy::iterate`].
     /// This calculates the equilibrium distribution function and copies the necessary data to the OpenCL device buffers.
-    fn finalize(&mut self) {
-        self.sim().finalize();
+    fn finalize(&mut self, equilibrate: bool) {
+        self.sim().finalize(equilibrate);
     }
 
     fn iterate(&mut self, iters: usize) {
