@@ -77,7 +77,7 @@ docs/_build/
 *.png
 *.mp4
 *.npy
-**/out/
+**/out**/
 **/checkpoint_*
 
 # TODO list(s)
