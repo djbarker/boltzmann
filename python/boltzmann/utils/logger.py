@@ -6,6 +6,14 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Generator
 
+__all__ = [
+    "basic_config",
+    "PerfInfo",
+    "PerfTimer",
+    "time",
+    "dotted",
+]
+
 
 def basic_config(logger: logging.Logger | None = None, level: int | str | None = None):
     logger = logger or logging.getLogger()
@@ -82,9 +90,13 @@ class PerfTimer:
     start: datetime.datetime
     events: int
 
+    @property
+    def elapsed(self) -> datetime.timedelta:
+        return datetime.datetime.now() - self.start
+
     def tock(self, *, events: int = 0) -> PerfInfo:
         self.add_events(events)
-        delta = datetime.datetime.now() - self.start
+        delta = self.elapsed
         return PerfInfo(self.events, delta.seconds * 1e6 + delta.microseconds)
 
     def add_events(self, events: int) -> "PerfTimer":
@@ -114,3 +126,14 @@ def time(
             if message != "":
                 message = f"{message}: "
             logger.info(f"{message}{timer.tock(events=events)}")
+
+
+# TODO: this seems to print "logger" as the name of the logger, why?
+def dotted(
+    logger: logging.Logger, label: str, value: Any, width: int = 40, level: int = logging.INFO
+):
+    value = str(value)
+    dots = width - len(label) - len(value) - 2
+    dots = max(dots, 3)
+    dots = "." * dots
+    logger.log(level, f"{label} {dots} {value}")
