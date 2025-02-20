@@ -80,5 +80,6 @@ docs/_build/
 **/out/
 **/checkpoint_*
 
-# TODO list
+# TODO list(s)
+TODO.md
 todo.md
