@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import argparse as ap
 import json
 import logging
@@ -11,113 +12,13 @@ from typing import Protocol
 
 import numpy as np
 
-from boltzmann.core import (
-    CellType,
-    SimulationMeta,
-    calc_equilibrium,
-)
-from boltzmann.utils.logger import PerfInfo, tick
+from boltzmann.core import SimulationMeta
+from boltzmann.utils.logger import PerfInfo, dotted, tick
 
-from boltzmann_rs import Fluid, Scalar, Domain
+from boltzmann_rs import Simulation, Fluid, Scalar, Domain
 
 
 logger = logging.getLogger(__name__)
-
-
-# @dataclass(init=False)
-# class Cells:
-#     cells: np.ndarray
-
-#     def __init__(self, domain: Domain) -> None:
-#         self.cells = domain.make_array(dtype=np.int32, fill=CellType.FLUID.value)
-
-#     def save(self, base: Path):
-#         np.save(base / "chk.cells.npy", self.cells)
-
-#     def load(self, base: Path):
-#         self.cells[:] = np.load(base / "chk.cells.npy")
-
-#     @property
-#     def size_bytes(self) -> int:
-#         return self.cells.nbytes
-
-
-# @dataclass(init=False)
-# class Field:
-#     name: str
-#     model: Model
-
-#     f: np.ndarray
-
-#     def __init__(self, name: str, model: Model, domain: Domain) -> None:
-#         self.name = name
-#         self.model = model
-#         self.f = domain.make_array(model.Q)
-
-#     def save(self, base: Path):
-#         np.save(base / f"chk.{self.name}.npy", self.f)
-
-#     def load(self, base: Path):
-#         self.f[:] = np.load(base / f"chk.{self.name}.npy")
-
-#     @property
-#     def size_bytes(self) -> int:
-#         return self.f.nbytes
-
-
-# @dataclass(init=False)
-# class FluidField(Field):
-#     rho: np.ndarray
-#     vel: np.ndarray
-
-#     def __init__(self, name: str, model: Model, domain: Domain) -> None:
-#         super().__init__(name, model, domain)
-#         self.rho = domain.make_array(fill=1)
-#         self.vel = domain.make_array(model.D)
-
-#     def load(self, base: Path):
-#         super().load(base)
-#         self.macro()  # recalc momements
-
-#     def macro(self):
-#         # careful to repopulate existing arrays
-#         self.rho[:] = np.sum(self.f, axis=-1)
-#         self.vel[:] = np.dot(self.f, self.model.qs) / self.rho[:, np.newaxis]
-
-#     def equilibrate(self):
-#         calc_equilibrium(self.vel, self.rho, self.f, self.model)
-
-#     @property
-#     def size_bytes(self) -> int:
-#         return super().size_bytes + self.rho.nbytes + self.vel.nbytes
-
-
-# @dataclass(init=False)
-# class ScalarField(Field):
-#     val: np.ndarray
-
-#     def __init__(self, name: str, model: Model, domain: Domain) -> None:
-#         super().__init__(name, model, domain)
-#         self.val = domain.make_array()
-
-#     def load(self, base: Path):
-#         super().load(base)
-#         self.macro()  # recalc momements
-
-#     def macro(self):
-#         # careful to repopulate existing arrays
-#         self.val[:] = np.sum(self.f, axis=-1)
-
-#     def equilibrate(self, vel: np.ndarray):
-#         """
-#         Like Fluid.equilibrate but velocity field is externally imposed.
-#         """
-#         assert vel.shape[-1] == self.model.D, "Dimension mismatch!"
-#         calc_equilibrium(vel, self.val, self.f, self.model)
-
-#     @property
-#     def size_bytes(self) -> int:
-#         return super().size_bytes + self.val.nbytes
 
 
 def save_fluid(base: Path, fluid: Fluid):
@@ -125,6 +26,8 @@ def save_fluid(base: Path, fluid: Fluid):
     Save the `Fluid` object arrays.
     """
     np.save(base / "chk.f.npy", fluid.f)
+    np.save(base / "chk.rho.npy", fluid.rho)
+    np.save(base / "chk.vel.npy", fluid.vel)
 
 
 def load_fluid(base: Path, fluid: Fluid):
@@ -132,20 +35,24 @@ def load_fluid(base: Path, fluid: Fluid):
     Load the `Fluid` object arrays.
     """
     fluid.f[:] = np.load(base / "chk.f.npy")
+    fluid.rho[:] = np.load(base / "chk.rho.npy")
+    fluid.vel[:] = np.load(base / "chk.vel.npy")
 
 
-def save_scalar(base: Path, scalar: Scalar):
+def save_scalar(base: Path, scalar: Scalar, name: str):
     """
     Save the `Scalar` object arrays.
     """
-    np.save(base / "chk.g.npy", scalar.g)
+    np.save(base / f"chk.{name}.g.npy", scalar.g)
+    np.save(base / f"chk.{name}.val.npy", scalar.val)
 
 
-def load_scalar(base: Path, scalar: Scalar):
+def load_scalar(base: Path, scalar: Scalar, name: str):
     """
     Load the `Scalar` object arrays.
     """
-    scalar.g[:] = np.load(base / "chk.g.npy")
+    scalar.g[:] = np.load(base / f"chk.{name}.g.npy")
+    scalar.val[:] = np.load(base / f"chk.{name}.val.npy")
 
 
 def save_domain(base: Path, domain: Domain):
@@ -162,10 +69,20 @@ def load_domain(base: Path, domain: Domain):
     domain.cells[:] = np.load(base / "chk.cells.npy")
 
 
-class SimulationLoop(Protocol):
+@dataclass
+class SimulationLoop(ABC):
+    sim: Simulation  # type: ignore
+
+    @abstractmethod
     def loop_for(self, steps: int): ...
+
+    @abstractmethod
     def write_output(self, base: Path, step: int): ...
+
+    @abstractmethod
     def write_checkpoint(self, base: Path): ...
+
+    @abstractmethod
     def read_checkpoint(self, base: Path): ...
 
 
@@ -204,16 +121,20 @@ class SimulationRunner:
         return SimulationRunner(base, meta, loop, step)
 
     def run(self, *, write_checkpoints: bool = True):
-        batch_iters = self.meta.time.batch_steps(self.meta.scales.dt)
+        batch_iters = self.meta.time.batch_steps
         batch_iters = 2 * int(batch_iters / 2 + 0.5)  # iters must be even due to AA pattern
-        logger.info(f"{batch_iters} iters/output")
-        logger.info(f"{np.prod(self.meta.domain.counts) / 1e6:,.2f}m cells")
+
+        dotted(logger, "Memory usage", f"{self.loop.sim.size_bytes / 1e6:.2f}MB")
+        dotted(logger, "Iters / output", batch_iters)
+        dotted(logger, "Cells", f"{np.prod(self.meta.domain.counts) / 1e6}M")
 
         if self.step > 0:
             logger.info(f"Resuming from step {self.step}")
         else:
             self.loop.write_output(self.base, self.step)
             logger.info("Wrote output 0")
+
+        timer_total = tick()
 
         cell_count = int(np.prod(self.meta.domain.counts))
         perf_total = PerfInfo()
@@ -251,8 +172,17 @@ class SimulationRunner:
 
             perf_out = timer.tock() - perf_batch
 
+            t_sim = i * self.meta.time.dt_output
+
+            t = timer_total.elapsed
+            t = str(t).split(".")[0]
+
+            per = timer_total.elapsed / (i - self.step)
+            rem = max_i - i
+            eta = datetime.datetime.now() + rem * per
+
             logger.info(
-                f"Batch {i}: {mlups_batch:7.2f} MLUP/s, sim {perf_batch.seconds:.1f}s, out {perf_out.seconds:.1f}s"
+                f"Batch {i}:  {t}  {mlups_batch:7.2f} MLUP/s, sim {perf_batch.seconds:.1f}s, out {perf_out.seconds:.1f}s, eta {eta:%H:%M:%S}"
             )
 
 

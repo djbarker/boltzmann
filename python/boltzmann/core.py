@@ -5,7 +5,8 @@ import numpy as np
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Sequence, Type, overload
+from math import sqrt
+from typing import Literal, Sequence, Type, cast, overload
 
 from boltzmann.utils.option import Some, to_opt, map_opt, Option, unwrap
 
@@ -40,20 +41,21 @@ def to_dims(dims: DimsT) -> list[int]:
 @dataclass
 class Domain:
     """
-    Describes the domain grid and provides functions for creating arrays.
+    Describes the domain grid and provides functions for creating & reshaping arrays.
 
     The semantics are that each cell has a size of `dx`, the `lower` & `upper` arrays are the lower
     and upper _edges_ of the cells respectively.
     This means `N = (upper - lower) / dx`, and if `lower == upper` then we have no cells.
-    The centre of the cells are located at `(x, y) = ((i + 0.5) * dx, (j + 0.5) * dx)`.
+    The centre of the cells are thus offset by `dx/2`, so cell with index `(i, j)` is located at
+
+        `(x, y) = ((i + 0.5) * dx, (j + 0.5) * dx)`
 
     For the simple two-array implementation it's quite efficient to pad the arrays by one at the end
     of each dimension. Then we can stream into/from these with simple offsets (not worrying about
-    periodicity), then copy the data accross as needed. This does not work for in-place updates,
-    where we would need to update the padded values two, but only for the directions that stream
+    periodicity), then copy the data across as needed. This does not work for in-place updates,
+    where we would need to update the padded values too, but only for the directions that stream
     back into domain, necessitating a check of whether we're in the periodic copy or not.
-
-
+    Ultimately it's probably worth doing this but that's a TODO.
     """
 
     lower: np.ndarray
@@ -201,16 +203,19 @@ class TimeMeta:
     Contains parameters for output interval and simulation duration.
     """
 
+    dt_step: float
     dt_output: float
     t_max: float
     output_count: int
 
-    def batch_steps(self, dt_step: float) -> int:
-        return int(self.dt_output / dt_step + 1e-8)
+    @property
+    def batch_steps(self) -> int:
+        return int(self.dt_output / self.dt_step + 1e-8)
 
     @staticmethod
     def make(
         *,
+        dt_step: float,
         dt_output: float | None = None,
         t_max: float | None = None,
         output_count: int | None = None,
@@ -228,10 +233,10 @@ class TimeMeta:
                 i = int(t / d + 1e-8)
             case _:
                 raise ValueError(
-                    f"Must specify exactly two arguments! [{dt_output=}, {t_max=}, {output_count=}]"
+                    f"Must specify dt_step and exactly two other arguments! [{dt_output=}, {t_max=}, {output_count=}]"
                 )
 
-        return TimeMeta(d, t, i)
+        return TimeMeta(dt_step, d, t, i)
 
 
 @dataclass
@@ -265,9 +270,7 @@ class Scales:
             case (Some(x), Some(t), None):
                 pass
             case _:
-                msg = (
-                    f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
-                )
+                msg = f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
                 raise ValueError(msg)
 
         return Scales(x, t, dm)
@@ -283,6 +286,15 @@ class Scales:
     def to_lattice_units(
         self, value: float | np.ndarray, L: int = 0, T: int = 0, M: int = 0
     ) -> float | np.ndarray:
+        """
+        Convert the given dimensional value(s) into lattice-units using the correct conversion factor.
+
+        NOTE: Be very careful if assigning the result of this since it creates a copy.
+              You probably want to assign the elements rather than the whole array, e.g
+
+              >>> vel_ = scales.to_lattice_units(vel_, **VELOCITY)       # Wrong! vel_ will have a new buffer.
+              >>> vel_[:] = = scales.to_lattice_units(vel_, **VELOCITY)  # Right! Write to the vel_ buffer.
+        """
         return value * pow(self.dx, -L) * pow(self.dt, -T) * pow(self.dm, -M)
 
     @overload
@@ -291,9 +303,7 @@ class Scales:
     ) -> np.ndarray: ...
 
     @overload
-    def to_physical_units(
-        self, value: float, L: int = 0, T: int = 0, M: int = 0
-    ) -> float: ...
+    def to_physical_units(self, value: float, L: int = 0, T: int = 0, M: int = 0) -> float: ...
 
     def to_physical_units(
         self, value: float | np.ndarray, L: int = 0, T: int = 0, M: int = 0
@@ -307,100 +317,13 @@ DENSITY = dict(M=1, L=-3)
 
 
 @dataclass
-class FluidMeta:
-    rho: float
-    mu: float
-    nu: float
-
-    @staticmethod
-    def make(
-        *, rho: float | None = None, mu: float | None = None, nu: float | None = None
-    ) -> FluidMeta:
-        r_ = to_opt(rho)
-        m_ = to_opt(mu)
-        n_ = to_opt(nu)
-
-        match (r_, m_, n_):
-            case (None, Some(m), Some(n)):
-                r = m / n
-            case (Some(r), None, Some(n)):
-                m = r * n
-            case (Some(r), Some(m), None):
-                n = m / r
-            case _:
-                msg = f"Must specify exactly two of rho, mu and nu! [{rho=}, {mu=}, {nu=}]"
-                raise ValueError(msg)
-
-        return FluidMeta(r, m, n)
-
-    def to_lattice_units(self, scale: Scales) -> FluidMeta:
-        """
-        Convert the unit scales.
-        """
-        return FluidMeta.make(
-            rho=self.rho / (scale.dm / scale.dx**3),
-            nu=self.nu / (scale.cs**2 * scale.dt),
-        )
-
-    def to_physical_units(self, scale: Scales) -> FluidMeta:
-        """
-        Convert the unit scales.
-        """
-        return FluidMeta.make(
-            rho=self.rho * (scale.dm / scale.dx**3),
-            nu=self.nu * (scale.cs**2 * scale.dt),
-        )
-
-
-WATER = FluidMeta.make(mu=0.001, rho=1000)
-
-
-@dataclass
 class SimulationMeta:
     """
-    SimulationMeta is supposed to the all of the parameters needed for the simulation,
-    however I don't like it.
-
-    Some of this stuff is fine like output config, domain meta and scale,
-    but some of it is rather specific to the particular simulation.
+    Stores all of the parameters needed to run the simulation.
     """
 
     domain: Domain
     time: TimeMeta
-    scales: Scales
-
-    # These two are less generic so not sure they should live here?
-    # We may want multiple fluids which even have different timestamps.
-    fluid: FluidMeta
-
-    # We have BGK & TRT params baked in here: they should be separate too.
-    tau_pos_lu: float = field(init=False)
-    tau_neg_lu: float = field(init=False)
-    w_pos_lu: float = field(init=False)
-    w_neg_lu: float = field(init=False)
-
-    def __post_init__(self) -> None:
-        nu_lu = self.fluid.to_lattice_units(self.scales).nu
-
-        l_ = 0.25  # magic parameter
-        tau_pos_lu = nu_lu + 0.5
-        tau_neg_lu = l_ / nu_lu + 0.5
-
-        if tau_pos_lu < 0.51:
-            # stability can suffer but sim will be accurate
-            logger.warning(f"Small value for tau! [{tau_pos_lu=}]")
-
-        if tau_pos_lu > 0.75:
-            # error grows with tau and this leads to very inaccurate simulations
-            raise ValueError(f"Large value for tau! [{tau_pos_lu=}]")
-
-        w_pve_lu = 1.0 / tau_pos_lu
-        w_nve_lu = 1.0 / tau_neg_lu
-
-        self.tau_pos_lu = tau_pos_lu
-        self.tau_neg_lu = tau_neg_lu
-        self.w_pos_lu = w_pve_lu
-        self.w_neg_lu = w_nve_lu
 
 
 # Cell type
@@ -458,102 +381,44 @@ D2Q5 = Model(
 )
 
 
-def upstream_indices(domain: Domain, model: Model) -> np.ndarray:
+def check_lbm_params(Re: float, L: float, tau: float, M_max: float = 0.1):
     """
-    Return an array of size (cell_count, Q) where for each cell we have calculated the index of the
-    cell upstream of each velocity in the model.
-    Indicies are in C / row-major order.
-    """
-    N = domain.counts.prod()
-    D = model.D
-    Q = model.Q
-
-    # subs: N x D
-    subs = np.stack(
-        [
-            s.ravel()
-            for s in np.meshgrid(
-                *[np.arange(0, domain.counts[i], dtype=np.int32) for i in range(D)],
-                indexing="ij",
-            )
-        ]
-    ).T
-
-    # breakpoint()
-
-    # Get offsets for the subscripts
-    # model.qs: Q x D  =>  qs_: 1 x D x Q
-    qs_ = model.qs.T[None, :, :]
-
-    # subs: N x D x Q
-    subs = subs[:, :, None] + qs_
-    assert subs.shape == (N, D, Q)
-
-    # breakpoint()
-
-    # Modulo subscripts with the domain counts
-    for d, c in zip(range(D), domain.counts):
-        subs[:, d, :] = np.mod(subs[:, d, :] + c, c)
-
-    # Convert subscripts to raw indices
-    # indices: N x Q
-    stride = 1
-    indices = np.zeros((N, Q), dtype=np.int32)
-    for d in range(D):
-        d_ = D - 1 - d
-        indices += stride * subs[:, d_, :]
-        stride *= domain.counts[d_]
-
-    # breakpoint()
-
-    # Sanity check: shape
-    assert indices.shape == (N, Q)
-
-    # Sanity check: zero index component is just the array index
-    tmp1 = np.arange(0, indices.shape[0], 1, dtype=indices.dtype)
-    assert all(indices[:, 0] == tmp1)
-
-    # Sanity check: every cell is upstream of exactly one cell in each direction.
-    for q in range(Q):
-        tmp2 = np.sort(indices[:, q])
-        assert np.all(tmp2 == tmp1), q
-
-    return indices
-
-
-def calc_equilibrium(
-    vel: np.ndarray,
-    rho: np.ndarray,
-    feq: np.ndarray,
-    model: Model,
-):
-    """
-    Velocity is measured in lattice-units.
-    """
-    vv = np.sum(vel**2, axis=-1)
-    for i in range(model.Q):
-        w = model.ws[i]
-        q = model.qs[i]
-        qv = vel @ q
-        feq[:, i] = rho * w * (1 + 3.0 * qv + 4.5 * qv**2 - (3.0 / 2.0) * vv)
-
-
-def calc_curl_2d(vel: np.ndarray, cells: np.ndarray, indices: np.ndarray) -> np.ndarray:
-    """
-    All quantities in lattice-units
+    Check if the chosen parameters are likely to be stable or not.
     """
 
-    assert vel.shape[0] == indices.shape[0]
+    # Maximum value of tau implied by Mach condition.
+    tau_mach = np.sqrt(3) * M_max * L / Re + 0.5
 
-    curl = np.zeros((vel.shape[0],), dtype=np.float32)
-    for i in range(0, vel.shape[0]):
-        idx = indices[i]
-        # NOTE: Assumes zero wall velocity.
-        dvydx1 = vel[idx[2], 1] * (cells[idx[2]] != CellType.WALL.value)
-        dvydx2 = vel[idx[1], 1] * (cells[idx[1]] != CellType.WALL.value)
-        dvxdy1 = vel[idx[4], 0] * (cells[idx[4]] != CellType.WALL.value)
-        dvxdy2 = vel[idx[3], 0] * (cells[idx[3]] != CellType.WALL.value)
+    # Minimum value of L implied by the BGK stability condition.
+    L_stab = Re / 24
 
-        curl[i] = ((dvydx2 - dvydx1) - (dvxdy2 - dvxdy1)) / 2
+    eps = 1e-8
+    assert L + eps > L_stab, f"BGK stability condition violated. {L=} < {L_stab}"
+    assert tau < tau_mach + eps, f"Mach condition violated. {tau=} > {tau_mach}"
 
-    return curl
+
+def calc_lbm_params(
+    # params
+    Re: float,
+    L: float,
+    tau: float | None = None,
+    # bounds
+    M_max: float = 0.1,
+    tau_max: float = 1.0,
+    tau_min: float = 0.5,
+) -> tuple[float, float]:
+    """
+    Choose the values of tau and u which maximize simulation speed & verify stability.
+    If you specify tau that value will be used instead.
+    """
+
+    if tau is None:
+        tau = sqrt(3) * M_max * L / Re + 0.5  # Maximum permissible by Mach condition
+        tau = min(max(tau, tau_min), tau_max)  # Hard bounds on tau
+
+    check_lbm_params(Re, L, tau, M_max)
+
+    nu = (tau - 0.5) / 3
+    u = Re * nu / L
+
+    return (tau, u)

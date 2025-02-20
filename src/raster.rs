@@ -107,6 +107,13 @@ pub fn raster_end(counts: &Array1<Ix>, order: StrideOrder) -> Array1<Ix> {
 }
 
 /// Struct which provides convenient iteration over subscripts.
+///
+/// ## Example
+/// ```
+/// for sub in Raster::new(arr1([5, 7]), StrideOrder::RowMajor) {
+///     println!("{:?}", sub);
+/// }
+/// ```
 pub struct Raster {
     sub: Array1<Ix>,
     end: Array1<Ix>,
@@ -149,11 +156,23 @@ impl Iterator for Raster {
 }
 
 /// Convenience function to iterate over subscripts in [`RowMajor`] order.
+///
+/// ## Example
+/// ```
+/// for sub in raster_row_major(arr1([5, 7])) {
+///     println!("{:?}", sub);
+/// }
 pub fn raster_row_major<T: Into<Ix> + Copy>(counts: Array1<T>) -> Raster {
     Raster::new(counts, RowMajor)
 }
 
 /// Convenience function to iterate over subscripts in [`ColumnMajor`] order.
+///
+/// ## Example
+/// ```
+/// for sub in raster_col_major(arr1([5, 7])) {
+///     println!("{:?}", sub);
+/// }
 pub fn raster_col_major<T: Into<Ix> + Copy>(counts: Array1<T>) -> Raster {
     Raster::new(counts, ColumnMajor)
 }
