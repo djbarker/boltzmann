@@ -1,7 +1,16 @@
-use ndarray::{Array1, ArrayView2, Zip};
+use ndarray::{Array1, Array2, ArrayView2, Zip};
+use opencl3::memory::Buffer;
+use rmp_serde::{Deserializer, Serializer};
+use serde::{
+    de::{DeserializeSeed, Visitor},
+    Deserialize, Serialize,
+};
 
 use crate::{
-    opencl::{Data, Data1d, Data2d, OpenCLCtx},
+    opencl::{
+        AllocateCL, CtxDeserializer, Data, Data1d, Data1dDeserializer, Data2d, Data2dDeserializer,
+        OpenCLCtx,
+    },
     raster::Ix,
     velocities::VelocitySet,
 };
@@ -12,6 +21,7 @@ pub trait MemUsage {
 
 /// Long-lived container for the fluid Host and OpenCL device buffers.
 /// This owns the simulation data and we expose a view to Python.
+#[derive(Serialize)]
 pub struct Fluid {
     pub f: Data2d<f32>,
     pub rho: Data1d<f32>,
@@ -59,7 +69,7 @@ impl Fluid {
     }
 
     pub fn equilibrate(&mut self) {
-        // todo!("Rayonify this zip");
+        // Rayonify this zip (though it's only called once at the beginning so doesn't need to be mega fast)
         Zip::from(&self.rho.host)
             .and(self.vel.host.rows())
             .and(self.f.host.rows_mut())
@@ -78,6 +88,7 @@ impl MemUsage for Fluid {
 /// Long-lived container for scalar field Host and OpenCL device buffers.
 /// This owns the simulation data and we expose a view to Python.
 #[allow(non_snake_case)]
+#[derive(Serialize)]
 pub struct Scalar {
     pub g: Data2d<f32>,
     pub C: Data1d<f32>,
@@ -122,7 +133,7 @@ impl Scalar {
     }
 
     pub fn equilibrate(&mut self, vel: ArrayView2<f32>) {
-        // todo!("Rayonify this zip");
+        // Rayonify this zip (though it's only called once at the beginning so doesn't need to be mega fast)
         Zip::from(&self.C.host)
             .and(vel.rows())
             .and(self.g.host.rows_mut())
@@ -135,5 +146,57 @@ impl Scalar {
 impl MemUsage for Scalar {
     fn size_bytes(&self) -> usize {
         std::mem::size_of::<f32>() * (self.g.host.len() + self.C.host.len())
+    }
+}
+
+/// Because [`Data`] needs the [`OpenCLCtx`] to construct itself deserializing becomes a pain.
+/// For this reason we have this "mirror" struct which we can deserialize then move out of to
+/// create a raw [`Fluid`] object.
+///
+/// This is very infectious and quite gross. Unfortunately I don't see a good way to couple the
+/// dev and host buffers together without having them live in the same struct.
+#[derive(Deserialize)]
+pub(crate) struct FluidDeserializer {
+    f: Data2dDeserializer<f32>,
+    rho: Data1dDeserializer<f32>,
+    vel: Data2dDeserializer<f32>,
+    model: VelocitySet,
+    omega: f32,
+}
+
+impl CtxDeserializer for FluidDeserializer {
+    type Target = Fluid;
+
+    fn with_context(self, opencl: &OpenCLCtx) -> Self::Target {
+        Self::Target {
+            f: self.f.with_context(opencl),
+            rho: self.rho.with_context(opencl),
+            vel: self.vel.with_context(opencl),
+            model: self.model,
+            omega: self.omega,
+        }
+    }
+}
+
+/// See [`FluidDeserializer`]
+#[derive(Deserialize)]
+#[allow(non_snake_case)]
+pub(crate) struct ScalarDeserializer {
+    g: Data2dDeserializer<f32>,
+    C: Data1dDeserializer<f32>,
+    model: VelocitySet,
+    omega: f32,
+}
+
+impl CtxDeserializer for ScalarDeserializer {
+    type Target = Scalar;
+
+    fn with_context(self, opencl: &OpenCLCtx) -> Self::Target {
+        Self::Target {
+            g: self.g.with_context(opencl),
+            C: self.C.with_context(opencl),
+            model: self.model,
+            omega: self.omega,
+        }
     }
 }

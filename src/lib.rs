@@ -5,6 +5,7 @@ use fields::{MemUsage, Scalar};
 // Imports from other crates:
 use ndarray::{arr1, Array1, ArrayView1, ArrayView2, ArrayViewMut1};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyReadwriteArray1};
+use opencl::{DeviceType, OpenCLCtx};
 use pyo3::prelude::*;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
@@ -46,7 +47,7 @@ fn calc_curl_qcrit_2d(
     assert_eq!(vel.dim().0, cells.dim());
 
     fn is_wall(c: i32) -> f32 {
-        ((c == (CellType::WALL as i32)) as i32) as f32
+        ((c == (CellType::Wall as i32)) as i32) as f32
     }
 
     let counts = counts.to_owned().mapv(|x| x.into());
@@ -195,6 +196,38 @@ impl CellsPy {
     }
 }
 
+#[pyclass(eq, eq_int, name = "DeviceType")]
+#[derive(PartialEq)]
+enum DeviceTypePy {
+    CPU,
+    GPU,
+}
+
+impl From<String> for DeviceTypePy {
+    fn from(s: String) -> Self {
+        match s.to_uppercase().as_str() {
+            "CPU" => DeviceTypePy::CPU,
+            "GPU" => DeviceTypePy::GPU,
+            _ => panic!("Invalid device type. Expected either 'cpu' or 'gpu'."),
+        }
+    }
+}
+
+impl Into<DeviceType> for DeviceTypePy {
+    fn into(self) -> DeviceType {
+        match self {
+            DeviceTypePy::CPU => DeviceType::CPU,
+            DeviceTypePy::GPU => DeviceType::GPU,
+        }
+    }
+}
+
+impl Into<OpenCLCtx> for DeviceTypePy {
+    fn into(self) -> OpenCLCtx {
+        OpenCLCtx::new(self.into())
+    }
+}
+
 /// Wrap the core [`Simulation`] class in an [`Arc`] + [`Mutex`] so it's threadsafe for Python.
 #[pyclass(name = "Simulation")]
 struct SimulationPy {
@@ -210,10 +243,11 @@ impl SimulationPy {
 #[pymethods]
 impl SimulationPy {
     #[new]
-    fn new(counts: PyReadonlyArray1<i32>, q: usize, omega_ns: f32) -> Self {
+    fn new(dev: String, counts: PyReadonlyArray1<i32>, q: usize, omega_ns: f32) -> Self {
+        let dev = DeviceTypePy::from(dev).into();
         let counts = counts.as_array().to_owned();
         Self {
-            sim: Arc::new(Mutex::new(Simulation::new(counts, q, omega_ns))),
+            sim: Arc::new(Mutex::new(Simulation::new(dev, counts, q, omega_ns))),
         }
     }
 
@@ -290,6 +324,21 @@ impl SimulationPy {
         )
         .expect("Bound::new FluidPy failed.")
     }
+
+    fn write_checkpoint(&self, path: String) -> PyResult<()> {
+        self.sim().write_checkpoint(path)?;
+        Ok(())
+    }
+
+    #[staticmethod]
+    fn load_checkpoint(dev: String, path: String) -> PyResult<SimulationPy> {
+        let dev = DeviceTypePy::from(dev).into();
+        let sim = Simulation::load_checkpoint(dev, path)?;
+        let sim = Self {
+            sim: Arc::new(Mutex::new(sim)),
+        };
+        Ok(sim)
+    }
 }
 
 /// A module for configuring and running lattice Boltzmann simulations from Python.
@@ -318,6 +367,7 @@ fn boltzmann_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<FluidPy>()?;
     m.add_class::<ScalarPy>()?;
     m.add_class::<CellsPy>()?;
+    m.add_class::<DeviceTypePy>()?;
 
     Ok(())
 }

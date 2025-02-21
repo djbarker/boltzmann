@@ -9,7 +9,7 @@ kernel void update_d2q9_bgk(int even, float omega, float gx, float gy, global fl
 
   const int c = cell[ir];
   const bool wall = c == 1;
-  const bool fixed = c == 2; 
+  const bool fixed = c == 6; 
 
   if (wall) {
     // wall => do nothing
@@ -113,7 +113,7 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
 
   const int c = cell[ic];
   const bool wall = c == 1;
-  const bool fixed = c == 2;
+  const bool fixed = c == 8;
 
   if (wall) {
     // wall => do nothing

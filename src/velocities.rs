@@ -1,4 +1,5 @@
 use ndarray::{arr1, arr2, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     raster::{counts_to_strides, raster_row_major, sub_to_idx, Ix, StrideOrder},
@@ -7,7 +8,7 @@ use crate::{
 
 /// Contains the weights & velocities for calculating offsets and equilibrium distribution functions.
 /// NOTE: The order matches that used in [`lib.cl`].
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct VelocitySet {
     pub ws: Array1<f32>,
     pub qs: Array2<i32>,

@@ -1,9 +1,15 @@
-use ndarray::Array1;
+use std::ops::{Deref, DerefMut};
+use std::path::Path;
+
+use ndarray::{Array1, Array2};
 use opencl3::command_queue::CommandQueue;
 use opencl3::kernel::ExecuteKernel;
 use opencl3::types::cl_event;
+use rmp_serde::{Deserializer, Serializer};
+use serde::{Deserialize, Serialize};
 
-use crate::fields::{Fluid, MemUsage, Scalar};
+use crate::fields::{Fluid, FluidDeserializer, MemUsage, Scalar, ScalarDeserializer};
+use crate::opencl::{CtxDeserializer, Data1dDeserializer, Data2dDeserializer, DeviceType};
 use crate::raster::IxLike;
 use crate::{
     opencl::{Data, Data1d, Data2d, OpenCLCtx},
@@ -13,12 +19,14 @@ use crate::{
 
 /// Contains information about the cells.
 /// For example, whether they are a fluid or wall, have fixed velocity, etc.
+#[derive(Serialize)]
 pub struct Cells {
     /// The type of the cell as given by [`CellType`].
     pub typ: Data1d<i32>,
 
     /// The _upstream_ cell indices in each direction.
     /// NOTE: Not public because it's basically an implementation detail.
+    /// NOTE: Currently this gets serialized, we could recreate it but, meh; it's going anyway.
     idx: Data2d<i32>,
 
     /// Cell count in each dimension.
@@ -63,26 +71,81 @@ impl MemUsage for Cells {
     }
 }
 
-#[repr(C)]
-pub enum CellType {
-    FLUID = 0,
-    WALL = 1,
-    FIXED = 2,
+/// See [`FluidDeserializer`]
+#[derive(Deserialize)]
+struct CellsDeserializer {
+    typ: Data1dDeserializer<i32>,
+    idx: Data2dDeserializer<i32>,
+    counts: Array1<Ix>,
 }
 
-/// Stores the [`Fluid`] and any associated [`Scalar`] fields, calls the OpenCL kernels.
+impl CtxDeserializer for CellsDeserializer {
+    type Target = Cells;
+
+    fn with_context(self, opencl: &OpenCLCtx) -> Self::Target {
+        Self::Target {
+            typ: self.typ.with_context(opencl),
+            idx: self.idx.with_context(opencl),
+            counts: self.counts,
+        }
+    }
+}
+
+/// Flags controlling the cell behaviours.
+#[repr(C)]
+pub enum CellType {
+    Fluid = 0,
+    Wall = 1,
+    FixedFluidVelocity = 2,
+    FixedFluidDensity = 4,
+    /// == FIXED_FLUID_VELOCITY | FIXED_FLUID_DENSITY
+    FixedFluid = 6,
+    FixedScalarValue = 8,
+}
+
+/// Stores the [`Fluid`] and any associated [`Scalar`] fields.
+/// Stores the [`OpenCLCtx`] and Calls the OpenCL kernels.
+#[derive(Serialize)]
 pub struct Simulation {
-    pub opencl: OpenCLCtx,
+    #[serde(skip)]
+    pub(crate) opencl: OpenCLCtx,
     pub cells: Cells,
     pub fluid: Fluid,
     pub tracers: Vec<Scalar>,
     pub gravity: Array1<f32>,
 }
 
+#[derive(Deserialize)]
+struct SimulationDeserializer {
+    cells: CellsDeserializer,
+    fluid: FluidDeserializer,
+    tracers: Vec<ScalarDeserializer>,
+    gravity: Array1<f32>,
+}
+
+impl SimulationDeserializer {
+    /// # Note
+    ///
+    /// This is not an implementation of [`CtxDeserializer`] because it's the top level and
+    /// we must consume the [`OpenCLCtx`] to create the [`Simulation`] object.
+    fn to_simulation(self, opencl: OpenCLCtx) -> Simulation {
+        Simulation {
+            cells: self.cells.with_context(&opencl),
+            fluid: self.fluid.with_context(&opencl),
+            tracers: self
+                .tracers
+                .into_iter()
+                .map(|t| t.with_context(&opencl))
+                .collect(),
+            gravity: self.gravity,
+            opencl: opencl,
+        }
+    }
+}
+
 impl Simulation {
-    pub fn new(counts: Array1<impl IxLike>, q: usize, omega_ns: f32) -> Self {
+    pub fn new(opencl: OpenCLCtx, counts: Array1<impl IxLike>, q: usize, omega_ns: f32) -> Self {
         let counts = counts.mapv(|c| c.into());
-        let opencl = OpenCLCtx::new();
         let cells = Cells::new(&opencl, &counts, q);
         let fluid = Fluid::new(&opencl, &counts, q, omega_ns);
 
@@ -237,5 +300,25 @@ impl Simulation {
         for tracer in self.tracers.iter_mut() {
             tracer.read_to_host(&self.opencl);
         }
+    }
+
+    pub fn write_checkpoint(&self, path: impl AsRef<Path>) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(path)?;
+        let mut serializer = Serializer::new(&mut file);
+        self.serialize(&mut serializer).unwrap();
+
+        Ok(())
+    }
+
+    pub fn load_checkpoint(
+        opencl: OpenCLCtx,
+        path: impl AsRef<Path>,
+    ) -> std::io::Result<Simulation> {
+        let file = std::fs::File::open(path)?;
+        let mut de = Deserializer::new(file);
+        let sim = SimulationDeserializer::deserialize(&mut de).unwrap();
+        let sim = sim.to_simulation(opencl);
+
+        Ok(sim)
     }
 }

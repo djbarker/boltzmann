@@ -3,15 +3,21 @@ use numpy::{Ix1, Ix2, IxDyn};
 use opencl3::{
     command_queue::{CommandQueue, CL_QUEUE_PROFILING_ENABLE},
     context::Context,
-    device::{get_all_devices, Device, CL_DEVICE_TYPE_GPU},
+    device::{get_all_devices, Device, CL_DEVICE_TYPE_CPU, CL_DEVICE_TYPE_GPU},
     event::Event,
     kernel::Kernel,
     memory::{Buffer, CL_MEM_READ_WRITE},
     program::Program,
     types::CL_BLOCKING,
 };
+use serde::{de::DeserializeSeed, Deserialize, Serialize};
 
 const OPENCL_SRC: &str = include_str!("lib.cl");
+
+pub enum DeviceType {
+    CPU,
+    GPU,
+}
 
 /// Long-lived OpenCL context.
 pub struct OpenCLCtx {
@@ -23,9 +29,13 @@ pub struct OpenCLCtx {
 }
 
 impl OpenCLCtx {
-    pub fn new() -> Self {
-        // GPU: CL_DEVICE_TYPE_GPU, CPU: CL_DEVICE_TYPE_CPU
-        let device_id = *get_all_devices(CL_DEVICE_TYPE_GPU)
+    pub fn new(device_type: DeviceType) -> Self {
+        let device_type = match device_type {
+            DeviceType::CPU => CL_DEVICE_TYPE_CPU,
+            DeviceType::GPU => CL_DEVICE_TYPE_GPU,
+        };
+
+        let device_id = *get_all_devices(device_type)
             .expect("error getting platform")
             .first()
             .expect("no device found in platform");
@@ -49,23 +59,37 @@ impl OpenCLCtx {
     }
 }
 
+/// Structs implementing this trait can mutate themselves to allocate the OpenCL buffers when requested.
+/// This includes any nested calls to [`AllocateCL`] members.
+pub trait AllocateCL {
+    fn with_opencl_buff(self, opencl: &OpenCLCtx) -> Self;
+}
+
 /// Long-lived container for host- and OpenCL device buffers.
+#[derive(Serialize)]
 pub struct Data<T, D>
 where
     D: Dimension,
 {
-    pub host: Array<T, D>,
+    /// This is [`Option`] so we can deserialize and setup the buffers later.
+    /// It also means we can change the [`OpenCLCtx`] without reallocating the host arrays.
+    #[serde(skip)]
     pub dev: Buffer<T>,
+    pub host: Array<T, D>,
 }
 
 impl<T, D: Dimension> Data<T, D> {
-    /// Consume an [`Array`] and turn it into a [`Data`].
+    /// Create an [`Array`] with the given shape, and turn it into a [`Data`].
     pub fn new<Sh>(opencl: &OpenCLCtx, shape: Sh, fill: T) -> Self
     where
         T: Clone,
         Sh: ShapeBuilder<Dim = D>,
     {
-        let host = Array::from_elem(shape, fill);
+        Data::from_host(opencl, Array::from_elem(shape, fill))
+    }
+
+    /// Consume an [`Array`] and create a new [`Data`].
+    pub fn from_host(opencl: &OpenCLCtx, host: Array<T, D>) -> Self {
         Self {
             dev: Data::make_buffer(&opencl.context, &host),
             host,
@@ -117,6 +141,37 @@ impl<T, D: Dimension> Data<T, D> {
     }
 }
 
+/// Implemented by "deserializer" structs to create the full type with allocated OpenCL buffers.
+pub trait CtxDeserializer {
+    type Target;
+
+    /// Consume the object to create the full type with allocated OpenCL buffers.
+    fn with_context(self, opencl: &OpenCLCtx) -> Self::Target;
+}
+
+#[derive(Deserialize)]
+pub struct DataDeserializer<T, D>
+where
+    D: Dimension,
+{
+    host: Array<T, D>,
+}
+
+impl<T, D> CtxDeserializer for DataDeserializer<T, D>
+where
+    D: Dimension,
+{
+    type Target = Data<T, D>;
+
+    fn with_context(self, opencl: &OpenCLCtx) -> Self::Target {
+        Self::Target::from_host(opencl, self.host)
+    }
+}
+
 pub type Data1d<T> = Data<T, Ix1>;
 pub type Data2d<T> = Data<T, Ix2>;
 pub type DataNd<T> = Data<T, IxDyn>;
+
+pub type Data1dDeserializer<T> = DataDeserializer<T, Ix1>;
+pub type Data2dDeserializer<T> = DataDeserializer<T, Ix2>;
+pub type DataNdDeserializer<T> = DataDeserializer<T, IxDyn>;
