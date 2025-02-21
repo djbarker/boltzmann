@@ -38,7 +38,6 @@ from boltzmann_rs import (
 
 basic_config()
 logger = logging.getLogger(__name__)
-logger.info("Starting")
 
 verbose = False
 
@@ -53,18 +52,15 @@ x_si = y_si * aspect_ratio
 
 d_si = 1.5 * y_si / 10.0  # Cylinder diameter.
 
-# flow velocity [m/s]
-u_si = 2.0
-
-# kinematic viscosity [m^2/s]
-nu_si = 1e-4
-
-Re = u_si * d_si / nu_si
+Re = 1000  # Reynolds number [1]
+nu_si = 1e-4  # kinematic viscosity [m^2/s]
+u_si = Re * nu_si / d_si  # flow velocity [m/s]
 
 # LBM parameterization
-L = 4000
+L = 3000
 
-(tau, u) = calc_lbm_params(Re, L, 0.55, M_max=0.1)
+D = L * (d_si / y_si)
+(tau, u) = calc_lbm_params(Re, D, M_max=0.1)
 dx = y_si / L
 dt = (u / u_si) * dx
 
@@ -123,11 +119,11 @@ if enable_tracer:
     with time(logger, "Adding tracers"):
         tracer_R = sim.add_tracer(q=5, omega_ad=omega_ad)
         tracer_G = sim.add_tracer(q=5, omega_ad=omega_ad)
-        tracer_B = sim.add_tracer(q=5, omega_ad=omega_ad)
+        # tracer_B = sim.add_tracer(q=5, omega_ad=omega_ad)
 
 with time(logger, "Setting initial values"):
     # fixed velocity in- & out-flow
-    cells_ = domain.unflatten(sim.domain.cell_type)
+    cells_ = domain.unflatten(sim.cells.cell_type)
     cells_[+0, :] = CellType.FIXED.value  # left
     cells_[-1, :] = CellType.FIXED.value  # right
 
@@ -154,28 +150,33 @@ with time(logger, "Setting initial values"):
         # TODO: It would be nice to be able to set FIXED the concentration only
         tracer_R_ = domain.unflatten(tracer_R.val)
         tracer_G_ = domain.unflatten(tracer_G.val)
-        tracer_B_ = domain.unflatten(tracer_B.val)
+        # tracer_B_ = domain.unflatten(tracer_B.val)
 
-        darken = 1.0
-        n_streamers = 22
-        dj = int(domain.counts[1] / 150.0)
-        for i in range(n_streamers):
-            c = plt.cm.hsv(i / (n_streamers))
-            yj = int((domain.counts[1] / n_streamers) * (i + 0.5))
-            xs = slice(0, dj)
-            ys = slice(yj - dj // 2, yj + dj // 2)
-            tracer_R_[xs, ys] = c[0] * darken
-            tracer_G_[xs, ys] = c[1] * darken
-            tracer_B_[xs, ys] = c[2] * darken
-            cells_[xs, ys] = CellType.FIXED.value
+        # darken = 1.0
+        # n_streamers = 22
+        # dj = int(domain.counts[1] / 150.0)
+        # for i in range(n_streamers):
+        #     c = plt.cm.hsv(i / (n_streamers))
+        #     yj = int((domain.counts[1] / n_streamers) * (i + 0.5))
+        #     xs = slice(0, dj)
+        #     ys = slice(yj - dj // 2, yj + dj // 2)
+        #     tracer_R_[xs, ys] = c[0] * darken
+        #     tracer_G_[xs, ys] = c[1] * darken
+        #     tracer_B_[xs, ys] = c[2] * darken
+        #     cells_[xs, ys] = CellType.FIXED.value
 
-        cells_[xs, :] = CellType.FIXED.value
-        tracer_ = np.zeros([vel_.shape[0], vel_.shape[1], 3])
+        # cells_[xs, :] = CellType.FIXED.value
+
+        mask = distance_transform_edt(WW) == 1
+        tracer_R_[:, : domain.counts[1] // 2][mask[:, : domain.counts[1] // 2]] = 1.0
+        tracer_G_[:, domain.counts[1] // 2 :][mask[:, domain.counts[1] // 2 :]] = 1.0
+        cells_[mask] = CellType.FIXED.value
 
     # allocate extra arrays for plotting to avoid reallocating each step
     vmag_ = np.zeros_like(vel_[:, :, 0])
     curl_ = np.zeros_like(vel_[:, :, 0])
     qcrit_ = np.zeros_like(vel_[:, :, 0])
+    tracer_ = np.zeros([vel_.shape[0], vel_.shape[1], 3])
 
     # IMPORTANT: convert velocity to lattice units / timestep
     vel_[:] = scales.to_lattice_units(vel_, **VELOCITY)
@@ -218,7 +219,7 @@ class VortexStreet(SimulationLoop):
             np.any(~np.isfinite(sim.fluid.f))
             or np.any(~np.isfinite(tracer_R.g))
             or np.any(~np.isfinite(tracer_G.g))
-            or np.any(~np.isfinite(tracer_B.g))
+            # or np.any(~np.isfinite(tracer_B.g))
         ):
             raise ValueError("Non-finite value detected.")
 
@@ -232,7 +233,7 @@ class VortexStreet(SimulationLoop):
         with time(logger, "calc curl", silent=not verbose):
             curl__ = curl_.reshape(sim.fluid.rho.shape)
             qcrit__ = qcrit_.reshape(sim.fluid.rho.shape)
-            calc_curl_2d(sim.fluid.vel, sim.domain.cell_type, cnt, curl__, qcrit__)  # in LU
+            calc_curl_2d(sim.fluid.vel, sim.cells.cell_type, cnt, curl__, qcrit__)  # in LU
             curl_[:] = curl_ * ((dx / dt) / dx)  # in SI
             curl_[:] = np.tanh(curl_ / vmax_curl) * vmax_curl
             qcrit_[:] = qcrit_ * ((dx / dt) / dx) ** 2  # in SI
@@ -245,7 +246,7 @@ class VortexStreet(SimulationLoop):
 
         tracer_[:, :, 0] = tracer_R_
         tracer_[:, :, 1] = tracer_G_
-        tracer_[:, :, 2] = tracer_B_
+        # tracer_[:, :, 2] = tracer_B_
 
         # Then write out the PNG files.
 
@@ -263,8 +264,10 @@ class VortexStreet(SimulationLoop):
                 base / f"curl_{step:06d}.png",
                 curl_,
                 "Vorticity",
-                "light",
-                cmap="RdBu",
+                # "light",
+                # cmap="RdBu",
+                "dark",
+                cmap="managua",
                 vmin=-vmax_curl,
                 vmax=vmax_curl,
             )
@@ -294,20 +297,21 @@ class VortexStreet(SimulationLoop):
             if enable_tracer:
                 save_scalar(base, tracer_R, "red")
                 save_scalar(base, tracer_G, "grn")
-                save_scalar(base, tracer_B, "blu")
+                # save_scalar(base, tracer_B, "blu")
 
     def read_checkpoint(self, base: Path):
         load_fluid(base, sim.fluid)
         if enable_tracer:
             load_scalar(base, tracer_R, "red")
             load_scalar(base, tracer_G, "grn")
-            load_scalar(base, tracer_B, "blu")
+            # load_scalar(base, tracer_B, "blu")
         sim.finalize(False)
 
 
 # %% Main Loop
 
-run_sim_cli(sim_meta, VortexStreet(sim))
+run_sim_cli(sim_meta, VortexStreet(sim), base=f"out_re{Re}")
+
 
 # render with
 # export FPS=30; ffmpeg -framerate $FPS -i out/conc_%06d.png -framerate $FPS -i out/curl_%06d.png                                      -c:v libx264 -crf 10 -filter_complex "[1]pad=iw:ih+2:0:2[v1];[0][v1]vstack=inputs=2" -y kh.mp4
