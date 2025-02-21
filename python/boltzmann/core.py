@@ -330,7 +330,11 @@ class SimulationMeta:
 class CellType(Enum):
     FLUID = 0
     WALL = 1
-    FIXED = 2
+    FIXED_FLUID_VELOCITY = 2
+    FIXED_FLUID_DENSITY = 4
+    # == FIXED_FLUID_VELOCITY | FIXED_FLUID_DENSITY
+    FIXED_FLUID = 6
+    FIXED_SCALAR_VALUE = 8
 
 
 class Model:

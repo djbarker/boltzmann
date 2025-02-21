@@ -15,7 +15,7 @@ import numpy as np
 from boltzmann.core import SimulationMeta
 from boltzmann.utils.logger import PerfInfo, dotted, tick
 
-from boltzmann_rs import Simulation, Fluid, Scalar, Domain
+from boltzmann_rs import Simulation, Fluid, Scalar, Cells
 
 
 logger = logging.getLogger(__name__)
@@ -53,20 +53,6 @@ def load_scalar(base: Path, scalar: Scalar, name: str):
     """
     scalar.g[:] = np.load(base / f"chk.{name}.g.npy")
     scalar.val[:] = np.load(base / f"chk.{name}.val.npy")
-
-
-def save_domain(base: Path, domain: Domain):
-    """
-    Save the `Domain` object arrays.
-    """
-    np.save(base / "chk.cells.npy", domain.cells)
-
-
-def load_domain(base: Path, domain: Domain):
-    """
-    Load the `Domain` object arrays.
-    """
-    domain.cells[:] = np.load(base / "chk.cells.npy")
 
 
 @dataclass
@@ -172,8 +158,6 @@ class SimulationRunner:
 
             perf_out = timer.tock() - perf_batch
 
-            t_sim = i * self.meta.time.dt_output
-
             t = timer_total.elapsed
             t = str(t).split(".")[0]
 
@@ -186,7 +170,7 @@ class SimulationRunner:
             )
 
 
-def run_sim_cli(sim: SimulationMeta, loop: SimulationLoop):
+def run_sim_cli(sim: SimulationMeta, loop: SimulationLoop, base: str | Path = "out"):
     """
     The 'main' method for running sims and handling cmd line args.
     """
@@ -195,11 +179,11 @@ def run_sim_cli(sim: SimulationMeta, loop: SimulationLoop):
     try:
         get_ipython()  # noqa: F821
         args = []
-    except:
+    except NameError:
         args = sys.argv[1:]
 
     parser = ap.ArgumentParser()
-    parser.add_argument("--base", type=str, default="out")
+    parser.add_argument("--base", type=str, default=base)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--no-checkpoint", action="store_true")
     args = parser.parse_args(args)
