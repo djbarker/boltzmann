@@ -11,7 +11,7 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterato
 
 // Imports from this lib:
 use raster::StrideOrder::RowMajor;
-use raster::{counts_to_strides, idx_to_sub, sub_to_idx, Ix, IxLike};
+use raster::{counts_to_strides, idx_to_sub, sub_to_idx, Ix};
 use simulation::{CellType, Simulation};
 use utils::vmod_nd;
 
@@ -262,9 +262,9 @@ impl SimulationPy {
         size_bytes
     }
 
-    /// See [`Simulation::finalize`].
-    fn finalize(&mut self, equilibrate: bool) {
-        self.sim().finalize(equilibrate);
+    #[getter]
+    fn iteration(&self) -> u64 {
+        self.sim().iteration
     }
 
     fn iterate(&mut self, iters: usize) {
@@ -297,7 +297,25 @@ impl SimulationPy {
                 index: sim.tracers.len() - 1,
             },
         )
-        .expect("Bound::new FluidPy failed.");
+        .expect("Bound::new ScalarPy failed.");
+
+        Ok(bound)
+    }
+
+    /// Get a scalar field by index, which as previously been added.
+    ///
+    /// TODO: would be nice to make this by name or something (e.g. store a map of [`Scalar`]s not just a vec).
+    fn get_tracer<'py>(this: Bound<'py, Self>, idx: usize) -> PyResult<Bound<'py, ScalarPy>> {
+        let this = this.borrow();
+        let bound = Bound::new(
+            this.py(),
+            ScalarPy {
+                sim: this.sim.clone(),
+                index: idx,
+            },
+        )
+        .expect("Bound::new ScalarPy failed.");
+
         Ok(bound)
     }
 

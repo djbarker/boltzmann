@@ -1,7 +1,7 @@
-use std::ops::{Deref, DerefMut};
+use std::io::{BufReader, BufWriter};
 use std::path::Path;
 
-use ndarray::{Array1, Array2};
+use ndarray::Array1;
 use opencl3::command_queue::CommandQueue;
 use opencl3::kernel::ExecuteKernel;
 use opencl3::types::cl_event;
@@ -9,7 +9,7 @@ use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
 use crate::fields::{Fluid, FluidDeserializer, MemUsage, Scalar, ScalarDeserializer};
-use crate::opencl::{CtxDeserializer, Data1dDeserializer, Data2dDeserializer, DeviceType};
+use crate::opencl::{CtxDeserializer, Data1dDeserializer, Data2dDeserializer};
 use crate::raster::IxLike;
 use crate::{
     opencl::{Data, Data1d, Data2d, OpenCLCtx},
@@ -113,6 +113,7 @@ pub struct Simulation {
     pub fluid: Fluid,
     pub tracers: Vec<Scalar>,
     pub gravity: Array1<f32>,
+    pub iteration: u64,
 }
 
 #[derive(Deserialize)]
@@ -121,6 +122,7 @@ struct SimulationDeserializer {
     fluid: FluidDeserializer,
     tracers: Vec<ScalarDeserializer>,
     gravity: Array1<f32>,
+    iteration: u64,
 }
 
 impl SimulationDeserializer {
@@ -138,6 +140,7 @@ impl SimulationDeserializer {
                 .map(|t| t.with_context(&opencl))
                 .collect(),
             gravity: self.gravity,
+            iteration: self.iteration,
             opencl: opencl,
         }
     }
@@ -155,6 +158,7 @@ impl Simulation {
             fluid: fluid,
             tracers: Vec::new(),
             gravity: Array1::zeros([counts.dim()]),
+            iteration: 0,
         }
     }
 
@@ -166,22 +170,24 @@ impl Simulation {
         self.tracers.push(tracer);
     }
 
-    /// Copy data to OpenCL buffers & optionally calculate distribution function from macroscopic variables.
+    /// Calculate equilibrium distribution functions from macroscopic variables.
     ///
-    /// Once we've initialized the density, velocity, etc arrays in Python we must call [`Simulation::finalize`]
-    /// before calling [`Simulation::iterate`] so that the data is on the OpenCL device.
-    /// If we are not loading from a checkpoint we also first need to initialize the distribution
-    /// functions by calculating the equilibrium distributions.
-    pub fn finalize(&mut self, equilibrate: bool) {
-        self.cells.write_to_dev(&self.opencl);
-
-        if equilibrate {
-            self.fluid.equilibrate();
-            for tracer in self.tracers.iter_mut() {
-                tracer.equilibrate(self.fluid.vel.host.view());
-            }
+    /// Once we've initialized the density, velocity, etc arrays in Python we must call this
+    /// before iterating so that the distribution function arrays are populated.
+    /// If we are loading from a checkpoint we do not need to call this.
+    /// We also need to call [`Simulation::finalize`] to copy the data to the OpenCL device.
+    fn equilibrate(&mut self) {
+        self.fluid.equilibrate();
+        for tracer in self.tracers.iter_mut() {
+            tracer.equilibrate(self.fluid.vel.host.view());
         }
+    }
 
+    /// Copy data to OpenCL buffers.
+    ///
+    /// We must call this before iterating so that the data is on the OpenCL device.
+    fn finalize(&mut self) {
+        self.cells.write_to_dev(&self.opencl);
         self.fluid.write_to_dev(&self.opencl);
         for tracer in self.tracers.iter_mut() {
             tracer.write_to_dev(&self.opencl);
@@ -190,6 +196,11 @@ impl Simulation {
 
     /// See: opencl3 example [`basic.rs`](https://github.com/kenba/opencl3/blob/main/examples/basic.rs)
     pub fn iterate(&mut self, iters: usize) {
+        if self.iteration == 0 {
+            self.equilibrate();
+            self.finalize();
+        }
+
         if iters % 2 != 0 {
             panic!("iters must be even")
         }
@@ -267,6 +278,7 @@ impl Simulation {
                     .set_arg(&mut self.fluid.vel.dev)
                     .set_arg(&self.cells.typ.dev)
                     .set_arg(&self.cells.idx.dev)
+                    .set_local_work_size(64)
                     .set_global_work_size(cell_count)
                     .enqueue_nd_range(&queue)
                     .expect("ExecuteKernel::new failed.")
@@ -300,11 +312,14 @@ impl Simulation {
         for tracer in self.tracers.iter_mut() {
             tracer.read_to_host(&self.opencl);
         }
+
+        self.iteration += iters as u64;
     }
 
     pub fn write_checkpoint(&self, path: impl AsRef<Path>) -> std::io::Result<()> {
-        let mut file = std::fs::File::create(path)?;
-        let mut serializer = Serializer::new(&mut file);
+        let file = std::fs::File::create(path)?;
+        let mut buff = BufWriter::with_capacity(1024 * 1024, file); // 1 mebibyte buffer
+        let mut serializer = Serializer::new(&mut buff);
         self.serialize(&mut serializer).unwrap();
 
         Ok(())
@@ -315,9 +330,14 @@ impl Simulation {
         path: impl AsRef<Path>,
     ) -> std::io::Result<Simulation> {
         let file = std::fs::File::open(path)?;
-        let mut de = Deserializer::new(file);
+        let buff = BufReader::with_capacity(1024 * 1024, file);
+        let mut de = Deserializer::new(buff);
         let sim = SimulationDeserializer::deserialize(&mut de).unwrap();
-        let sim = sim.to_simulation(opencl);
+        let mut sim = sim.to_simulation(opencl);
+
+        // In general iteration is not zero, so finalize here to ensure the data is copied to the device.
+        // If we checkpointed at iteration zero this will happen twice but, meh.
+        sim.finalize();
 
         Ok(sim)
     }
