@@ -8,8 +8,8 @@ kernel void update_d2q9_bgk(int even, float omega, float gx, float gy, global fl
   const size_t if_ = ir * 9;          // offset for f
 
   const int c = cell[ir];
-  const bool wall = c == 1;
-  const bool fixed = c == 6; 
+  const bool wall = (c & 1);
+  const bool fixed = (c & 6); 
 
   if (wall) {
     // wall => do nothing
@@ -92,6 +92,7 @@ kernel void update_d2q9_bgk(int even, float omega, float gx, float gy, global fl
     f[9 * idx[ii + 7] + 7] = f_[8];
     f[9 * idx[ii + 8] + 8] = f_[7];
   } else {
+    # pragma unroll
     for (int i = 0; i < 9; i++) {
       f[if_ + i] = f_[i];
     }
@@ -112,8 +113,8 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
   const size_t if_ = ic * 5;          // offset for f
 
   const int c = cell[ic];
-  const bool wall = c == 1;
-  const bool fixed = c == 8;
+  const bool wall = (c & 1);
+  const bool fixed = (c & 8);
 
   if (wall) {
     // wall => do nothing
@@ -174,6 +175,7 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
     f[5 * idx[ii + 3] + 3] = f_[4];
     f[5 * idx[ii + 4] + 4] = f_[3];
   } else {
+    # pragma unroll
     for (int i = 0; i < 5; i++) {
       f[if_ + i] = f_[i];
     }
