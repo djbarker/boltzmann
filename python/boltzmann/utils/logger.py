@@ -120,12 +120,13 @@ def time(
     """
     timer = tick()
     try:
+        logger.debug(f"Starting {message}")
         yield timer
     finally:
         if not silent:
             if message != "":
-                message = f"{message}: "
-            logger.info(f"{message}{timer.tock(events=events)}")
+                message = f"Done {message}: "
+            logger.debug(f"{message}{timer.tock(events=events)}")
 
 
 # TODO: this seems to print "logger" as the name of the logger, why?

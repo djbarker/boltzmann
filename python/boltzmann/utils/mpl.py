@@ -48,7 +48,7 @@ class PngWriter(object):
             data = np.squeeze(cmap_(data)[::-1, :, 0, :3])
         else:
             data = data[::-1, :, :]
-            data[~np.isfinite(data)] = 0xCC / 255
+            data[~np.isfinite(data)] = 0xAC / 255
 
         self.img = fromarray((data * 255).astype(np.uint8))
 
