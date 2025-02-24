@@ -170,7 +170,7 @@ if not args.resume:
         WW = 1 - 1 * (sim.cells.cell_type == CellType.WALL.value)
         DD = distance_transform_edt(WW).clip(0, int((y_si / 10) / domain.dx))
         DD = DD / np.max(DD)
-        sim.fluid.vel[:, :, 0] = -u_si * DD
+        sim.fluid.vel[:, :, 0] = u_si * DD
 
         # perturb velocity
         vy_si = np.exp(-(((domain.x - cx) / 10) ** 2)) * u_si * 0.01
