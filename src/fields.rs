@@ -1,15 +1,9 @@
-use ndarray::{Array1, Array2, ArrayView2, Zip};
-use opencl3::memory::Buffer;
-use rmp_serde::{Deserializer, Serializer};
-use serde::{
-    de::{DeserializeSeed, Visitor},
-    Deserialize, Serialize,
-};
+use ndarray::{Array1, ArrayView2, Zip};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     opencl::{
-        AllocateCL, CtxDeserializer, Data, Data1d, Data1dDeserializer, Data2d, Data2dDeserializer,
-        OpenCLCtx,
+        CtxDeserializer, Data, Data1d, Data1dDeserializer, Data2d, Data2dDeserializer, OpenCLCtx,
     },
     raster::Ix,
     velocities::VelocitySet,

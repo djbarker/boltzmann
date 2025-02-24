@@ -10,7 +10,7 @@ use opencl3::{
     program::Program,
     types::CL_BLOCKING,
 };
-use serde::{de::DeserializeSeed, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 const OPENCL_SRC: &str = include_str!("lib.cl");
 
