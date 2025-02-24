@@ -193,7 +193,12 @@ impl Simulation {
 
         let queue: &CommandQueue = &self.opencl.queue;
 
-        let count_s = self.cells.counts.as_slice().unwrap();
+        // round global work size upto the next even multiple of 8
+        let count_s = self.cells.counts.mapv(|c| {
+            let r = c % 16;
+            c + (16 - r)
+        });
+        let count_s = count_s.as_slice().unwrap();
 
         // TODO: make this generic over [`D`], [`Q`] and [`EqnType`]!
         let d2q9 = &self.opencl.d2q9_ns_kernel;
@@ -241,6 +246,9 @@ impl Simulation {
             };
         }
 
+        // I haven't extensively optimized this but 8x8 seems like a good value for 2D.
+        let wsize = [8, 8];
+
         for iter in 0..iters {
             // We cannot pass bools to OpenCL so get an interger with values 0 or 1.
             let even = (1 - iter % 2) as i32;
@@ -271,7 +279,9 @@ impl Simulation {
                     .set_arg(&mut self.fluid.vel.dev)
                     .set_arg(&self.cells.typ.dev)
                     .set_arg(&qs_d2q9.dev)
-                    .set_local_work_sizes(&[8, 8])
+                    .set_arg(&(self.cells.counts[0] as i32))
+                    .set_arg(&(self.cells.counts[1] as i32))
+                    .set_local_work_sizes(&wsize)
                     .set_global_work_sizes(count_s)
                     .enqueue_nd_range(&queue)
                     .expect("ExecuteKernel::new failed.")
@@ -290,7 +300,9 @@ impl Simulation {
                         .set_arg(&self.fluid.vel.dev)
                         .set_arg(&self.cells.typ.dev)
                         .set_arg(&qs_d2q5.dev)
-                        .set_local_work_sizes(&[8, 8])
+                        .set_arg(&(self.cells.counts[0] as i32))
+                        .set_arg(&(self.cells.counts[1] as i32))
+                        .set_local_work_sizes(&wsize)
                         .set_global_work_sizes(count_s)
                         .enqueue_nd_range(&queue)
                         .expect("ExecuteKernel::new failed.")
