@@ -23,36 +23,6 @@ macro_rules! ax0 {
 // expose ax0 outside this module but within the crate
 // pub(crate) use ax0;
 
-/// Returns the outer product of the two given vectors.
-/// The vectors need not have the same shape but in our use-case they always do.
-pub fn outer(x: ArrayView1<f32>, y: ArrayView1<f32>) -> Array2<f32> {
-    let mut z = Array2::zeros([x.dim(), y.dim()]);
-    for i in 0..x.dim() {
-        for j in 0..y.dim() {
-            z[(i, j)] = x[i] * y[j]
-        }
-    }
-    z
-}
-
-/// Returns the double dot product of two matrices.
-/// The matrices must have the same shape.
-pub fn doubledot(x: ArrayView2<f32>, y: ArrayView2<f32>) -> f32 {
-    assert_eq!(x.dim(), y.dim());
-    let mut z = 0.0;
-    for i in 0..x.dim().0 {
-        for j in 0..x.dim().1 {
-            z += x[(i, j)] * y[(i, j)]
-        }
-    }
-    z
-}
-
-/// Returns the n-dimensional identity matrix.
-pub fn ident(n: usize) -> Array2<f32> {
-    Array2::from_diag_elem(n, 1.0)
-}
-
 #[allow(non_snake_case)]
 impl VelocitySet {
     /// The dimension of the [`VelocitySet`].
@@ -68,7 +38,6 @@ impl VelocitySet {
     /// Calculate the equilibrium distribution function for a single cell.
     /// The returned array has shape == [Q]
     pub fn feq(&self, rho: f32, vel: ArrayView1<f32>) -> Array1<f32> {
-        let I = ident(self.D());
         let mut out: Array1<f32> = Array1::zeros([self.Q()]);
         for q in 0..self.Q() {
             let q_ = ax0!(self.qs, q).mapv(|x| x as f32);
