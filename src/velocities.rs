@@ -50,9 +50,17 @@ impl VelocitySet {
 
     pub fn make(d: usize, q: usize) -> VelocitySet {
         match (d, q) {
+            (1, 3) => Self::D1Q3(),
             (2, 9) => Self::D2Q9(),
             (2, 5) => Self::D2Q5(),
             _ => panic!("Unknown model: D{}Q{}", d, q),
+        }
+    }
+
+    pub fn D1Q3() -> VelocitySet {
+        VelocitySet {
+            ws: arr1(&[4. / 6., 1. / 6., 1. / 6.]),
+            qs: arr2(&[[0], [1], [-1]]),
         }
     }
 
