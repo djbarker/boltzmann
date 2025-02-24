@@ -1,17 +1,18 @@
+use std::usize;
 // Std imports:
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use fields::{MemUsage, Scalar};
 // Imports from other crates:
-use ndarray::{arr1, Array1, ArrayView1, ArrayView2, ArrayViewMut1};
-use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyReadwriteArray1};
+use ndarray::{arr1, Array1, ArrayView1, ArrayViewD, ArrayViewMutD};
+use numpy::{PyArrayDyn, PyReadonlyArray1, PyReadonlyArrayDyn, PyReadwriteArrayDyn};
 use opencl::{DeviceType, OpenCLCtx};
 use pyo3::prelude::*;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 // Imports from this lib:
 use raster::StrideOrder::RowMajor;
-use raster::{counts_to_strides, idx_to_sub, sub_to_idx, Ix};
+use raster::{counts_to_strides, idx_to_sub, Ix};
 use simulation::{CellType, Simulation};
 use utils::vmod_nd;
 
@@ -38,14 +39,12 @@ pub enum EqnType {
 /// NOTE: Assumes wall velocity is zero.
 /// TODO: openCL version
 fn calc_curl_qcrit_2d(
-    vel: &ArrayView2<f32>,
-    cells: &ArrayView1<i32>,
+    vel: &ArrayViewD<f32>,
+    cells: &ArrayViewD<i32>,
     counts: &ArrayView1<impl Into<Ix> + Copy>,
-    curl: &mut ArrayViewMut1<f32>,
-    qcrit: &mut ArrayViewMut1<f32>,
+    curl: &mut ArrayViewMutD<f32>,
+    qcrit: &mut ArrayViewMutD<f32>,
 ) {
-    assert_eq!(vel.dim().0, cells.dim());
-
     fn is_wall(c: i32) -> f32 {
         ((c == (CellType::Wall as i32)) as i32) as f32
     }
@@ -55,8 +54,15 @@ fn calc_curl_qcrit_2d(
 
     let offset = |sub: &Array1<Ix>, off: [Ix; 2]| {
         let off = arr1(&off);
-        sub_to_idx(&vmod_nd(sub + off, &counts), &strides)
+        let sub = vmod_nd(sub + off, &counts);
+        [sub[0] as usize, sub[1] as usize]
     };
+
+    /// Append final index (velocity compoent) to the indices to get the full index into velocity array.
+    fn app(idx: &[usize], val: usize) -> [usize; 3] {
+        // okay because we know it's 2D
+        [idx[0], idx[1], val]
+    }
 
     let curl_ = curl.as_slice_mut().unwrap();
     let qcrit_ = qcrit.as_slice_mut().unwrap();
@@ -72,14 +78,14 @@ fn calc_curl_qcrit_2d(
             let idx_y1 = offset(&sub, [0, -1]);
             let idx_y2 = offset(&sub, [0, 1]);
 
-            let dxux1: f32 = vel[(idx_x1, 0)] * (1.0 - is_wall(cells[idx_x1]));
-            let dxux2: f32 = vel[(idx_x2, 0)] * (1.0 - is_wall(cells[idx_x2]));
-            let dxuy1: f32 = vel[(idx_x1, 1)] * (1.0 - is_wall(cells[idx_x1]));
-            let dxuy2: f32 = vel[(idx_x2, 1)] * (1.0 - is_wall(cells[idx_x2]));
-            let dyux1: f32 = vel[(idx_y1, 0)] * (1.0 - is_wall(cells[idx_y1]));
-            let dyux2: f32 = vel[(idx_y2, 0)] * (1.0 - is_wall(cells[idx_y2]));
-            let dyuy1: f32 = vel[(idx_y1, 1)] * (1.0 - is_wall(cells[idx_y1]));
-            let dyuy2: f32 = vel[(idx_y2, 1)] * (1.0 - is_wall(cells[idx_y2]));
+            let dxux1: f32 = vel[app(&idx_x1, 0)] * (1.0 - is_wall(cells[idx_x1]));
+            let dxux2: f32 = vel[app(&idx_x2, 0)] * (1.0 - is_wall(cells[idx_x2]));
+            let dxuy1: f32 = vel[app(&idx_x1, 1)] * (1.0 - is_wall(cells[idx_x1]));
+            let dxuy2: f32 = vel[app(&idx_x2, 1)] * (1.0 - is_wall(cells[idx_x2]));
+            let dyux1: f32 = vel[app(&idx_y1, 0)] * (1.0 - is_wall(cells[idx_y1]));
+            let dyux2: f32 = vel[app(&idx_y2, 0)] * (1.0 - is_wall(cells[idx_y2]));
+            let dyuy1: f32 = vel[app(&idx_y1, 1)] * (1.0 - is_wall(cells[idx_y1]));
+            let dyuy2: f32 = vel[app(&idx_y2, 1)] * (1.0 - is_wall(cells[idx_y2]));
 
             let dxux = (dxux2 - dxux1) / 2.0;
             let dxuy = (dxuy2 - dxuy1) / 2.0;
@@ -99,24 +105,24 @@ struct FluidPy {
 #[pymethods]
 impl FluidPy {
     #[getter]
-    fn f<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArray2<f32>> {
+    fn f<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
         let borrow = this.borrow();
         let array = &borrow.sim.lock().unwrap().fluid.f.host;
-        unsafe { PyArray2::borrow_from_array(array, this.into_any()) }
+        unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
     }
 
     #[getter]
-    fn rho<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArray1<f32>> {
+    fn rho<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
         let borrow = this.borrow();
         let array = &borrow.sim.lock().unwrap().fluid.rho.host;
-        unsafe { PyArray1::borrow_from_array(array, this.into_any()) }
+        unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
     }
 
     #[getter]
-    fn vel<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArray2<f32>> {
+    fn vel<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
         let borrow = this.borrow();
         let array = &borrow.sim.lock().unwrap().fluid.vel.host;
-        unsafe { PyArray2::borrow_from_array(array, this.into_any()) }
+        unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
     }
 
     #[getter]
@@ -136,12 +142,12 @@ struct ScalarPy {
 #[pymethods]
 impl ScalarPy {
     #[getter]
-    fn g<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArray2<f32>> {
+    fn g<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
         let borrow = this.borrow();
         let sim = borrow.sim.lock().unwrap();
         if let Some(tracer) = sim.tracers.get(borrow.index) {
             let array = &tracer.g.host;
-            unsafe { PyArray2::borrow_from_array(array, this.into_any()) }
+            unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
         } else {
             // Just panic here because we shouldn't be able to get the [`ScalarPy`]
             // object if the [`Simulation`] doesn't have any tracers configured.
@@ -150,12 +156,12 @@ impl ScalarPy {
     }
 
     #[getter]
-    fn val<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArray1<f32>> {
+    fn val<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
         let borrow = this.borrow();
         let sim = borrow.sim.lock().unwrap();
         if let Some(tracer) = sim.tracers.get(borrow.index) {
             let array = &tracer.C.host;
-            unsafe { PyArray1::borrow_from_array(array, this.into_any()) }
+            unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
         } else {
             // Just panic here because we shouldn't be able to get the [`ScalarPy`]
             // object if the [`Simulation`] doesn't have any tracers configured.
@@ -183,11 +189,11 @@ struct CellsPy {
 #[pymethods]
 impl CellsPy {
     #[getter]
-    fn cell_type<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArray1<i32>> {
+    fn cell_type<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<i32>> {
         let borrow = this.borrow();
         let sim = borrow.sim.lock().unwrap();
         let array = &sim.cells.typ.host;
-        unsafe { PyArray1::borrow_from_array(array, this.into_any()) }
+        unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
     }
 
     #[getter]
@@ -243,13 +249,20 @@ impl SimulationPy {
 #[pymethods]
 impl SimulationPy {
     #[new]
-    fn new(dev: String, counts: PyReadonlyArray1<i32>, q: usize, omega_ns: f32) -> Self {
+    fn new(dev: String, counts: Vec<usize>, q: usize, omega_ns: f32) -> Self {
         let dev = DeviceTypePy::from(dev).into();
-        let counts = counts.as_array().to_owned();
         Self {
-            sim: Arc::new(Mutex::new(Simulation::new(dev, counts, q, omega_ns))),
+            sim: Arc::new(Mutex::new(Simulation::new(dev, &counts, q, omega_ns))),
         }
     }
+
+    // #[getter]
+    // fn test<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArray2<f32>> {
+    //     let borrow = this.borrow();
+    //     let array = &borrow.test;
+    //     let array = array.slice(s![1..100, 1..100]);
+    //     unsafe { PyArray2::borrow_from_array(&array, this.into_any()) }
+    // }
 
     /// Get the total memory usage of the underlying [`Simulation`] object as seen on the GPU.
     #[getter]
@@ -286,7 +299,7 @@ impl SimulationPy {
     ) -> PyResult<Bound<'py, ScalarPy>> {
         let this = this.borrow_mut();
         let mut sim = this.sim();
-        let c = &sim.cells.counts;
+        let c = sim.cells.counts.as_slice().unwrap();
         let tracer = Scalar::new(&sim.opencl, c, q, omega_ad);
         sim.add_tracer(tracer);
 
@@ -366,11 +379,11 @@ fn boltzmann_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyo3(name = "calc_curl_2d")]
     fn calc_curl_2d_py<'py>(
         _py: Python<'py>,
-        vel: PyReadonlyArray2<f32>,
-        cells: PyReadonlyArray1<i32>,
+        vel: PyReadonlyArrayDyn<f32>,
+        cells: PyReadonlyArrayDyn<i32>,
         counts: PyReadonlyArray1<Ix>,
-        mut curl: PyReadwriteArray1<f32>,
-        mut qcrit: PyReadwriteArray1<f32>,
+        mut curl: PyReadwriteArrayDyn<f32>,
+        mut qcrit: PyReadwriteArrayDyn<f32>,
     ) {
         calc_curl_qcrit_2d(
             &vel.as_array(),

@@ -1,7 +1,7 @@
 use std::io::{BufReader, BufWriter};
 use std::path::Path;
 
-use ndarray::Array1;
+use ndarray::{arr1, Array1};
 use opencl3::command_queue::CommandQueue;
 use opencl3::kernel::ExecuteKernel;
 use opencl3::types::cl_event;
@@ -9,7 +9,9 @@ use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
 use crate::fields::{Fluid, FluidDeserializer, MemUsage, Scalar, ScalarDeserializer};
-use crate::opencl::{CtxDeserializer, Data1dDeserializer, Data2dDeserializer};
+use crate::opencl::{
+    CtxDeserializer, Data1dDeserializer, Data2dDeserializer, DataNd, DataNdDeserializer,
+};
 use crate::raster::IxLike;
 use crate::{
     opencl::{Data, Data1d, Data2d, OpenCLCtx},
@@ -21,32 +23,20 @@ use crate::{
 /// For example, whether they are a fluid or wall, have fixed velocity, etc.
 #[derive(Serialize)]
 pub struct Cells {
-    /// The type of the cell as given by [`CellType`].
-    pub typ: Data1d<i32>,
-
-    /// The _upstream_ cell indices in each direction.
-    /// NOTE: Not public because it's basically an implementation detail.
-    /// NOTE: Currently this gets serialized, we could recreate it but, meh; it's going anyway.
-    idx: Data2d<i32>,
+    /// The flags of the cell as given by [`CellType`].
+    /// TODO: rename `typ` -> `flags`.
+    pub typ: DataNd<i32>,
 
     /// Cell count in each dimension.
-    pub counts: Array1<Ix>,
+    pub counts: Array1<usize>,
 }
 
 impl Cells {
-    pub fn new(opencl: &OpenCLCtx, counts: &Array1<Ix>, q: usize) -> Self {
-        let n = counts.product() as usize;
-        let d = counts.dim();
-
-        // Allocate the buffers.
+    pub fn new(opencl: &OpenCLCtx, counts: &[usize]) -> Self {
         let mut out = Self {
-            typ: Data::new(opencl, [n], 0),
-            idx: Data::new(opencl, [n, q], 0),
-            counts: counts.clone(),
+            typ: Data::new(opencl, counts, 0),
+            counts: arr1(counts),
         };
-
-        // Populate the upstream indices
-        out.idx.host = VelocitySet::make(d, q).upstream_idx(counts);
 
         out.write_to_dev(opencl);
 
@@ -57,7 +47,6 @@ impl Cells {
     pub fn write_to_dev(&mut self, opencl: &OpenCLCtx) {
         let queue = &opencl.queue;
         let _write_t = self.typ.enqueue_write(queue, "typ");
-        let _write_i = self.idx.enqueue_write(queue, "idx");
 
         queue
             .finish()
@@ -67,16 +56,15 @@ impl Cells {
 
 impl MemUsage for Cells {
     fn size_bytes(&self) -> usize {
-        std::mem::size_of::<i32>() * (self.typ.host.len() + self.idx.host.len())
+        std::mem::size_of::<i32>() * (self.typ.host.len())
     }
 }
 
 /// See [`FluidDeserializer`]
 #[derive(Deserialize)]
 struct CellsDeserializer {
-    typ: Data1dDeserializer<i32>,
-    idx: Data2dDeserializer<i32>,
-    counts: Array1<Ix>,
+    typ: DataNdDeserializer<i32>,
+    counts: Array1<usize>,
 }
 
 impl CtxDeserializer for CellsDeserializer {
@@ -85,7 +73,6 @@ impl CtxDeserializer for CellsDeserializer {
     fn with_context(self, opencl: &OpenCLCtx) -> Self::Target {
         Self::Target {
             typ: self.typ.with_context(opencl),
-            idx: self.idx.with_context(opencl),
             counts: self.counts,
         }
     }
@@ -147,17 +134,16 @@ impl SimulationDeserializer {
 }
 
 impl Simulation {
-    pub fn new(opencl: OpenCLCtx, counts: Array1<impl IxLike>, q: usize, omega_ns: f32) -> Self {
-        let counts = counts.mapv(|c| c.into());
-        let cells = Cells::new(&opencl, &counts, q);
-        let fluid = Fluid::new(&opencl, &counts, q, omega_ns);
+    pub fn new(opencl: OpenCLCtx, counts: &[usize], q: usize, omega_ns: f32) -> Self {
+        let cells = Cells::new(&opencl, counts);
+        let fluid = Fluid::new(&opencl, counts, q, omega_ns);
 
         Self {
             opencl: opencl,
             cells: cells,
             fluid: fluid,
             tracers: Vec::new(),
-            gravity: Array1::zeros([counts.dim()]),
+            gravity: Array1::zeros([counts.len()]),
             iteration: 0,
         }
     }
@@ -207,11 +193,18 @@ impl Simulation {
 
         let queue: &CommandQueue = &self.opencl.queue;
 
-        let cell_count = self.cells.counts.product() as usize;
+        let count_s = self.cells.counts.as_slice().unwrap();
 
         // TODO: make this generic over [`D`], [`Q`] and [`EqnType`]!
         let d2q9 = &self.opencl.d2q9_ns_kernel;
         let d2q5 = &self.opencl.d2q5_ad_kernel;
+
+        // TODO: don't copy this every iteration batch
+        let mut qs_d2q9 = Data2d::from_host(&self.opencl, self.fluid.model.qs.clone());
+        let mut qs_d2q5 = Data2d::from_host(&self.opencl, self.fluid.model.qs.clone());
+
+        qs_d2q9.enqueue_write(queue, "qs_d2q9");
+        qs_d2q5.enqueue_write(queue, "qs_d2q5");
 
         let mut events: Vec<cl_event> = Vec::default();
 
@@ -277,9 +270,9 @@ impl Simulation {
                     .set_arg(&mut self.fluid.rho.dev)
                     .set_arg(&mut self.fluid.vel.dev)
                     .set_arg(&self.cells.typ.dev)
-                    .set_arg(&self.cells.idx.dev)
-                    .set_local_work_size(64)
-                    .set_global_work_size(cell_count)
+                    .set_arg(&qs_d2q9.dev)
+                    .set_local_work_sizes(&[8, 8])
+                    .set_global_work_sizes(count_s)
                     .enqueue_nd_range(&queue)
                     .expect("ExecuteKernel::new failed.")
             };
@@ -296,8 +289,9 @@ impl Simulation {
                         .set_arg(&mut tracer.C.dev)
                         .set_arg(&self.fluid.vel.dev)
                         .set_arg(&self.cells.typ.dev)
-                        .set_arg(&self.cells.idx.dev)
-                        .set_global_work_size(cell_count)
+                        .set_arg(&qs_d2q5.dev)
+                        .set_local_work_sizes(&[8, 8])
+                        .set_global_work_sizes(count_s)
                         .enqueue_nd_range(&queue)
                         .expect("ExecuteKernel::new failed.")
                 };

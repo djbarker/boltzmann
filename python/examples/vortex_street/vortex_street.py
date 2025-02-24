@@ -145,43 +145,36 @@ else:
         # tracer_B = sim.add_tracer(q=5, omega_ad=omega_ad)
 
 
-# get refs to the underlying arrays
-vel_ = domain.unflatten(sim.fluid.vel)
-cells_ = domain.unflatten(sim.cells.cell_type)
-tracer_R_ = domain.unflatten(tracer_R.val)
-tracer_G_ = domain.unflatten(tracer_G.val)
-# tracer_B_ = domain.unflatten(tracer_B.val)
-
 # allocate extra arrays for plotting to avoid reallocating each step
-vmag_ = np.zeros_like(vel_[:, :, 0])
-curl_ = np.zeros_like(vel_[:, :, 0])
-qcrit_ = np.zeros_like(vel_[:, :, 0])
-tracer_ = np.zeros([vel_.shape[0], vel_.shape[1], 3])
+vmag_ = np.zeros_like(sim.fluid.rho[:, :])
+curl_ = np.zeros_like(sim.fluid.rho[:, :])
+qcrit_ = np.zeros_like(sim.fluid.rho[:, :])
+tracer_ = np.zeros([sim.fluid.vel.shape[0], sim.fluid.vel.shape[1], 3])
 
 if not args.resume:
     with time(logger, "Setting initial values"):
         # fixed velocity in- & out-flow
-        cells_[+0, :] = CellType.FIXED_FLUID.value  # left
-        cells_[-1, :] = CellType.FIXED_FLUID.value  # right
-        cells_[+0, :] |= CellType.FIXED_SCALAR_VALUE.value  # left
-        cells_[-1, :] |= CellType.FIXED_SCALAR_VALUE.value  # right
+        sim.cells.cell_type[+0, :] = CellType.FIXED_FLUID.value  # left
+        sim.cells.cell_type[-1, :] = CellType.FIXED_FLUID.value  # right
+        sim.cells.cell_type[+0, :] |= CellType.FIXED_SCALAR_VALUE.value  # left
+        sim.cells.cell_type[-1, :] |= CellType.FIXED_SCALAR_VALUE.value  # right
 
         # cylinder
         XX, YY = np.meshgrid(domain.x, domain.y, indexing="ij")
         cx = x_si / 6.0
         cy = 0.0
         RR = (XX - cx) ** 2 + (YY - cy) ** 2
-        cells_[RR < (d_si / 2) ** 2] = CellType.WALL.value
+        sim.cells.cell_type[RR < (d_si / 2) ** 2] = CellType.WALL.value
 
         # Ramp the velocity from zero to flow velocity moving away from the walls.
-        WW = 1 - 1 * (cells_ == CellType.WALL.value)
+        WW = 1 - 1 * (sim.cells.cell_type == CellType.WALL.value)
         DD = distance_transform_edt(WW).clip(0, int((y_si / 10) / domain.dx))
         DD = DD / np.max(DD)
-        vel_[:, :, 0] = -u_si * DD
+        sim.fluid.vel[:, :, 0] = -u_si * DD
 
         # perturb velocity
         vy_si = np.exp(-(((domain.x - cx) / 10) ** 2)) * u_si * 0.01
-        vel_[:, :, 1] = vy_si[:, None]
+        sim.fluid.vel[:, :, 1] = vy_si[:, None]
 
         # Set up tracers.
 
@@ -203,12 +196,12 @@ if not args.resume:
         mask = distance_transform_edt(WW)
         mask = (0 < mask) & (mask <= 2)
         # mask = (mask == 1) & (mask == 2)
-        tracer_R_[:, : domain.counts[1] // 2][mask[:, : domain.counts[1] // 2]] = 1.0
-        tracer_G_[:, domain.counts[1] // 2 :][mask[:, domain.counts[1] // 2 :]] = 1.0
-        cells_[mask] |= CellType.FIXED_SCALAR_VALUE.value
+        tracer_R.val[:, : domain.counts[1] // 2][mask[:, : domain.counts[1] // 2]] = 1.0
+        tracer_G.val[:, domain.counts[1] // 2 :][mask[:, domain.counts[1] // 2 :]] = 1.0
+        sim.cells.cell_type[mask] |= CellType.FIXED_SCALAR_VALUE.value
 
         # IMPORTANT: convert velocity to lattice units / timestep
-        vel_[:] = scales.to_lattice_units(vel_, **VELOCITY)
+        sim.fluid.vel[:] = scales.to_lattice_units(sim.fluid.vel, **VELOCITY)
 
 
 # %% Define simulation output
@@ -231,7 +224,7 @@ def write_png(
     tcol = (255, 255, 255) if background == "dark" else (0, 0, 0)
     bcol = (0, 0, 0) if background == "dark" else (255, 255, 255)
 
-    with PngWriter(path, outx, domain, cells_, data, **kwargs) as img:
+    with PngWriter(path, outx, domain, sim.cells.cell_type, data, **kwargs) as img:
         draw = ImageDraw.Draw(img)
         draw.text((fox, foy), label, tcol, font=FONT, stroke_width=fsz // 15, stroke_fill=bcol)
 
@@ -255,12 +248,12 @@ def write_output(base: Path, iter: int):
         qcrit_[:] = np.tanh(qcrit_ / vmax_qcrit) * vmax_qcrit
 
     with time(logger, "calc vmag", silent=not verbose):
-        vmag_[:] = np.sqrt(np.sum(vel_**2, axis=-1))
+        vmag_[:] = np.sqrt(np.sum(sim.fluid.vel**2, axis=-1))
         vmag_[:] = scales.to_physical_units(vmag_, **VELOCITY)
         vmag_[:] = np.tanh(vmag_ / vmax_vmag) * vmax_vmag
 
-    tracer_[:, :, 0] = tracer_R_
-    tracer_[:, :, 1] = tracer_G_
+    tracer_[:, :, 0] = tracer_R.val
+    tracer_[:, :, 1] = tracer_G.val
     # tracer_[:, :, 2] = tracer_B_
 
     # Then write out the PNG files.

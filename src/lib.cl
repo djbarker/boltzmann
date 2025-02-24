@@ -1,13 +1,19 @@
 kernel void update_d2q9_bgk(int even, float omega, float gx, float gy, global float *f,
                             global float *rho, global float *vel,
-                           global int *cell, global int *idx) {
+                            global int *cell, global int *qs) {
 
-  const size_t ir = get_global_id(0); // offset for rho
-  const size_t ii = ir * 9;           // offset for idx
-  const size_t iv = ir * 2;           // offset for vel
-  const size_t if_ = ir * 9;          // offset for f
+  const size_t iy = get_global_id(0);
+  const size_t ix = get_global_id(1);
+  const size_t sy = get_global_size(0);
+  const size_t sx = get_global_size(1);
 
-  const int c = cell[ir];
+  const size_t ii = ix * sy + iy;     // 1d idx for arrays
+  // const size_t ii = iy * sx + ix;     // 1d idx for arrays
+
+  const size_t iv = ii * 2;           // offset for vel
+  const size_t if_ = ii * 9;          // offset for f
+
+  const int c = cell[ii];
   const bool wall = (c & 1);
   const bool fixed = (c & 6); 
 
@@ -23,17 +29,27 @@ kernel void update_d2q9_bgk(int even, float omega, float gx, float gy, global fl
   // rust: vel[idx[n]][m]  -->  opencl: vel[idx[ii + n] * 2 + m]
   // rust: rho[idx[n]]     -->  opencl: rho[idx[ii + n]]
 
+  int off[8]; // do not bother with zero
+  
+  # pragma unroll
+  for (int i=0; i<8; i++) {
+    int ix_ = (ix + qs[2*(i+1) + 0] + sx) % sx;
+    int iy_ = (iy + qs[2*(i+1) + 1] + sy) % sy;
+    off[i] = ix_ * sy + iy_;
+    // off[i] = iy_ * sx + ix_;
+  }
+
   float f_[9];
   if (even) {
-    f_[0] = f[9 * idx[ii + 0] + 0];
-    f_[1] = f[9 * idx[ii + 1] + 1];
-    f_[2] = f[9 * idx[ii + 2] + 2];
-    f_[3] = f[9 * idx[ii + 3] + 3];
-    f_[4] = f[9 * idx[ii + 4] + 4];
-    f_[5] = f[9 * idx[ii + 5] + 5];
-    f_[6] = f[9 * idx[ii + 6] + 6];
-    f_[7] = f[9 * idx[ii + 7] + 7];
-    f_[8] = f[9 * idx[ii + 8] + 8];
+    f_[0] = f[if_ + 0];
+    f_[1] = f[9 * off[1-1] + 1];
+    f_[2] = f[9 * off[2-1] + 2];
+    f_[3] = f[9 * off[3-1] + 3];
+    f_[4] = f[9 * off[4-1] + 4];
+    f_[5] = f[9 * off[5-1] + 5];
+    f_[6] = f[9 * off[6-1] + 6];
+    f_[7] = f[9 * off[7-1] + 7];
+    f_[8] = f[9 * off[8-1] + 8];
   } else {
     f_[0] = f[if_ + 0];
     f_[1] = f[if_ + 2];
@@ -57,7 +73,7 @@ kernel void update_d2q9_bgk(int even, float omega, float gx, float gy, global fl
 
   if (fixed) {
     omega = 1.0;
-    r = rho[ir];
+    r = rho[ii];
     vx = vel[iv + 0];
     vy = vel[iv + 1];
   }
@@ -82,15 +98,15 @@ kernel void update_d2q9_bgk(int even, float omega, float gx, float gy, global fl
 
   // write back to same locations
   if (even) {
-    f[9 * idx[ii + 0] + 0] = f_[0];
-    f[9 * idx[ii + 1] + 1] = f_[2];
-    f[9 * idx[ii + 2] + 2] = f_[1];
-    f[9 * idx[ii + 3] + 3] = f_[4];
-    f[9 * idx[ii + 4] + 4] = f_[3];
-    f[9 * idx[ii + 5] + 5] = f_[6];
-    f[9 * idx[ii + 6] + 6] = f_[5];
-    f[9 * idx[ii + 7] + 7] = f_[8];
-    f[9 * idx[ii + 8] + 8] = f_[7];
+    f[if_ + 0] = f_[0];
+    f[9 * off[1 - 1] + 1] = f_[2];
+    f[9 * off[2 - 1] + 2] = f_[1];
+    f[9 * off[3 - 1] + 3] = f_[4];
+    f[9 * off[4 - 1] + 4] = f_[3];
+    f[9 * off[5 - 1] + 5] = f_[6];
+    f[9 * off[6 - 1] + 6] = f_[5];
+    f[9 * off[7 - 1] + 7] = f_[8];
+    f[9 * off[8 - 1] + 8] = f_[7];
   } else {
     # pragma unroll
     for (int i = 0; i < 9; i++) {
@@ -98,22 +114,27 @@ kernel void update_d2q9_bgk(int even, float omega, float gx, float gy, global fl
     }
   }
 
-  rho[ir] = r;
+  rho[ii] = r;
   vel[iv + 0] = vx;
   vel[iv + 1] = vy;
 }
 
 kernel void update_d2q5_bgk(int even, float omega, global float *f,
                             global float *val, global float *vel,
-                            global int *cell, global int *idx) {
+                            global int *cell, global int *qs) {
 
-  const size_t ic = get_global_id(0); // offset for conc (val)
-  const size_t ii = ic * 9;           // offset for idx (D2Q9 offsets)
-  const size_t iv = ic * 2;           // offset for vel
-  const size_t if_ = ic * 5;          // offset for f
+  const size_t iy = get_global_id(0);
+  const size_t ix = get_global_id(1);
+  const size_t sy = get_global_size(0);
+  const size_t sx = get_global_size(1);
 
-  const int c = cell[ic];
-  const bool wall = (c & 1);
+  const size_t ii = ix * sy + iy;     // 1d idx for arrays
+
+  const size_t iv = ii * 2;           // offset for vel
+  const size_t if_ = ii * 5;          // offset for f
+
+  const int c = cell[ii];
+  const bool wall = (c & 1); 
   const bool fixed = (c & 8);
 
   if (wall) {
@@ -121,20 +142,22 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
     return;
   }
 
-  // Array access conversion:
-  //
-  // rust:     idx[n]      -->  opencl:     idx[ii + n]
-  // rust:   f[idx[n]][m]  -->  opencl:   f[idx[ii + n] * 5 + m]
-  // rust: vel[idx[n]][m]  -->  opencl: vel[idx[ii + n] * 2 + m]
-  // rust: rho[idx[n]]     -->  opencl: rho[idx[ii + n]]
+  int off[4]; // do not bother with zero
+  
+  # pragma unroll
+  for (int i=0; i<4; i++) {
+    int ix_ = (ix + qs[2*(i+1) + 0] + sx) % sx;
+    int iy_ = (iy + qs[2*(i+1) + 1] + sy) % sy;
+    off[i] = ix_ * sy + iy_;
+  }
 
   float f_[5];
   if (even) {
-    f_[0] = f[5 * idx[ii + 0] + 0];
-    f_[1] = f[5 * idx[ii + 1] + 1];
-    f_[2] = f[5 * idx[ii + 2] + 2];
-    f_[3] = f[5 * idx[ii + 3] + 3];
-    f_[4] = f[5 * idx[ii + 4] + 4];
+    f_[0] = f[if_ + 0];
+    f_[1] = f[5 * off[1 - 1] + 1];
+    f_[2] = f[5 * off[2 - 1] + 2];
+    f_[3] = f[5 * off[3 - 1] + 3];
+    f_[4] = f[5 * off[4 - 1] + 4];
   } else {
     f_[0] = f[if_ + 0];
     f_[1] = f[if_ + 2];
@@ -150,7 +173,7 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
 
   if (fixed) {
     omega = 1.0;
-    C = val[ic];
+    C = val[ii];
   }
 
   const float vv = vx * vx + vy * vy;
@@ -169,11 +192,11 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
 
   // write back to same locations
   if (even) {
-    f[5 * idx[ii + 0] + 0] = f_[0];
-    f[5 * idx[ii + 1] + 1] = f_[2];
-    f[5 * idx[ii + 2] + 2] = f_[1];
-    f[5 * idx[ii + 3] + 3] = f_[4];
-    f[5 * idx[ii + 4] + 4] = f_[3];
+    f[if_ + 0] = f_[0];
+    f[5 * off[1 - 1] + 1] = f_[2];
+    f[5 * off[2 - 1] + 2] = f_[1];
+    f[5 * off[3 - 1] + 3] = f_[4];
+    f[5 * off[4 - 1] + 4] = f_[3];
   } else {
     # pragma unroll
     for (int i = 0; i < 5; i++) {
@@ -181,5 +204,5 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
     }
   }
 
-  val[ic] = C;
+  val[ii] = C;
 }

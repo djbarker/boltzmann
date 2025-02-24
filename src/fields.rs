@@ -1,11 +1,8 @@
-use ndarray::{Array1, ArrayView2, Zip};
+use ndarray::{ArrayViewD, Zip};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    opencl::{
-        CtxDeserializer, Data, Data1d, Data1dDeserializer, Data2d, Data2dDeserializer, OpenCLCtx,
-    },
-    raster::Ix,
+    opencl::{CtxDeserializer, Data, DataNd, DataNdDeserializer, OpenCLCtx},
     velocities::VelocitySet,
 };
 
@@ -17,22 +14,24 @@ pub trait MemUsage {
 /// This owns the simulation data and we expose a view to Python.
 #[derive(Serialize)]
 pub struct Fluid {
-    pub f: Data2d<f32>,
-    pub rho: Data1d<f32>,
-    pub vel: Data2d<f32>,
+    pub f: DataNd<f32>,
+    pub rho: DataNd<f32>,
+    pub vel: DataNd<f32>,
     pub model: VelocitySet,
     pub omega: f32,
 }
 
 impl Fluid {
-    pub fn new(opencl: &OpenCLCtx, counts: &Array1<Ix>, q: usize, omega: f32) -> Self {
-        let n = counts.product() as usize;
-        let d = counts.dim();
+    pub fn new(opencl: &OpenCLCtx, counts: &[usize], q: usize, omega: f32) -> Self {
+        let d = counts.len();
+
+        let counts_q = [counts, &[q]].concat();
+        let counts_d = [counts, &[d]].concat();
 
         Self {
-            f: Data::new(opencl, [n, q], 0.0),
-            rho: Data::new(opencl, [n], 1.0),
-            vel: Data::new(opencl, [n, d], 0.0),
+            f: Data::new(opencl, counts_q, 0.0),
+            rho: Data::new(opencl, counts, 1.0),
+            vel: Data::new(opencl, counts_d, 0.0),
             model: VelocitySet::make(d, q),
             omega: omega,
         }
@@ -84,21 +83,22 @@ impl MemUsage for Fluid {
 #[allow(non_snake_case)]
 #[derive(Serialize)]
 pub struct Scalar {
-    pub g: Data2d<f32>,
-    pub C: Data1d<f32>,
+    pub g: DataNd<f32>,
+    pub C: DataNd<f32>,
     pub model: VelocitySet,
     pub omega: f32,
 }
 
 #[allow(non_snake_case)]
 impl Scalar {
-    pub fn new(opencl: &OpenCLCtx, counts: &Array1<i32>, q: usize, omega: f32) -> Self {
-        let n = counts.product() as usize;
-        let d = counts.dim();
+    pub fn new(opencl: &OpenCLCtx, counts: &[usize], q: usize, omega: f32) -> Self {
+        let d = counts.len();
+
+        let counts_q = [counts, &[q]].concat();
 
         Self {
-            g: Data::new(opencl, [n, q], 0.0),
-            C: Data::new(opencl, [n], 0.0),
+            g: Data::new(opencl, counts_q, 0.0),
+            C: Data::new(opencl, counts, 0.0),
             model: VelocitySet::make(d, q),
             omega: omega,
         }
@@ -126,7 +126,7 @@ impl Scalar {
             .expect("queue.finish() failed [Scalar::read_to_host]");
     }
 
-    pub fn equilibrate(&mut self, vel: ArrayView2<f32>) {
+    pub fn equilibrate(&mut self, vel: ArrayViewD<f32>) {
         // Rayonify this zip (though it's only called once at the beginning so doesn't need to be mega fast)
         Zip::from(&self.C.host)
             .and(vel.rows())
@@ -151,9 +151,9 @@ impl MemUsage for Scalar {
 /// dev and host buffers together without having them live in the same struct.
 #[derive(Deserialize)]
 pub(crate) struct FluidDeserializer {
-    f: Data2dDeserializer<f32>,
-    rho: Data1dDeserializer<f32>,
-    vel: Data2dDeserializer<f32>,
+    f: DataNdDeserializer<f32>,
+    rho: DataNdDeserializer<f32>,
+    vel: DataNdDeserializer<f32>,
     model: VelocitySet,
     omega: f32,
 }
@@ -176,8 +176,8 @@ impl CtxDeserializer for FluidDeserializer {
 #[derive(Deserialize)]
 #[allow(non_snake_case)]
 pub(crate) struct ScalarDeserializer {
-    g: Data2dDeserializer<f32>,
-    C: Data1dDeserializer<f32>,
+    g: DataNdDeserializer<f32>,
+    C: DataNdDeserializer<f32>,
     model: VelocitySet,
     omega: f32,
 }
