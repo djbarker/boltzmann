@@ -113,8 +113,8 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
                             global float *val, global float *vel,
                             global int *cell, global int *qs, int sx, int sy) {
 
-  const size_t iy = get_global_id(0);
-  const size_t ix = get_global_id(1);
+  const size_t ix = get_global_id(0);
+  const size_t iy = get_global_id(1);
   // const size_t sx = get_global_size(0);
   // const size_t sy = get_global_size(1);
 
