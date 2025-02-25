@@ -8,7 +8,7 @@ use opencl3::{
     kernel::Kernel,
     memory::{Buffer, CL_MEM_READ_WRITE},
     program::Program,
-    types::CL_BLOCKING,
+    types::{CL_BLOCKING, CL_NON_BLOCKING},
 };
 use serde::{Deserialize, Serialize};
 
@@ -57,12 +57,6 @@ impl OpenCLCtx {
             d2q5_ad_kernel: d2q5,
         }
     }
-}
-
-/// Structs implementing this trait can mutate themselves to allocate the OpenCL buffers when requested.
-/// This includes any nested calls to [`AllocateCL`] members.
-pub trait AllocateCL {
-    fn with_opencl_buff(self, opencl: &OpenCLCtx) -> Self;
 }
 
 /// Long-lived container for host- and OpenCL device buffers.
@@ -115,7 +109,7 @@ impl<T, D: Dimension> Data<T, D> {
             queue
                 .enqueue_write_buffer(
                     &mut self.dev,
-                    CL_BLOCKING,
+                    CL_NON_BLOCKING,
                     0,
                     self.host.as_slice().unwrap(),
                     &[], // ignore events ... why?
