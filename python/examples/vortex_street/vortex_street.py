@@ -1,41 +1,23 @@
 # %% Imports
 
+from concurrent.futures import ThreadPoolExecutor
 import logging
 from typing import Literal
 import numpy as np
-import matplotlib.pyplot as plt
 
 from scipy.ndimage import distance_transform_edt
 from PIL import ImageDraw, ImageFont
 from matplotlib.colors import LinearSegmentedColormap
 from pathlib import Path
-from pprint import pformat
-from dataclasses import asdict
 
 from boltzmann.utils.logger import basic_config, time, dotted
-from boltzmann.core import (
-    VELOCITY,
-    Domain,
-    Scales,
-    SimulationMeta,
-    CellType,
-    TimeMeta,
-    calc_lbm_params,
-)
+from boltzmann.core import VELOCITY, Domain, Scales, CellType, TimeMeta, calc_lbm_params
 from boltzmann.utils.mpl import PngWriter
-from boltzmann.simulation import (
-    parse_cli,
-    run_sim,
-)
-from boltzmann_rs import (
-    calc_curl_2d,
-    Simulation,
-)
+from boltzmann.simulation import parse_cli, run_sim
+from boltzmann_rs import calc_curl_2d, Simulation  # type: ignore
 
 basic_config()
 logger = logging.getLogger(__name__)
-
-verbose = True
 
 
 def make_cmap(name: str, colors: list) -> LinearSegmentedColormap:
@@ -109,11 +91,6 @@ lower = np.array([0 * x_si, -y_si / 2.0])
 upper = np.array([1 * x_si, +y_si / 2.0])
 domain = Domain.make(lower=lower, upper=upper, dx=dx)
 
-sim_meta = SimulationMeta(domain, time_meta)
-
-logger.info(f"Params: \n{pformat(asdict(sim_meta), sort_dicts=False, width=10)}")
-dotted(logger, "Iters / output", int(out_dt_si / dt))
-
 # color scheme constants
 l_si = d_si / 10  # Characteristic length scale for color normalization.
 vmax_vmag = 1.6 * u_si
@@ -168,12 +145,12 @@ if not args.resume:
 
         # Ramp the velocity from zero to flow velocity moving away from the walls.
         WW = 1 - 1 * (sim.cells.cell_type == CellType.WALL.value)
-        DD = distance_transform_edt(WW).clip(0, int((y_si / 10) / domain.dx))
+        DD = distance_transform_edt(WW).clip(0, int((y_si / 10) / domain.dx))  # type: ignore
         DD = DD / np.max(DD)
         sim.fluid.vel[:, :, 0] = u_si * DD
 
         # perturb velocity
-        vy_si = np.exp(-(((domain.x - cx) / 10) ** 2)) * u_si * 0.01
+        vy_si = -np.exp(-(((domain.x - cx) / 10) ** 2)) * u_si * 0.01
         sim.fluid.vel[:, :, 1] = vy_si[:, None]
 
         # Set up tracers.
@@ -194,11 +171,21 @@ if not args.resume:
         # cells_[xs, :] = CellType.FIXED.value
 
         mask = distance_transform_edt(WW)
-        mask = (0 < mask) & (mask <= 2)
+        mask = (0 < mask) & (mask <= 2)  # type: ignore
         # mask = (mask == 1) & (mask == 2)
         tracer_R.val[:, : domain.counts[1] // 2][mask[:, : domain.counts[1] // 2]] = 1.0
         tracer_G.val[:, domain.counts[1] // 2 :][mask[:, domain.counts[1] // 2 :]] = 1.0
         sim.cells.cell_type[mask] |= CellType.FIXED_SCALAR_VALUE.value
+
+        sx = slice(2 * domain.counts[0] // 5, 2 * domain.counts[0] // 5 + 10)
+        sy = slice(domain.counts[1] // 2 - 5, domain.counts[1] // 2 + 5)
+        tracer_R.val[sx, sy] = 1.0
+        sim.cells.cell_type[sx, sy] |= CellType.FIXED_SCALAR_VALUE.value
+
+        sx = slice(2 * domain.counts[0] // 3, 2 * domain.counts[0] // 3 + 10)
+        sy = slice(domain.counts[1] // 2 - 5, domain.counts[1] // 2 + 5)
+        tracer_G.val[sx, sy] = 1.0
+        sim.cells.cell_type[sx, sy] |= CellType.FIXED_SCALAR_VALUE.value
 
         # IMPORTANT: convert velocity to lattice units / timestep
         sim.fluid.vel[:] = scales.to_lattice_units(sim.fluid.vel, **VELOCITY)
@@ -233,12 +220,16 @@ def smooth(x: np.ndarray, a: float = 10) -> np.ndarray:
     return x - np.log(1 + np.exp(a * (x - 1))) / a + np.log(1 + np.exp(a * (-x - 1))) / a
 
 
+# output is slow so we parallelize it
+executor = ThreadPoolExecutor(max_workers=10)
+
+
 def write_output(base: Path, iter: int):
     global conc_, curl_, qcrit_, vmag_, tracer_
 
     # First gather the various data to output.
 
-    with time(logger, "calc curl", silent=not verbose):
+    with time(logger, "calc curl"):
         curl__ = curl_.reshape(sim.fluid.rho.shape)
         qcrit__ = qcrit_.reshape(sim.fluid.rho.shape)
         calc_curl_2d(sim.fluid.vel, sim.cells.cell_type, cnt, curl__, qcrit__)  # in LU
@@ -247,7 +238,7 @@ def write_output(base: Path, iter: int):
         qcrit_[:] = qcrit_ * ((dx / dt) / dx) ** 2  # in SI
         qcrit_[:] = np.tanh(qcrit_ / vmax_qcrit) * vmax_qcrit
 
-    with time(logger, "calc vmag", silent=not verbose):
+    with time(logger, "calc vmag"):
         vmag_[:] = np.sqrt(np.sum(sim.fluid.vel**2, axis=-1))
         vmag_[:] = scales.to_physical_units(vmag_, **VELOCITY)
         vmag_[:] = np.tanh(vmag_ / vmax_vmag) * vmax_vmag
@@ -258,27 +249,51 @@ def write_output(base: Path, iter: int):
 
     # Then write out the PNG files.
 
-    with time(logger, "writing output", 1, silent=not verbose):
-        write_png(
-            base / f"vmag_{iter:06d}.png",
-            vmag_,
-            "Velocity",
-            "dark",
-            cmap="inferno",
-            vmax=vmax_vmag,
+    with time(logger, "writing output", 1):
+        futs = []
+        futs.append(
+            executor.submit(
+                lambda: write_png(
+                    base / f"vmag_{iter:06d}.png",
+                    vmag_,
+                    "Velocity",
+                    "dark",
+                    cmap="inferno",
+                    vmax=vmax_vmag,
+                )
+            )
         )
 
-        write_png(
-            base / f"curl_{iter:06d}.png",
-            curl_,
-            "Vorticity",
-            # "light",
-            # cmap="RdBu",
-            "dark",
-            cmap=OrangeBlue,
-            vmin=-vmax_curl,
-            vmax=vmax_curl,
+        futs.append(
+            executor.submit(
+                lambda: write_png(
+                    base / f"curl_{iter:06d}.png",
+                    curl_,
+                    "Vorticity",
+                    # "light",
+                    # cmap="RdBu",
+                    "dark",
+                    cmap=OrangeBlue,
+                    vmin=-vmax_curl,
+                    vmax=vmax_curl,
+                )
+            )
         )
+
+        futs.append(
+            executor.submit(
+                lambda: write_png(
+                    base / f"cols_{iter:06d}.png",
+                    tracer_,
+                    "Tracer",
+                    "dark",
+                    vmax=0.4,
+                )
+            )
+        )
+
+        # join
+        _ = [f.result() for f in futs]
 
         # write_png(
         #     base / f"qcrit_{iter:06d}.png",
@@ -290,18 +305,10 @@ def write_output(base: Path, iter: int):
         #     vmax=vmax_qcrit,
         # )
 
-        write_png(
-            base / f"cols_{iter:06d}.png",
-            tracer_,
-            "Tracer",
-            "dark",
-            vmax=0.4,
-        )
-
 
 # %% Main Loop
 
-run_sim(args.base, sim_meta, sim, write_output)
+run_sim(args.base, time_meta, sim, write_output, write_checkpoints=not args.no_checkpoint)
 
 
 # render with
