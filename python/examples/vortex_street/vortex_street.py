@@ -211,7 +211,7 @@ def write_png(
     tcol = (255, 255, 255) if background == "dark" else (0, 0, 0)
     bcol = (0, 0, 0) if background == "dark" else (255, 255, 255)
 
-    with PngWriter(path, outx, domain, sim.cells.cell_type, data, **kwargs) as img:
+    with PngWriter(path, outx, sim.cells.cell_type, data, **kwargs) as img:
         draw = ImageDraw.Draw(img)
         draw.text((fox, foy), label, tcol, font=FONT, stroke_width=fsz // 15, stroke_fill=bcol)
 

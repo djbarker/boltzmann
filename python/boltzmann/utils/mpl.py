@@ -21,7 +21,6 @@ class PngWriter(object):
         self,
         path: str | Path,
         outx: int,
-        domain: Domain,
         cell: np.ndarray,
         data: np.ndarray,
         cmap: str | Colormap | None = None,
@@ -30,8 +29,6 @@ class PngWriter(object):
     ):
         self.path = path
 
-        data = domain.unflatten(data)
-        cell = domain.unflatten(cell)
         cell = cell[:, :, None]
         if data.ndim == 2:
             data = data[:, :, None]
@@ -52,7 +49,7 @@ class PngWriter(object):
 
         self.img = fromarray((data * 255).astype(np.uint8))
 
-        ar = domain.counts[1] / domain.counts[0]
+        ar = data.shape[1] / data.shape[0]
         outy = int(outx * ar)
         self.outxy = (outx, outy)
 
