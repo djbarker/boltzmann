@@ -1,20 +1,18 @@
-from abc import ABC, abstractmethod
 import argparse as ap
-import json
 import logging
 import sys
 import datetime
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import Protocol
 
 import numpy as np
 
-from boltzmann.core import SimulationMeta
+from boltzmann.core import TimeMeta
 from boltzmann.utils.logger import PerfInfo, dotted, tick, time
 
-from boltzmann_rs import Simulation, Fluid, Scalar, Cells
+from boltzmann_rs import Simulation
 
 
 logger = logging.getLogger(__name__)
@@ -33,7 +31,7 @@ class OutputCallback(Protocol):
 
 def run_sim(
     base: Path,
-    meta: SimulationMeta,
+    meta: TimeMeta,
     sim: Simulation,
     outf: OutputCallback,
     *,
@@ -44,15 +42,16 @@ def run_sim(
     else:
         base.mkdir()
 
-    batch_iters = meta.time.batch_steps
+    cell_count = np.prod(sim.fluid.rho.shape)
+    batch_iters = meta.batch_steps
     batch_iters = 2 * int(batch_iters / 2 + 0.5)  # iters must be even due to AA pattern
 
     dotted(logger, "Output directory", str(base))
-    dotted(logger, "Memory usage", f"{sim.size_bytes / 1e6:.2f}MB")
+    dotted(logger, "Memory usage", f"{sim.size_bytes // 1_000_000:,d}MB")
     dotted(logger, "Iters / output", batch_iters)
-    dotted(logger, "Cells", f"{np.prod(meta.domain.counts) / 1e6}M")
+    dotted(logger, "Cells", f"{cell_count / 1e6:,.1f}M")
 
-    max_i = meta.time.output_count
+    max_i = meta.output_count
     sim_i = sim.iteration // batch_iters
 
     if sim.iteration > 0:
@@ -63,7 +62,6 @@ def run_sim(
 
     timer_total = tick()
 
-    cell_count = int(np.prod(meta.domain.counts))
     perf_total = PerfInfo()
     for i in range(sim_i + 1, max_i):
         timer = tick()
@@ -97,7 +95,7 @@ def run_sim(
         eta = datetime.datetime.now() + rem * per
 
         logger.info(
-            f"Batch {i}:  {t}  {mlups_batch:7.2f} MLUP/s, sim {perf_batch.seconds:.1f}s, out {perf_out.seconds:.1f}s, eta {eta:%H:%M:%S}"
+            f"Batch {i}:  {t}  {mlups_batch:5,.0f} MLUP/s, sim {perf_batch.seconds:.1f}s, out {perf_out.seconds:.1f}s, eta {eta:%H:%M:%S}"
         )
 
 

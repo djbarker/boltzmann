@@ -3,12 +3,12 @@ import logging
 import numpy as np
 
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from math import sqrt
-from typing import Literal, Sequence, Type, cast, overload
+from typing import Sequence, overload
 
-from boltzmann.utils.option import Some, to_opt, map_opt, Option, unwrap
+from boltzmann.utils.option import Some, to_opt, map_opt, Option
 
 
 logger = logging.getLogger(__name__)
@@ -154,48 +154,6 @@ class Domain:
     def depth(self) -> float:
         return self.get_extent(2)
 
-    def make_array(
-        self,
-        dims: DimsT = None,
-        dtype: Type[np.float32] | Type[np.int32] = np.float32,
-        fill: float | int = 0.0,
-    ) -> np.ndarray:
-        dims = to_dims(dims)
-        dims = [int(np.prod(self.counts))] + dims
-        return np.full(dims, fill, dtype)
-
-    def unflatten(self, arr: np.ndarray) -> np.ndarray:
-        """
-        Expands the collapsed spatial index into one for x, y, and (if needed) z.
-
-        For the simulation, data is just stored in a flat array where the spatial indices are collapsed.
-        This function undoes that collapsing to let us slice into the array along desired axes.
-
-        NOTE: The returned array has C (row-major) ordering so the last axes are contiguous.
-
-        This function is idemponent.
-
-        .. code-block::
-
-            rho = dom.make_array()    # rho.shape == [nx*nx]
-            rho = dom.unflatten(rho)  # rho.shape == [nx, ny]
-            vel = dom.make_array(2)   # vel.shape == [nx*nx, 2]
-            vel = dom.unflatten(vel)  # vel.shape == [nx, ny, 2]
-        """
-        n = arr.shape[1:]
-        c = tuple(self.counts)
-
-        # looks already unflattened
-        if (arr.ndim >= self.dims) and (arr.shape[: self.dims] == c):
-            return arr
-
-        arr_ = np.reshape(arr, c + n, order="C")
-
-        # This check is nice but seems to falsely fail now data is allocated in Rust.
-        # assert arr_.base is arr, "Unflattened array should point to the orignal data."
-
-        return arr_
-
 
 @dataclass
 class TimeMeta:
@@ -316,17 +274,6 @@ ACCELERATION = dict(L=1, T=-2)
 DENSITY = dict(M=1, L=-3)
 
 
-@dataclass
-class SimulationMeta:
-    """
-    Stores all of the parameters needed to run the simulation.
-    """
-
-    domain: Domain
-    time: TimeMeta
-
-
-# Cell type
 class CellType(Enum):
     FLUID = 0
     WALL = 1
