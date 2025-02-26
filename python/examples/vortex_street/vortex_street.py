@@ -44,13 +44,13 @@ OrangeBlue = LinearSegmentedColormap.from_list("OrangeBlue", list(zip(nodes, col
 # %% Params
 
 # dimensions [m]
-aspect_ratio = 2
+aspect_ratio = 3
 y_si = 4.0
 x_si = y_si * aspect_ratio
 
 d_si = 1.5 * y_si / 10.0  # Cylinder diameter.
 
-Re = 10000  # Reynolds number [1]
+Re = 1000  # Reynolds number [1]
 nu_si = 1e-4  # kinematic viscosity [m^2/s]
 u_si = Re * nu_si / d_si  # flow velocity [m/s]
 
@@ -121,14 +121,6 @@ else:
         tracer_G = sim.add_tracer(q=5, omega_ad=omega_ad)
         # tracer_B = sim.add_tracer(q=5, omega_ad=omega_ad)
 
-
-# allocate extra arrays for plotting to avoid reallocating each step
-vmag_ = np.zeros_like(sim.fluid.rho[:, :])
-curl_ = np.zeros_like(sim.fluid.rho[:, :])
-qcrit_ = np.zeros_like(sim.fluid.rho[:, :])
-tracer_ = np.zeros([sim.fluid.vel.shape[0], sim.fluid.vel.shape[1], 3])
-
-if not args.resume:
     with time(logger, "Setting initial values"):
         # fixed velocity in- & out-flow
         sim.cells.cell_type[+0, :] = CellType.FIXED_FLUID.value  # left
@@ -138,7 +130,7 @@ if not args.resume:
 
         # cylinder
         XX, YY = np.meshgrid(domain.x, domain.y, indexing="ij")
-        cx = x_si / 6.0
+        cx = d_si * 2.5
         cy = 0.0
         RR = (XX - cx) ** 2 + (YY - cy) ** 2
         sim.cells.cell_type[RR < (d_si / 2) ** 2] = CellType.WALL.value
@@ -171,27 +163,25 @@ if not args.resume:
         # cells_[xs, :] = CellType.FIXED.value
 
         mask = distance_transform_edt(WW)
-        mask = (0 < mask) & (mask <= 2)  # type: ignore
+        mask = (0 < mask) & (mask <= 4)  # type: ignore
         # mask = (mask == 1) & (mask == 2)
         tracer_R.val[:, : domain.counts[1] // 2][mask[:, : domain.counts[1] // 2]] = 1.0
         tracer_G.val[:, domain.counts[1] // 2 :][mask[:, domain.counts[1] // 2 :]] = 1.0
         sim.cells.cell_type[mask] |= CellType.FIXED_SCALAR_VALUE.value
-
-        sx = slice(2 * domain.counts[0] // 5, 2 * domain.counts[0] // 5 + 10)
-        sy = slice(domain.counts[1] // 2 - 5, domain.counts[1] // 2 + 5)
-        tracer_R.val[sx, sy] = 1.0
-        sim.cells.cell_type[sx, sy] |= CellType.FIXED_SCALAR_VALUE.value
-
-        sx = slice(2 * domain.counts[0] // 3, 2 * domain.counts[0] // 3 + 10)
-        sy = slice(domain.counts[1] // 2 - 5, domain.counts[1] // 2 + 5)
-        tracer_G.val[sx, sy] = 1.0
-        sim.cells.cell_type[sx, sy] |= CellType.FIXED_SCALAR_VALUE.value
 
         # IMPORTANT: convert velocity to lattice units / timestep
         sim.fluid.vel[:] = scales.to_lattice_units(sim.fluid.vel, **VELOCITY)
 
 
 # %% Define simulation output
+
+
+# allocate extra arrays for plotting to avoid reallocating each step
+vmag_ = np.zeros_like(sim.fluid.rho[:, :])
+curl_ = np.zeros_like(sim.fluid.rho[:, :])
+qcrit_ = np.zeros_like(sim.fluid.rho[:, :])
+tracer_ = np.zeros([sim.fluid.vel.shape[0], sim.fluid.vel.shape[1], 3])
+
 
 fsz = domain.counts[1] // 15
 fox = domain.counts[1] // 60
@@ -206,7 +196,7 @@ except OSError as e:
 def write_png(
     path: Path, data: np.ndarray, label: str, background: Literal["dark", "light"], **kwargs
 ):
-    outx = 2000
+    outx = 6000
 
     tcol = (255, 255, 255) if background == "dark" else (0, 0, 0)
     bcol = (0, 0, 0) if background == "dark" else (255, 255, 255)
@@ -216,16 +206,12 @@ def write_png(
         draw.text((fox, foy), label, tcol, font=FONT, stroke_width=fsz // 15, stroke_fill=bcol)
 
 
-def smooth(x: np.ndarray, a: float = 10) -> np.ndarray:
-    return x - np.log(1 + np.exp(a * (x - 1))) / a + np.log(1 + np.exp(a * (-x - 1))) / a
-
-
 # output is slow so we parallelize it
 executor = ThreadPoolExecutor(max_workers=10)
 
 
 def write_output(base: Path, iter: int):
-    global conc_, curl_, qcrit_, vmag_, tracer_
+    global curl_, qcrit_, vmag_, tracer_
 
     # First gather the various data to output.
 
@@ -270,8 +256,6 @@ def write_output(base: Path, iter: int):
                     base / f"curl_{iter:06d}.png",
                     curl_,
                     "Vorticity",
-                    # "light",
-                    # cmap="RdBu",
                     "dark",
                     cmap=OrangeBlue,
                     vmin=-vmax_curl,

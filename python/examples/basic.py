@@ -1,5 +1,8 @@
-# The most simple possible example of setting up & running a simulation.
-# It purely runs the lattice Boltzmann simulation with no mapping to physical units or careful choice of LBM parameters.
+"""
+Almost the simplest possible example of setting up & running a simulation.
+It purely runs the lattice Boltzmann simulation, with no mapping to physical units or careful choice of parameters.
+It does, however, show using a tracer and setting some boundary conditions.
+"""
 
 # %%
 
@@ -9,32 +12,41 @@ import numpy as np
 from boltzmann_rs import Simulation
 
 # Create the simulation.
-tau = 0.52
+tau = 0.51
 cnt = [257, 103]
 sim = Simulation("cpu", cnt, 9, 1 / tau)
+col = sim.add_tracer(5, 1 / tau)
 
 # Set some initial velocity and fix those cells to make a little jet.
-sx = slice(20, 25, 1)
-sy = slice(50, 55, 1)
+sx = slice(20, 25)
+sy = slice(50, 55)
 sim.fluid.vel[sx, sy, 0] = 0.1
-sim.cells.cell_type[sx, sy] |= 6  # "magic" number
+sim.cells.cell_type[sx, sy] |= 6
+col.val[sx, sy] = 1.0
+sim.cells.cell_type[sx, sy] |= 8
 
 sx = slice(50, 55)
 sy = slice(20, 25)
 sim.fluid.vel[sx, sy, 1] = 0.1
-sim.cells.cell_type[sx, sy] |= 6  # "magic" number
+sim.cells.cell_type[sx, sy] |= 6
+col.val[sx, sy] = 1.0
+sim.cells.cell_type[sx, sy] |= 8
+
+sx = slice(45, 60)
+sy = slice(45, 60)
+sim.cells.cell_type[sx, sy] |= 1  # wall
 
 
-# sim.fluid.vel[:10, :10, 1] = 0.1
-# sim.fluid.vel[20:30, :30, 1] = 0.1
-# sim.fluid.vel[40:50, :50, 1] = 0.1
-# sim.fluid.vel[60:70, :70, 1] = 0.1
+# %% Run it.
 
-# %%  Run it.
-sim.iterate(2000)
+sim.iterate(250)
 
 # %% Plot it.
 vmag = np.sqrt(np.sum(sim.fluid.vel**2, -1))
-plt.imshow(vmag.T, interpolation="none", origin="lower", vmax=0.11)
+plt.imshow(vmag.T, interpolation="none", origin="lower", vmin=0, vmax=0.11)
+plt.show()
+
+plt.imshow(col.val.T, interpolation="none", origin="lower", vmin=0, vmax=1)
+plt.show()
 
 # %%
