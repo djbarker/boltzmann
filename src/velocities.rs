@@ -1,4 +1,4 @@
-use ndarray::{arr1, arr2, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{arr1, arr2, Array1, Array2, ArrayView1, Axis};
 use serde::{Deserialize, Serialize};
 
 use crate::{

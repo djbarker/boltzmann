@@ -4,14 +4,13 @@ use std::path::Path;
 use ndarray::{arr1, Array1};
 use opencl3::command_queue::CommandQueue;
 use opencl3::kernel::{ExecuteKernel, Kernel};
-use opencl3::types::cl_event;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
 use crate::fields::{
     make_kernel_key, Field, Fluid, FluidDeserializer, MemUsage, Scalar, ScalarDeserializer,
 };
-use crate::opencl::{CtxDeserializer, Data1d, DataNd, DataNdDeserializer, KernelKey};
+use crate::opencl::{CtxDeserializer, Data1d, DataNd, DataNdDeserializer};
 use crate::opencl::{Data, OpenCLCtx};
 
 /// Contains information about the cells.
@@ -19,8 +18,7 @@ use crate::opencl::{Data, OpenCLCtx};
 #[derive(Serialize)]
 pub struct Cells {
     /// The flags of the cell as given by [`CellType`].
-    /// TODO: rename `typ` -> `flags`.
-    pub typ: DataNd<i32>,
+    pub flags: DataNd<i32>,
 
     /// Cell count in each dimension.
     pub counts: Array1<usize>,
@@ -30,7 +28,7 @@ impl Cells {
     pub fn new(opencl: &OpenCLCtx, counts: &[usize]) -> Self {
         let mut out = Self {
             // TODO: here & in deserializer could be read-only
-            typ: Data::from_val_rw(opencl, counts, 0),
+            flags: Data::from_val_rw(opencl, counts, 0),
             counts: arr1(counts),
         };
 
@@ -42,7 +40,7 @@ impl Cells {
     // Copy data from our host arrays into the OpenCL buffers.
     pub fn write_to_dev(&mut self, opencl: &OpenCLCtx) {
         let queue = &opencl.queue;
-        let _write_t = self.typ.enqueue_write(queue, "typ");
+        let _write_t = self.flags.enqueue_write(queue, "typ");
 
         queue
             .finish()
@@ -52,7 +50,7 @@ impl Cells {
 
 impl MemUsage for Cells {
     fn size_bytes(&self) -> usize {
-        std::mem::size_of::<i32>() * (self.typ.host.len())
+        std::mem::size_of::<i32>() * (self.flags.host.len())
     }
 }
 
@@ -68,7 +66,7 @@ impl CtxDeserializer for CellsDeserializer {
 
     fn with_context(self, opencl: &OpenCLCtx) -> Self::Target {
         Self::Target {
-            typ: self.typ.with_context(opencl),
+            flags: self.typ.with_context(opencl),
             counts: self.counts,
         }
     }
@@ -228,7 +226,7 @@ impl Simulation {
                     .set_arg(&mut self.fluid.f.dev)
                     .set_arg(&mut self.fluid.rho.dev)
                     .set_arg(&mut self.fluid.vel.dev)
-                    .set_arg(&self.cells.typ.dev)
+                    .set_arg(&self.cells.flags.dev)
                     .set_local_work_sizes(&wsize)
                     .set_global_work_sizes(count_s)
                     .enqueue_nd_range(&queue)
@@ -244,7 +242,7 @@ impl Simulation {
                         .set_arg(&mut tracer.g.dev)
                         .set_arg(&mut tracer.C.dev)
                         .set_arg(&self.fluid.vel.dev)
-                        .set_arg(&self.cells.typ.dev)
+                        .set_arg(&self.cells.flags.dev)
                         .set_local_work_sizes(&wsize)
                         .set_global_work_sizes(count_s)
                         .enqueue_nd_range(&queue)
@@ -260,6 +258,8 @@ impl Simulation {
         for tracer in self.tracers.iter_mut() {
             tracer.read_to_host(&self.opencl);
         }
+
+        queue.finish().expect("queue.finish()");
 
         self.iteration += iters as u64;
     }

@@ -10,7 +10,7 @@ use opencl3::{
     kernel::Kernel,
     memory::{Buffer, CL_MEM_READ_ONLY, CL_MEM_READ_WRITE},
     program::Program,
-    types::{cl_mem_flags, CL_BLOCKING, CL_NON_BLOCKING},
+    types::{cl_mem_flags, CL_NON_BLOCKING},
 };
 use serde::{Deserialize, Serialize};
 
@@ -188,7 +188,7 @@ impl<T, D: Dimension> Data<T, D> {
             queue
                 .enqueue_read_buffer(
                     &self.dev,
-                    CL_BLOCKING,
+                    CL_NON_BLOCKING,
                     0,
                     self.host.as_slice_mut().unwrap(),
                     &[], // ignore events ... why?

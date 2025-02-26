@@ -21,20 +21,20 @@ col = sim.add_tracer(5, 1 / tau)
 sx = slice(20, 25)
 sy = slice(50, 55)
 sim.fluid.vel[sx, sy, 0] = 0.1
-sim.cells.cell_type[sx, sy] |= 6
+sim.cells.flags[sx, sy] |= 6
 col.val[sx, sy] = 1.0
-sim.cells.cell_type[sx, sy] |= 8
+sim.cells.flags[sx, sy] |= 8
 
 sx = slice(50, 55)
 sy = slice(20, 25)
 sim.fluid.vel[sx, sy, 1] = 0.1
-sim.cells.cell_type[sx, sy] |= 6
+sim.cells.flags[sx, sy] |= 6
 col.val[sx, sy] = 1.0
-sim.cells.cell_type[sx, sy] |= 8
+sim.cells.flags[sx, sy] |= 8
 
 sx = slice(45, 60)
 sy = slice(45, 60)
-sim.cells.cell_type[sx, sy] |= 1  # wall
+sim.cells.flags[sx, sy] |= 1  # wall
 
 
 # %% Run it.

@@ -182,10 +182,10 @@ struct CellsPy {
 #[pymethods]
 impl CellsPy {
     #[getter]
-    fn cell_type<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<i32>> {
+    fn flags<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<i32>> {
         let borrow = this.borrow();
         let sim = borrow.sim.lock().unwrap();
-        let array = &sim.cells.typ.host;
+        let array = &sim.cells.flags.host;
         unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
     }
 

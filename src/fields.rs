@@ -73,10 +73,6 @@ impl Fluid {
         let _read_f = self.f.enqueue_read(queue);
         let _read_r = self.rho.enqueue_read(queue);
         let _read_v = self.vel.enqueue_read(queue);
-
-        queue
-            .finish()
-            .expect("queue.finish() failed [Fluid::read_to_host]");
     }
 
     pub fn equilibrate(&mut self) {
@@ -148,10 +144,6 @@ impl Scalar {
         let queue = &opencl.queue;
         let _read_g = self.g.enqueue_read(queue);
         let _read_C = self.C.enqueue_read(queue);
-
-        queue
-            .finish()
-            .expect("queue.finish() failed [Scalar::read_to_host]");
     }
 
     pub fn equilibrate(&mut self, vel: ArrayViewD<f32>) {
