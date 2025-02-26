@@ -284,54 +284,6 @@ class CellType(Enum):
     FIXED_SCALAR_VALUE = 8
 
 
-class Model:
-    def __init__(self, ws: list[float], qs: list[list[float]]) -> None:
-        assert len(ws) == len(qs)
-
-        js = np.array([qs.index([-q[0], -q[1]]) for q in qs])
-
-        self.ws = np.array(ws, dtype=np.float32)
-        self.qs = np.array(qs, dtype=np.int32)
-        self.js = np.array(js, dtype=np.int32)
-
-        self.Q = self.qs.shape[0]
-        self.D = self.qs.shape[1]
-
-
-# NOTE: order is not arbitrary
-#       1. rest velocity at index zero
-#       2. pairs of opposite velocities follow
-D2Q9 = Model(
-    [4 / 9, 1 / 9, 1 / 9, 1 / 9, 1 / 9, 1 / 36, 1 / 36, 1 / 36, 1 / 36],
-    [
-        [0, 0],
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1],
-        [1, 1],
-        [-1, -1],
-        [-1, 1],
-        [1, -1],
-    ],
-)
-
-# NOTE: order is not arbitrary
-#       1. rest velocity at index zero
-#       2. pairs of opposite velocities follow
-#       3. matches the first 5 velocities of D2Q9 (important for upstream indexing)
-D2Q5 = Model(
-    [1 / 3, 1 / 6, 1 / 6, 1 / 6, 1 / 6],
-    [
-        [0, 0],
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1],
-    ],
-)
-
-
 def check_lbm_params(Re: float, L: float, tau: float, M_max: float = 0.1):
     """
     Check if the chosen parameters are likely to be stable or not.

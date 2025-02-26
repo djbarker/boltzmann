@@ -2,12 +2,30 @@ use ndarray::{ArrayViewD, Zip};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    opencl::{CtxDeserializer, Data, DataNd, DataNdDeserializer, OpenCLCtx},
+    opencl::{CtxDeserializer, Data, DataNd, DataNdDeserializer, EqnType, KernelKey, OpenCLCtx},
     velocities::VelocitySet,
 };
 
 pub trait MemUsage {
     fn size_bytes(&self) -> usize;
+}
+
+/// Trait for functions we want to be generic over [`Fluid`] / [`Scalar`].
+pub trait Field {
+    fn eqn_type(&self) -> EqnType;
+    fn velocities(&self) -> &VelocitySet;
+}
+
+/// Get the OpenCL kernel lookup key for the given [`Field`].
+pub(crate) fn make_kernel_key<T>(field: &T) -> KernelKey
+where
+    T: Field,
+{
+    KernelKey {
+        d: field.velocities().D(),
+        q: field.velocities().Q(),
+        eqn: field.eqn_type(),
+    }
 }
 
 /// Long-lived container for the fluid Host and OpenCL device buffers.
@@ -29,9 +47,9 @@ impl Fluid {
         let counts_d = [counts, &[d]].concat();
 
         Self {
-            f: Data::new(opencl, counts_q, 0.0),
-            rho: Data::new(opencl, counts, 1.0),
-            vel: Data::new(opencl, counts_d, 0.0),
+            f: Data::from_val_rw(opencl, counts_q, 0.0),
+            rho: Data::from_val_rw(opencl, counts, 1.0),
+            vel: Data::from_val_rw(opencl, counts_d, 0.0),
             model: VelocitySet::make(d, q),
             omega: omega,
         }
@@ -72,6 +90,16 @@ impl Fluid {
     }
 }
 
+impl Field for Fluid {
+    fn eqn_type(&self) -> EqnType {
+        EqnType::NavierStokes
+    }
+
+    fn velocities(&self) -> &VelocitySet {
+        &self.model
+    }
+}
+
 impl MemUsage for Fluid {
     fn size_bytes(&self) -> usize {
         std::mem::size_of::<f32>() * (self.f.host.len() + self.rho.host.len() + self.vel.host.len())
@@ -97,8 +125,8 @@ impl Scalar {
         let counts_q = [counts, &[q]].concat();
 
         Self {
-            g: Data::new(opencl, counts_q, 0.0),
-            C: Data::new(opencl, counts, 0.0),
+            g: Data::from_val_rw(opencl, counts_q, 0.0),
+            C: Data::from_val_rw(opencl, counts, 0.0),
             model: VelocitySet::make(d, q),
             omega: omega,
         }
@@ -134,6 +162,16 @@ impl Scalar {
             .for_each(|&C, v, mut g| {
                 g.assign(&self.model.feq(C, v));
             });
+    }
+}
+
+impl Field for Scalar {
+    fn eqn_type(&self) -> EqnType {
+        EqnType::AdvectionDiffusion
+    }
+
+    fn velocities(&self) -> &VelocitySet {
+        &self.model
     }
 }
 

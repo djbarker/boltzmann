@@ -3,14 +3,16 @@ use std::path::Path;
 
 use ndarray::{arr1, Array1};
 use opencl3::command_queue::CommandQueue;
-use opencl3::kernel::ExecuteKernel;
+use opencl3::kernel::{ExecuteKernel, Kernel};
 use opencl3::types::cl_event;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
-use crate::fields::{Fluid, FluidDeserializer, MemUsage, Scalar, ScalarDeserializer};
-use crate::opencl::{CtxDeserializer, DataNd, DataNdDeserializer};
-use crate::opencl::{Data, Data2d, OpenCLCtx};
+use crate::fields::{
+    make_kernel_key, Field, Fluid, FluidDeserializer, MemUsage, Scalar, ScalarDeserializer,
+};
+use crate::opencl::{CtxDeserializer, Data1d, DataNd, DataNdDeserializer, KernelKey};
+use crate::opencl::{Data, OpenCLCtx};
 
 /// Contains information about the cells.
 /// For example, whether they are a fluid or wall, have fixed velocity, etc.
@@ -27,7 +29,8 @@ pub struct Cells {
 impl Cells {
     pub fn new(opencl: &OpenCLCtx, counts: &[usize]) -> Self {
         let mut out = Self {
-            typ: Data::new(opencl, counts, 0),
+            // TODO: here & in deserializer could be read-only
+            typ: Data::from_val_rw(opencl, counts, 0),
             counts: arr1(counts),
         };
 
@@ -186,105 +189,71 @@ impl Simulation {
 
         let queue: &CommandQueue = &self.opencl.queue;
 
-        // Round global work size upto the next even multiple of 8.
+        // Round global work size up to the next multiple of 16.
         let count_s = self.cells.counts.mapv(|c| {
             let r = c % 16;
             c + (16 - r)
         });
         let count_s = count_s.as_slice().unwrap();
 
-        // I haven't extensively optimized this but 8x8 seems like a good value for 2D.
-        let wsize = [8, 8];
+        // I haven't extensively optimized this but 16x16 seems like a good value for 2D for my GPU.
+        // According `clinfo` the max work group size is 1024, which is 32 x 32.
+        let wsize = [16, 16];
 
-        // TODO: make this generic over [`D`], [`Q`] and [`EqnType`]!
-        let d2q9 = &self.opencl.d2q9_ns_kernel;
-        let d2q5 = &self.opencl.d2q5_ad_kernel;
-
-        // TODO: don't copy this every iteration batch
-        let mut qs_d2q9 = Data2d::from_host(&self.opencl, self.fluid.model.qs.clone());
-        let mut qs_d2q5 = Data2d::from_host(&self.opencl, self.fluid.model.qs.clone());
-
-        qs_d2q9.enqueue_write(queue, "qs_d2q9");
-        qs_d2q5.enqueue_write(queue, "qs_d2q5");
-
-        let mut events: Vec<cl_event> = Vec::default();
-
-        macro_rules! _exec_kernel_inner {
-            // Base case.
-            ($kernel:expr) => {
-                $kernel
-            };
-            // Almost-base case.
-            // This seems unnecessary; why not just do this in the recurse case and rely on the base case?
-            // But it _is_ needed, see: https://users.rust-lang.org/t/tail-recursive-macros/905/3.
-            ($kernel:expr, $arg:expr) => {
-                $kernel.set_arg($arg)
-            };
-            // Recurse case.
-            ($builder:expr, $arg:expr, $($args:expr),+) => {
-                _exec_kernel_inner!{
-                    _exec_kernel_inner!{$builder, $arg}
-                , $($args),*}
-            };
+        fn get_kernel<'a>(opencl: &'a OpenCLCtx, f: &impl Field) -> &'a Kernel {
+            let key = make_kernel_key(f);
+            let msg = format!("Kernel not found: {:?}", key);
+            opencl.kernels.get(&key).expect(msg.as_str())
         }
 
-        /// Run the specified kernel with the given arguments.
-        ///
-        /// Translates the given arguments into the correct sequence of [`ExecuteKernel::set_arg`] calls,
-        /// specifies the work size, and runs the kernel.
-        macro_rules! exec_kernel {
-            // Entry case.
-            ($kernel:expr, $($args:expr),*) => {
-                _exec_kernel_inner!{ ExecuteKernel::new($kernel), $($args),*}
-                    .set_arg(&(self.cells.counts[0] as i32))
-                    .set_arg(&(self.cells.counts[1] as i32))
+        // Things which are constant in the kernel call, but still need to be copied over
+        // TODO: only do this once
+        // TODO: make read-only and use __constant specifier in the kernel args
+        let mut g = Data1d::from_host_ro(&self.opencl, self.gravity.clone());
+        let mut s = Data1d::from_host_ro(&self.opencl, self.cells.counts.mapv(|c| c as i32));
+        g.enqueue_write(&queue, "g");
+        s.enqueue_write(&queue, "s");
+
+        // TODO: do we even need this?
+        for iter in 0..iters {
+            // We cannot pass bools to OpenCL so get an integer with values 0 or 1.
+            let even = (1 - iter % 2) as i32;
+
+            unsafe {
+                ExecuteKernel::new(get_kernel(&self.opencl, &self.fluid))
+                    .set_arg(&s.dev)
+                    .set_arg(&even)
+                    .set_arg(&self.fluid.omega)
+                    .set_arg(&g.dev)
+                    .set_arg(&mut self.fluid.f.dev)
+                    .set_arg(&mut self.fluid.rho.dev)
+                    .set_arg(&mut self.fluid.vel.dev)
+                    .set_arg(&self.cells.typ.dev)
                     .set_local_work_sizes(&wsize)
                     .set_global_work_sizes(count_s)
                     .enqueue_nd_range(&queue)
                     .expect("ExecuteKernel::new failed.")
             };
-        }
-
-        for iter in 0..iters {
-            // We cannot pass bools to OpenCL so get an interger with values 0 or 1.
-            let even = (1 - iter % 2) as i32;
-
-            let d2q9_event = unsafe {
-                exec_kernel!(
-                    d2q9,
-                    &even,
-                    &self.fluid.omega,
-                    &self.gravity[0],
-                    &self.gravity[1],
-                    &mut self.fluid.f.dev,
-                    &mut self.fluid.rho.dev,
-                    &mut self.fluid.vel.dev,
-                    &self.cells.typ.dev,
-                    &qs_d2q9.dev
-                )
-            };
-
-            events.push(d2q9_event.get());
-            queue.finish().expect("queue.finish failed");
 
             for tracer in self.tracers.iter_mut() {
-                let d2q5_event = unsafe {
-                    exec_kernel!(
-                        d2q5,
-                        &even,
-                        &tracer.omega,
-                        &mut tracer.g.dev,
-                        &mut tracer.C.dev,
-                        &self.fluid.vel.dev,
-                        &self.cells.typ.dev,
-                        &qs_d2q5.dev
-                    )
+                unsafe {
+                    ExecuteKernel::new(get_kernel(&self.opencl, tracer))
+                        .set_arg(&s.dev)
+                        .set_arg(&even)
+                        .set_arg(&tracer.omega)
+                        .set_arg(&mut tracer.g.dev)
+                        .set_arg(&mut tracer.C.dev)
+                        .set_arg(&self.fluid.vel.dev)
+                        .set_arg(&self.cells.typ.dev)
+                        .set_local_work_sizes(&wsize)
+                        .set_global_work_sizes(count_s)
+                        .enqueue_nd_range(&queue)
+                        .expect("ExecuteKernel::new failed.")
                 };
-
-                events.push(d2q5_event.get());
-                queue.finish().expect("queue.finish failed");
             }
         }
+
+        queue.finish().expect("queue.finish failed");
 
         // Read the data back from the OpenCL device buffers to the host arrays.
         self.fluid.read_to_host(&self.opencl);

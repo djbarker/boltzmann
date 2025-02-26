@@ -25,13 +25,6 @@ pub mod vect_d;
 pub mod vect_s;
 pub mod velocities;
 
-/// The implemented OpenCL kernels differ in whether they update the velocity or not.
-/// [`EqnType::NavierStokes`] does, whereas [`EqnType::AdvectionDiffusion`] does not.
-pub enum EqnType {
-    NavierStokes,
-    AdvectionDiffusion,
-}
-
 /// Calculate both the curl and Q-criterion in 2D.
 ///
 /// All quantities are in lattice units.
