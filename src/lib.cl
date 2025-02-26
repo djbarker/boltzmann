@@ -1,31 +1,33 @@
-kernel void update_d2q9_bgk(int even, float omega, float gx, float gy, global float *f,
-                            global float *rho, global float *vel,
-                            global int *cell, global int *qs, int sx, int sy) {
+kernel void update_d2q9_bgk(int even, float omega, float gx, float gy,
+                            global float *f, global float *rho,
+                            global float *vel, global int *cell, global int *qs,
+                            int sx, int sy) {
 
   const size_t ix = get_global_id(0);
   const size_t iy = get_global_id(1);
   // const size_t sx = get_global_size(0);
   // const size_t sy = get_global_size(1);
 
-  if (ix >= sx || iy >= sy) return;
+  if (ix >= sx || iy >= sy)
+    return;
 
-  const size_t ii = ix * sy + iy;     // 1d idx for arrays
+  const size_t ii = ix * sy + iy; // 1d idx for arrays
 
   const int c = cell[ii];
   const bool wall = (c & 1);
-  const bool fixed = (c & 6); 
+  const bool fixed = (c & 6);
 
   if (wall) {
     // wall => do nothing
-    return; 
+    return;
   }
 
-  int off[9]; 
-  
-  # pragma unroll
-  for (int i=0; i<9; i++) {
-    int ix_ = (ix + qs[2*i + 0] + sx) % sx;
-    int iy_ = (iy + qs[2*i + 1] + sy) % sy;
+  int off[9];
+
+#pragma unroll
+  for (int i = 0; i < 9; i++) {
+    int ix_ = (ix + qs[2 * i + 0] + sx) % sx;
+    int iy_ = (iy + qs[2 * i + 1] + sy) % sy;
     off[i] = (ix_ * sy + iy_) * 9;
   }
 
@@ -64,8 +66,8 @@ kernel void update_d2q9_bgk(int even, float omega, float gx, float gy, global fl
   if (fixed) {
     omega = 1.0;
     r = rho[ii];
-    vx = vel[ii*2 + 0];
-    vy = vel[ii*2 + 1];
+    vx = vel[ii * 2 + 0];
+    vy = vel[ii * 2 + 1];
   }
 
   const float vv = vx * vx + vy * vy;
@@ -98,15 +100,15 @@ kernel void update_d2q9_bgk(int even, float omega, float gx, float gy, global fl
     f[off[8] + 7] = f_[8];
     f[off[7] + 8] = f_[7];
   } else {
-    # pragma unroll
+#pragma unroll
     for (int i = 0; i < 9; i++) {
       f[off[0] + i] = f_[i];
     }
   }
 
   rho[ii] = r;
-  vel[ii*2 + 0] = vx;
-  vel[ii*2 + 1] = vy;
+  vel[ii * 2 + 0] = vx;
+  vel[ii * 2 + 1] = vy;
 }
 
 kernel void update_d2q5_bgk(int even, float omega, global float *f,
@@ -118,16 +120,16 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
   // const size_t sx = get_global_size(0);
   // const size_t sy = get_global_size(1);
 
-  if (ix >= sx || iy >= sy) return;
+  if (ix >= sx || iy >= sy)
+    return;
 
+  const size_t ii = ix * sy + iy; // 1d idx for arrays
 
-  const size_t ii = ix * sy + iy;     // 1d idx for arrays
-
-  const size_t iv = ii * 2;           // offset for vel
-  const size_t if_ = ii * 5;          // offset for f
+  const size_t iv = ii * 2;  // offset for vel
+  const size_t if_ = ii * 5; // offset for f
 
   const int c = cell[ii];
-  const bool wall = (c & 1); 
+  const bool wall = (c & 1);
   const bool fixed = (c & 8);
 
   if (wall) {
@@ -136,11 +138,11 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
   }
 
   int off[5];
-  
-  # pragma unroll
-  for (int i=0; i<5; i++) {
-    int ix_ = (ix + qs[2*i + 0] + sx) % sx;
-    int iy_ = (iy + qs[2*i + 1] + sy) % sy;
+
+#pragma unroll
+  for (int i = 0; i < 5; i++) {
+    int ix_ = (ix + qs[2 * i + 0] + sx) % sx;
+    int iy_ = (iy + qs[2 * i + 1] + sy) % sy;
     off[i] = (ix_ * sy + iy_) * 5;
   }
 
@@ -191,7 +193,7 @@ kernel void update_d2q5_bgk(int even, float omega, global float *f,
     f[off[4] + 3] = f_[4];
     f[off[3] + 4] = f_[3];
   } else {
-    # pragma unroll
+#pragma unroll
     for (int i = 0; i < 5; i++) {
       f[off[0] + i] = f_[i];
     }
