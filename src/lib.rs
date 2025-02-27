@@ -365,7 +365,7 @@ impl SimulationPy {
 
 /// A module for configuring and running lattice Boltzmann simulations from Python.
 #[pymodule]
-fn boltzmann_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn boltzmann(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyfn(m)]
     #[pyo3(name = "calc_curl_2d")]
     fn calc_curl_2d_py<'py>(

@@ -9,7 +9,8 @@ It does, however, show using a tracer and setting some boundary conditions.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from boltzmann_rs import Simulation
+from boltzmann.core import Simulation
+from boltzmann.vtkio import VtiWriter
 
 # Create the simulation.
 tau = 0.51
@@ -40,6 +41,10 @@ sim.cells.flags[sx, sy] |= 1  # wall
 # %% Run it.
 
 sim.iterate(250)
+
+with VtiWriter("output.vti", cnt) as writer:
+    writer.add_data("velocity", sim.fluid.vel)
+    writer.add_data("density", sim.fluid.rho)
 
 # %% Plot it.
 vmag = np.sqrt(np.sum(sim.fluid.vel**2, -1))

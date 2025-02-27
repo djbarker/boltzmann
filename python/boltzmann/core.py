@@ -10,6 +10,22 @@ from typing import Sequence, overload
 
 from boltzmann.utils.option import Some, to_opt, map_opt, Option
 
+__all__ = [
+    "CellType",
+    "calc_lbm_params",
+    "check_lbm_params",
+]
+
+# ------------------------------------
+# Re-export the rust module here.
+
+import boltzmann.boltzmann  # type: ignore
+from boltzmann.boltzmann import *  # type: ignore  # noqa: F403
+
+if hasattr(boltzmann.boltzmann, "__all__"):
+    __all__.extend(boltzmann.boltzmann.__all__)
+
+# ------------------------------------
 
 logger = logging.getLogger(__name__)
 
@@ -228,7 +244,9 @@ class Scales:
             case (Some(x), Some(t), None):
                 pass
             case _:
-                msg = f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
+                msg = (
+                    f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
+                )
                 raise ValueError(msg)
 
         return Scales(x, t, dm)
@@ -261,7 +279,9 @@ class Scales:
     ) -> np.ndarray: ...
 
     @overload
-    def to_physical_units(self, value: float, L: int = 0, T: int = 0, M: int = 0) -> float: ...
+    def to_physical_units(
+        self, value: float, L: int = 0, T: int = 0, M: int = 0
+    ) -> float: ...
 
     def to_physical_units(
         self, value: float | np.ndarray, L: int = 0, T: int = 0, M: int = 0
