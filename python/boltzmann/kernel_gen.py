@@ -60,10 +60,6 @@ D1Q3 = VelocitySet(
 D2Q9 = tensor_product(D1Q3, D1Q3)
 D3Q27 = tensor_product(D2Q9, D1Q3)
 
-# NOTE: order is not arbitrary
-#       1. rest velocity at index zero
-#       2. pairs of opposite velocities follow
-#       3. matches the first 5 velocities of D2Q9 (important for upstream indexing)
 D2Q5 = VelocitySet(
     [Fraction("1/3"), Fraction("1/6"), Fraction("1/6"), Fraction("1/6"), Fraction("1/6")],
     [
@@ -126,22 +122,26 @@ def gen_kernel_AA1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]) 
 
     kernel = Kernel()
 
-    # preamble; get the OpenCL indices
+    # get the velocity set
+    qs = ", ".join(f"{{{', '.join(list(map(str, q)))}}}" for q in model.qs)
+    kernel += f"const int qs[{nvel}][{ndim}] = {{{qs}}};\n\n"
+
+    # get the OpenCL indices
     for axis in axes:
         kernel += f"const int i{axis.name} = get_global_id({axis.idx});\n"
     kernel += "\n"
 
     # check if we actually need to do any work
-    cond = " || ".join([f"i{axis.name} >= s{axis.name}" for axis in axes])
+    cond = " || ".join([f"i{axis.name} >= s[{axis.idx}]" for axis in axes])
     kernel += f"if ({cond}) return;\n\n"
 
     # calculate the 1d index into the data
-    stride = []
+    stride = ["1"]
     index = []
     for axis in axes[::-1]:
         s = " * ".join(stride)
         i = f"i{axis.name} * {s}"
-        stride.append(f"s{axis.name}")
+        stride.append(f"s[{axis.idx}]")
         index.append(i)
 
     ii = " + ".join(index)
@@ -166,8 +166,8 @@ def gen_kernel_AA1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]) 
     inner1 = ""
     inner2 = "0"  # relying on the compiler to optimize this away
     for axis in axes:
-        inner1 += f"const int i{axis.name}_ = (i{axis.name} + qs[{nvel}*i + {axis.value}] + s{axis.name}) % s{axis.name};\n"
-        inner2 = f"{inner2} * s{axis.name} + i{axis.name}_"
+        inner1 += f"const int i{axis.name}_ = (i{axis.name} + qs[i][{axis.value}] + s[{axis.idx}]) % s[{axis.idx}];\n"
+        inner2 = f"{inner2} * s[{axis.idx}] + i{axis.name}_"
     kernel += f"""
     int off[{nvel}];
 
@@ -217,7 +217,7 @@ def gen_kernel_AA1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]) 
     # add gravity if needed
     if kernel_type == "fluid":
         for axis in axes:
-            kernel += f"v{axis.name} += (g{axis.name} / omega);\n"
+            kernel += f"v{axis.name} += (g[{axis.idx}] / omega);\n"
 
     # update values if fixed
     kernel += """
@@ -261,12 +261,15 @@ def gen_kernel_AA1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]) 
     args_g = ", ".join(f"float g{a.name}" for a in axes)
     args_s = ", ".join(f"int s{a.name}" for a in axes)
 
+    if kernel_type == "fluid":
+        args = f"__constant int *s, int even, float omega, __constant float *g, global float *f, global float *rho, global float *vel, __constant int *cell"
+    else:
+        args = f"__constant int *s, int even, float omega, global float *f, global float *val, global float *vel, __constant int *cell"
+
     kernel.kernel = dedent(
         f"""
     kernel void update_d{ndim}q{nvel}_bgk(
-        int even, float omega, {args_g},
-        global float *f, global float *rho, global float *vel, global int *cell,
-        global int *qs, {args_s}
+        {args}
     ) {{
         {indent(kernel.kernel, "   ")}
     }}

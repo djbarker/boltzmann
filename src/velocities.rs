@@ -7,7 +7,10 @@ use crate::{
 };
 
 /// Contains the weights & velocities for calculating offsets and equilibrium distribution functions.
-/// NOTE: The order matches that used in [`lib.cl`].
+///
+/// TODO: This is a bit duplicated with `kernel_gen.py`, we could also generate the OpenCL
+///       calc_equilibrium and do it device side before iterating. That would be nicer.
+///       It's also completely gross that I just hardcoded the values.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VelocitySet {
     pub ws: Array1<f32>,
@@ -48,11 +51,13 @@ impl VelocitySet {
         out
     }
 
+    // PONDER: can't this just be an enum?
     pub fn make(d: usize, q: usize) -> VelocitySet {
         match (d, q) {
             (1, 3) => Self::D1Q3(),
             (2, 9) => Self::D2Q9(),
             (2, 5) => Self::D2Q5(),
+            (3, 27) => Self::D3Q27(),
             _ => panic!("Unknown model: D{}Q{}", d, q),
         }
     }
@@ -95,6 +100,69 @@ impl VelocitySet {
         VelocitySet {
             ws: arr1(&[1. / 3., 1. / 6., 1. / 6., 1. / 6., 1. / 6.]),
             qs: arr2(&[[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]),
+        }
+    }
+
+    pub fn D3Q27() -> VelocitySet {
+        VelocitySet {
+            ws: arr1(&[
+                8. / 27.,
+                2. / 27.,
+                2. / 27.,
+                2. / 27.,
+                1. / 54.,
+                1. / 54.,
+                2. / 27.,
+                1. / 54.,
+                1. / 54.,
+                2. / 27.,
+                1. / 54.,
+                1. / 54.,
+                1. / 54.,
+                1. / 216.,
+                1. / 216.,
+                1. / 54.,
+                1. / 216.,
+                1. / 216.,
+                2. / 27.,
+                1. / 54.,
+                1. / 54.,
+                1. / 54.,
+                1. / 216.,
+                1. / 216.,
+                1. / 54.,
+                1. / 216.,
+                1. / 216.,
+            ]),
+            qs: arr2(&[
+                [0, 0, 0],
+                [0, 0, 1],
+                [0, 0, -1],
+                [0, 1, 0],
+                [0, 1, 1],
+                [0, 1, -1],
+                [0, -1, 0],
+                [0, -1, 1],
+                [0, -1, -1],
+                [1, 0, 0],
+                [1, 0, 1],
+                [1, 0, -1],
+                [1, 1, 0],
+                [1, 1, 1],
+                [1, 1, -1],
+                [1, -1, 0],
+                [1, -1, 1],
+                [1, -1, -1],
+                [-1, 0, 0],
+                [-1, 0, 1],
+                [-1, 0, -1],
+                [-1, 1, 0],
+                [-1, 1, 1],
+                [-1, 1, -1],
+                [-1, -1, 0],
+                [-1, -1, 1],
+                [-1, -1, -1],
+            ]),
         }
     }
 

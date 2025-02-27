@@ -1,10 +1,11 @@
-kernel void update_d2q9_bgk(__constant int *s, 
-                            int even, float omega, __constant float *g,
-                            global float *f, global float *rho,
-                            global float *vel, global int *cell) {
+kernel void update_d2q9_bgk(__constant int *s, int even, float omega,
+                            __constant float *g, global float *f,
+                            global float *rho, global float *vel,
+                            global int *cell) {
 
-  const int qs[9][2] = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, -1}, {-1, 1}, {1, -1}};
-  
+  const int qs[9][2] = {{0, 0}, {1, 0},   {-1, 0}, {0, 1}, {0, -1},
+                        {1, 1}, {-1, -1}, {-1, 1}, {1, -1}};
+
   const size_t ix = get_global_id(0);
   const size_t iy = get_global_id(1);
 
@@ -111,9 +112,9 @@ kernel void update_d2q9_bgk(__constant int *s,
   vel[ii * 2 + 1] = vy;
 }
 
-kernel void update_d2q5_bgk(global int *s, int even, float omega,
-                            global float *f, global float *val, global float *vel,
-                            global int *cell) {
+kernel void update_d2q5_bgk(__constant int *s, int even, float omega,
+                            global float *f, global float *val,
+                            global float *vel, global int *cell) {
   const int qs[5][2] = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
   const size_t ix = get_global_id(0);
@@ -203,18 +204,21 @@ kernel void update_d2q5_bgk(global int *s, int even, float omega,
   val[ii] = C;
 }
 
-kernel void update_d3q27_bgk(int even, float omega, float gx, float gy,
-                             float gz, global float *f, global float *rho,
-                             global float *vel, global int *cell,
-                             global int *qs, int sx, int sy, int sz) {
+kernel void update_d3q27_bgk(__constant int *s, int even, float omega,
+                             __constant float *g, global float *f,
+                             global float *rho, global float *vel,
+                             __constant int *cell) {
+
+  const int qs[27][3] = {{0, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, 1, 0}, {0, 1, 1}, {0, 1, -1}, {0, -1, 0}, {0, -1, 1}, {0, -1, -1}, {1, 0, 0}, {1, 0, 1}, {1, 0, -1}, {1, 1, 0}, {1, 1, 1}, {1, 1, -1}, {1, -1, 0}, {1, -1, 1}, {1, -1, -1}, {-1, 0, 0}, {-1, 0, 1}, {-1, 0, -1}, {-1, 1, 0}, {-1, 1, 1}, {-1, 1, -1}, {-1, -1, 0}, {-1, -1, 1}, {-1, -1, -1}};
+
   const int ix = get_global_id(0);
   const int iy = get_global_id(1);
   const int iz = get_global_id(2);
 
-  if (ix >= sx || iy >= sy || iz >= sz)
+  if (ix >= s[0] || iy >= s[1] || iz >= s[2])
     return;
 
-  const int ii = iz * +iy * sz + ix * sz * sy;
+  const int ii = iz * 1 + iy * 1 * s[2] + ix * 1 * s[2] * s[1];
 
   const int c = cell[ii];
   const int wall = (c & 1);
@@ -229,11 +233,11 @@ kernel void update_d3q27_bgk(int even, float omega, float gx, float gy,
 
 #pragma unroll
   for (int i = 0; i < 27; i++) {
-    const int ix_ = (ix + qs[27 * i + 0] + sx) % sx;
-    const int iy_ = (iy + qs[27 * i + 1] + sy) % sy;
-    const int iz_ = (iz + qs[27 * i + 2] + sz) % sz;
+    const int ix_ = (ix + qs[i][0] + s[0]) % s[0];
+    const int iy_ = (iy + qs[i][1] + s[1]) % s[1];
+    const int iz_ = (iz + qs[i][2] + s[2]) % s[2];
 
-    off[i] = (0 * sx + ix_ * sy + iy_ * sz + iz_) * 27;
+    off[i] = (0 * s[0] + ix_ * s[1] + iy_ * s[2] + iz_) * 27;
   }
 
   float f_[27];
@@ -297,16 +301,16 @@ kernel void update_d3q27_bgk(int even, float omega, float gx, float gy,
   }
 
   // clang-format off
-    float r = f_[0] + f_[1] + f_[2] + f_[3] + f_[4] + f_[5] + f_[6] + f_[7] + f_[8] + f_[9] + f_[10] + f_[11] + f_[12] + f_[13] + f_[14] + f_[15] + f_[16] + f_[17] + f_[18] + f_[19] + f_[20] + f_[21] + f_[22] + f_[23] + f_[24] + f_[25] + f_[26];
-    float vx = ((f_[0] * 0)+(f_[1] * 0)+(f_[2] * 0)+(f_[3] * 0)+(f_[4] * 0)+(f_[5] * 0)+(f_[6] * 0)+(f_[7] * 0)+(f_[8] * 0)+(f_[9] * 1)+(f_[10] * 1)+(f_[11] * 1)+(f_[12] * 1)+(f_[13] * 1)+(f_[14] * 1)+(f_[15] * 1)+(f_[16] * 1)+(f_[17] * 1)+(f_[18] * -1)+(f_[19] * -1)+(f_[20] * -1)+(f_[21] * -1)+(f_[22] * -1)+(f_[23] * -1)+(f_[24] * -1)+(f_[25] * -1)+(f_[26] * -1)) / r;
-    float vy = ((f_[0] * 0)+(f_[1] * 0)+(f_[2] * 0)+(f_[3] * 1)+(f_[4] * 1)+(f_[5] * 1)+(f_[6] * -1)+(f_[7] * -1)+(f_[8] * -1)+(f_[9] * 0)+(f_[10] * 0)+(f_[11] * 0)+(f_[12] * 1)+(f_[13] * 1)+(f_[14] * 1)+(f_[15] * -1)+(f_[16] * -1)+(f_[17] * -1)+(f_[18] * 0)+(f_[19] * 0)+(f_[20] * 0)+(f_[21] * 1)+(f_[22] * 1)+(f_[23] * 1)+(f_[24] * -1)+(f_[25] * -1)+(f_[26] * -1)) / r;
-    float vz = ((f_[0] * 0)+(f_[1] * 1)+(f_[2] * -1)+(f_[3] * 0)+(f_[4] * 1)+(f_[5] * -1)+(f_[6] * 0)+(f_[7] * 1)+(f_[8] * -1)+(f_[9] * 0)+(f_[10] * 1)+(f_[11] * -1)+(f_[12] * 0)+(f_[13] * 1)+(f_[14] * -1)+(f_[15] * 0)+(f_[16] * 1)+(f_[17] * -1)+(f_[18] * 0)+(f_[19] * 1)+(f_[20] * -1)+(f_[21] * 0)+(f_[22] * 1)+(f_[23] * -1)+(f_[24] * 0)+(f_[25] * 1)+(f_[26] * -1)) / r;
+   float r = f_[0] + f_[1] + f_[2] + f_[3] + f_[4] + f_[5] + f_[6] + f_[7] + f_[8] + f_[9] + f_[10] + f_[11] + f_[12] + f_[13] + f_[14] + f_[15] + f_[16] + f_[17] + f_[18] + f_[19] + f_[20] + f_[21] + f_[22] + f_[23] + f_[24] + f_[25] + f_[26];
+   float vx = ((f_[0] * 0)+(f_[1] * 0)+(f_[2] * 0)+(f_[3] * 0)+(f_[4] * 0)+(f_[5] * 0)+(f_[6] * 0)+(f_[7] * 0)+(f_[8] * 0)+(f_[9] * 1)+(f_[10] * 1)+(f_[11] * 1)+(f_[12] * 1)+(f_[13] * 1)+(f_[14] * 1)+(f_[15] * 1)+(f_[16] * 1)+(f_[17] * 1)+(f_[18] * -1)+(f_[19] * -1)+(f_[20] * -1)+(f_[21] * -1)+(f_[22] * -1)+(f_[23] * -1)+(f_[24] * -1)+(f_[25] * -1)+(f_[26] * -1)) / r;
+   float vy = ((f_[0] * 0)+(f_[1] * 0)+(f_[2] * 0)+(f_[3] * 1)+(f_[4] * 1)+(f_[5] * 1)+(f_[6] * -1)+(f_[7] * -1)+(f_[8] * -1)+(f_[9] * 0)+(f_[10] * 0)+(f_[11] * 0)+(f_[12] * 1)+(f_[13] * 1)+(f_[14] * 1)+(f_[15] * -1)+(f_[16] * -1)+(f_[17] * -1)+(f_[18] * 0)+(f_[19] * 0)+(f_[20] * 0)+(f_[21] * 1)+(f_[22] * 1)+(f_[23] * 1)+(f_[24] * -1)+(f_[25] * -1)+(f_[26] * -1)) / r;
+   float vz = ((f_[0] * 0)+(f_[1] * 1)+(f_[2] * -1)+(f_[3] * 0)+(f_[4] * 1)+(f_[5] * -1)+(f_[6] * 0)+(f_[7] * 1)+(f_[8] * -1)+(f_[9] * 0)+(f_[10] * 1)+(f_[11] * -1)+(f_[12] * 0)+(f_[13] * 1)+(f_[14] * -1)+(f_[15] * 0)+(f_[16] * 1)+(f_[17] * -1)+(f_[18] * 0)+(f_[19] * 1)+(f_[20] * -1)+(f_[21] * 0)+(f_[22] * 1)+(f_[23] * -1)+(f_[24] * 0)+(f_[25] * 1)+(f_[26] * -1)) / r;
   // clang-format on
-
   const float vv = vx * vx + vy * vy + vz * vz;
-  vx += (gx / omega);
-  vy += (gy / omega);
-  vz += (gz / omega);
+
+  vx += (g[0] / omega);
+  vy += (g[1] / omega);
+  vz += (g[2] / omega);
 
   if (fixed) {
     omega = 1.0;
@@ -315,6 +319,7 @@ kernel void update_d3q27_bgk(int even, float omega, float gx, float gy,
     vy = vel[ii * 3 + 1];
     vz = vel[ii * 3 + 2];
   }
+
   // clang-format off
    f_[0] += omega * (r * (8/27) * (1 + 0 * vx + 0 * vy + 0 * vz + 0.5 * ((0 * vx + 0 * vy + 0 * vz) * (0 * vx + 0 * vy + 0 * vz) - vv)) - f_[0]);
    f_[1] += omega * (r * (2/27) * (1 + 0 * vx + 0 * vy + 1 * vz + 0.5 * ((0 * vx + 0 * vy + 1 * vz) * (0 * vx + 0 * vy + 1 * vz) - vv)) - f_[1]);

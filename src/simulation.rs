@@ -196,7 +196,12 @@ impl Simulation {
 
         // I haven't extensively optimized this but 16x16 seems like a good value for 2D for my GPU.
         // According `clinfo` the max work group size is 1024, which is 32 x 32.
-        let wsize = [16, 16];
+        let wsize = match self.fluid.model.D() {
+            1 => Vec::from([1024]),
+            2 => Vec::from([16, 16]),
+            3 => Vec::from([8, 8, 8]),
+            _ => panic!("D must be 1, 2 or 3"),
+        };
 
         fn get_kernel<'a>(opencl: &'a OpenCLCtx, f: &impl Field) -> &'a Kernel {
             let key = make_kernel_key(f);
