@@ -44,7 +44,9 @@ class VtiWriter:
         self.path = str(path)
         self.data: dict[str, np.ndarray] = {}  # The field data. A name -> data mapping.
         self.counts = list(counts)
-        self.default: str | None = None  # Name of the field displayed by default in ParaView.
+        self.default: str | None = (
+            None  # Name of the field displayed by default in ParaView.
+        )
 
     @property
     def ndim(self) -> int:
@@ -94,7 +96,9 @@ class VtiWriter:
         """
 
         if self.default is not None and self.default != name:
-            raise ValueError(f"Default key already set! [old={self.default!r}, new={name!r}]")
+            raise ValueError(
+                f"Default key already set! [old={self.default!r}, new={name!r}]"
+            )
 
         self.default = name
 
@@ -128,10 +132,10 @@ class VtiWriter:
         if self.default is not None:
             pnt_data.SetActiveAttribute(self.default, vtk.VTK_ATTRIBUTE_MODE_DEFAULT)
 
-        # zipper = vtk.vtkZLibDataCompressor()
+        zipper = vtk.vtkZLibDataCompressor()
         writer = vtk.vtkXMLImageDataWriter()
         writer.SetFileName(self.path)
-        # writer.SetCompressor(zipper)
+        writer.SetCompressor(zipper)
         writer.SetInputData(img_data)
         writer.Write()
 
@@ -140,7 +144,9 @@ class VtiWriter:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
-            logger.warning(f"Not writing VTK file due to exception. [path={self.path!r}]")
+            logger.warning(
+                f"Not writing VTK file due to exception. [path={self.path!r}]"
+            )
             return
 
         self.write()
