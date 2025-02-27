@@ -6,6 +6,7 @@ A GPU accelerated Python package for running [Lattice-Boltzmann](https://en.wiki
     <picture align="center">
         <img src="README/banner.png"/>
     </picture>
+    </br>
     <i>
     2D flow around a cylinder with Re=10,000 and 27 million grid cells.
     </i>
@@ -81,6 +82,7 @@ This should produce the plot below
     <picture align="center">
         <img src="README/example_basic.png"/>
     </picture>
+    </br>
     <i>
     Basic 2D simulation showing <a href="https://en.wikipedia.org/wiki/Kelvin%E2%80%93Helmholtz_instability">Kelvin-Helmoltz instability</a>.
     </i>
