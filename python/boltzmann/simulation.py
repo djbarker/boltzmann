@@ -1,5 +1,6 @@
 import argparse as ap
 import logging
+import os
 import sys
 import datetime
 
@@ -56,9 +57,9 @@ def run_sim(
 
     if sim.iteration > 0:
         logger.info(f"Resuming from step {sim_i}")
-    else:
-        with time(logger, "Wrote step 0 outputs."):
-            outf(base, 0)
+
+    with time(logger, f"Wrote step {sim_i} outputs."):
+        outf(base, sim_i)
 
     timer_total = tick()
 
@@ -82,8 +83,9 @@ def run_sim(
 
         if write_checkpoints:
             with time(logger, "checkpointing"):
-                # pass
-                sim.write_checkpoint(str(base / "checkpoint.mpk"))
+                # First write to a temp file, then move into place atomically to avoid corruption.
+                sim.write_checkpoint(str(base / "checkpoint.mpk.tmp"))
+                os.replace(base / "checkpoint.mpk.tmp", base / "checkpoint.mpk")
 
         perf_out = timer.tock() - perf_batch
 
