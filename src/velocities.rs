@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     raster::{counts_to_strides, raster_row_major, sub_to_idx, Ix, StrideOrder},
-    utils::vmod_nd,
+    utils::vmod,
 };
 
 /// Contains the weights & velocities for calculating offsets and equilibrium distribution functions.
@@ -175,7 +175,7 @@ impl VelocitySet {
         for sub in raster_row_major(counts.clone()) {
             for q in 0..self.Q() {
                 let sub_ = sub.clone() + ax0!(self.qs, q).mapv(|q| q as Ix);
-                let sub_ = vmod_nd(sub_, &counts);
+                let sub_ = vmod(sub_, &counts);
                 let j = sub_to_idx(&sub_, &strides);
                 idx[(i, q)] = j as Ix;
             }

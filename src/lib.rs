@@ -14,15 +14,13 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterato
 use raster::StrideOrder::RowMajor;
 use raster::{counts_to_strides, idx_to_sub, Ix};
 use simulation::{CellType, Simulation};
-use utils::vmod_nd;
+use utils::vmod;
 
 pub mod fields;
 pub mod opencl;
 pub mod raster;
 pub mod simulation;
 pub mod utils;
-pub mod vect_d;
-pub mod vect_s;
 pub mod velocities;
 
 /// Calculate both the curl and Q-criterion in 2D.
@@ -47,7 +45,7 @@ fn calc_curl_qcrit_2d(
 
     let offset = |sub: &Array1<Ix>, off: [Ix; 2]| {
         let off = arr1(&off);
-        let sub = vmod_nd(sub + off, &counts);
+        let sub = vmod(sub + off, &counts);
         [sub[0] as usize, sub[1] as usize]
     };
 
