@@ -32,12 +32,13 @@ A GPU accelerated Python package for running [Lattice-Boltzmann](https://en.wiki
 ### Installation
 
 Currently the installation of this package is very manual.
-To install from source you will need a working installation of [Rust](https://www.rust-lang.org/tools/install) and OpenCL.
+To install from source you will need something to manage your Python environments ([`micromamba`](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html), for example) and a working installation of [Rust](https://www.rust-lang.org/tools/install). To actually run any simulations you will need a working OpenCL setup.
+
 The following steps will set-up a Python environment and (editable) install the `boltzmann` module:
 
 ```bash
 # create & use a new environment
-$ conda create -n boltzmann python=3.10 maturin && conda activate boltzmann  
+$ micromamba create -n boltzmann python=3.10 maturin && micromamba activate boltzmann  
 # download the repo
 $ git clone git@github.com:djbarker/boltzmann.git && cd boltzmann
 # build & install the module
@@ -87,3 +88,7 @@ This should produce the plot below
     Basic 2D simulation showing <a href="https://en.wikipedia.org/wiki/Kelvin%E2%80%93Helmholtz_instability">Kelvin-Helmoltz instability</a>.
     </i>
 </p>
+
+## Examples
+
+There are some examples of simulations run with this package in the [gallery](/gallery/), the code for which is available under the [`examples`](/python/examples/) directory.
