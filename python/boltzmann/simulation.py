@@ -10,10 +10,8 @@ from typing import Protocol
 
 import numpy as np
 
-from boltzmann.core import TimeMeta
+from boltzmann.core import Simulation, TimeMeta
 from boltzmann.utils.logger import PerfInfo, dotted, tick, time
-
-from boltzmann_rs import Simulation
 
 
 logger = logging.getLogger(__name__)
