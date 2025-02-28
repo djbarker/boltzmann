@@ -9,7 +9,9 @@ They were all run on my local desktop PC, which has an RTX 4060 Ti graphics card
 ![Flow Past a Cylinder](banner.png)
 
 2D simulation with 27 million grid cells at a Reynold's number of 10,000.
-Code at [`vortex_street/vortex_street.py`](python/examples/vortex_street/vortex_street.py).
+The flow undergoes [vortex shedding](https://en.wikipedia.org/wiki/Vortex_shedding) and is somewhat turbulent. 
+
+_Code at [`vortex_street/vortex_street.py`](/python/examples/vortex_street/vortex_street.py)._
 
 ## Colliding Jets
 
@@ -18,4 +20,5 @@ Code at [`vortex_street/vortex_street.py`](python/examples/vortex_street/vortex_
 An example simulation showing the use of tracers.
 The simulation is of two jets colliding head-on. 
 Each jet & its motion is highlighted by the tracers, here coloured yellow and purple for each jet.
-Code at [`jets/jets.py`](python/examples/jets/jets.py).
+
+_Code at [`jets/jets.py`](/python/examples/jets/jets.py)._
