@@ -4,7 +4,7 @@ A GPU accelerated Python package for running [Lattice-Boltzmann](https://en.wiki
 
 <p align="center">
     <picture align="center">
-        <img src="README/banner.png"/>
+        <img src="gallery/banner.png"/>
     </picture>
     </br>
     <i>
@@ -80,7 +80,7 @@ This should produce the plot below
 
 <p align="center">
     <picture align="center">
-        <img src="README/example_basic.png"/>
+        <img src="gallery/example_basic.png"/>
     </picture>
     </br>
     <i>
