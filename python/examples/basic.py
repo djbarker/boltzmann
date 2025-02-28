@@ -1,57 +1,28 @@
-"""
-Almost the simplest possible example of setting up & running a simulation.
-It purely runs the lattice Boltzmann simulation, with no mapping to physical units or careful choice of parameters.
-It does, however, show using a tracer and setting some boundary conditions.
-"""
-
 # %%
 
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
 
 from boltzmann.core import Simulation
-from boltzmann.vtkio import VtiWriter
 
-# Create the simulation.
+np.random.seed(42)
+
+# Create the simulation
 tau = 0.51
-cnt = [257, 103]
-sim = Simulation("cpu", cnt, 9, 1 / tau)
-col = sim.add_tracer(5, 1 / tau)
+sim = Simulation("cpu", [200, 100], 1 / tau)
 
-# Set some initial velocity and fix those cells to make a little jet.
-sx = slice(20, 25)
-sy = slice(50, 55)
-sim.fluid.vel[sx, sy, 0] = 0.1
-sim.cells.flags[sx, sy] |= 6
-col.val[sx, sy] = 1.0
-sim.cells.flags[sx, sy] |= 8
+# Set some initial condition
+sim.fluid.vel[:, 40:60, 0] = 0.1
+sim.fluid.rho[:] += 0.1 * np.random.uniform(-1, 1, sim.fluid.rho.shape)
 
-sx = slice(50, 55)
-sy = slice(20, 25)
-sim.fluid.vel[sx, sy, 1] = 0.1
-sim.cells.flags[sx, sy] |= 6
-col.val[sx, sy] = 1.0
-sim.cells.flags[sx, sy] |= 8
+# Run it
+sim.iterate(3000)
 
-sx = slice(45, 60)
-sy = slice(45, 60)
-sim.cells.flags[sx, sy] |= 1  # wall
-
-
-# %% Run it.
-
-sim.iterate(250)
-
-with VtiWriter("output.vti", cnt) as writer:
-    writer.add_data("velocity", sim.fluid.vel)
-    writer.add_data("density", sim.fluid.rho)
-
-# %% Plot it.
-vmag = np.sqrt(np.sum(sim.fluid.vel**2, -1))
-plt.imshow(vmag.T, interpolation="none", origin="lower", vmin=0, vmax=0.11)
-plt.show()
-
-plt.imshow(col.val.T, interpolation="none", origin="lower", vmin=0, vmax=1)
+# Plot it
+dvydx = np.diff(sim.fluid.vel[..., 1], axis=0)[:, :-1]
+dvxdy = np.diff(sim.fluid.vel[..., 0], axis=1)[:-1, :]
+curl = dvydx - dvxdy
+plt.imshow(curl.T, cmap="RdBu")
 plt.show()
 
 # %%

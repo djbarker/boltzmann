@@ -240,7 +240,15 @@ impl SimulationPy {
 #[pymethods]
 impl SimulationPy {
     #[new]
-    fn new(dev: String, counts: Vec<usize>, q: usize, omega_ns: f32) -> Self {
+    #[pyo3(signature = (dev, counts, omega_ns, q=None))]
+    fn new(dev: String, counts: Vec<usize>, omega_ns: f32, q: Option<usize>) -> Self {
+        // If q is not provided infer the most common kernels for each dimension.
+        let q = q.unwrap_or(match counts.len() {
+            1 => 3,
+            2 => 9,
+            3 => 27,
+            _ => panic!("Invalid number of dimensions. Expected either 1, 2 or 3."),
+        });
         let dev = DeviceTypePy::from(dev).into();
         Self {
             sim: Arc::new(Mutex::new(Simulation::new(dev, &counts, q, omega_ns))),
@@ -283,13 +291,23 @@ impl SimulationPy {
     /// Add a scalar field which will follow the [Advection-Diffusion equation](https://en.wikipedia.org/wiki/Convection%E2%80%93diffusion_equation).
     ///
     /// Returns the [`ScalarPy`] object for the added tracer; you must keep this around to access the data.
+    #[pyo3(signature = (omega_ad, q=None))]
     fn add_tracer<'py>(
         this: Bound<'py, Self>,
-        q: usize,
         omega_ad: f32,
+        q: Option<usize>,
     ) -> PyResult<Bound<'py, ScalarPy>> {
         let this = this.borrow_mut();
         let mut sim = this.sim();
+
+        // If q is not provided infer the most common kernels for each dimension.
+        let q = q.unwrap_or(match sim.cells.counts.len() {
+            1 => 3,
+            2 => 5,
+            3 => 7,
+            _ => panic!("Invalid number of dimensions. Expected either 1, 2 or 3."),
+        });
+
         let c = sim.cells.counts.as_slice().unwrap();
         let tracer = Scalar::new(&sim.opencl, c, q, omega_ad);
         sim.add_tracer(tracer);
