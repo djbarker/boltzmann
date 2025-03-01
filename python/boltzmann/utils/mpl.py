@@ -1,12 +1,35 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.colors import Colormap
 from PIL.Image import Image, Resampling, fromarray
 from pathlib import Path
-from typing import Any
 
-from boltzmann.core import Domain
+
+def make_cmap(name: str, colors: list) -> LinearSegmentedColormap:
+    """
+    Make a custom colormap from a list of colors which are evenly spaced.
+    """
+    nodes = np.linspace(0, 1, len(colors))
+    return LinearSegmentedColormap.from_list(name, list(zip(nodes, colors)))
+
+
+_colors = [
+    "#ffe359",
+    "#ff8000",
+    "#734c26",
+    "#1c1920",
+    "#1c1920",
+    "#1c1920",
+    "#265773",
+    "#0f82b8",
+    "#8fceff",
+]
+
+_nodes = [0.0, 0.16666667, 0.33333333, 0.49, 0.5, 0.51, 0.66666667, 0.83333333, 1.0]
+
+OrangeBlue = LinearSegmentedColormap.from_list("OrangeBlue", list(zip(_nodes, _colors)))
 
 
 class PngWriter(object):
