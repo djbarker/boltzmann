@@ -7,39 +7,16 @@ import numpy as np
 
 from scipy.ndimage import distance_transform_edt
 from PIL import ImageDraw, ImageFont
-from matplotlib.colors import LinearSegmentedColormap
 from pathlib import Path
 
 from boltzmann.utils.logger import basic_config, time, dotted
 from boltzmann.core import VELOCITY, Domain, Scales, CellType, TimeMeta, calc_lbm_params
-from boltzmann.utils.mpl import PngWriter
+from boltzmann.core import calc_curl_2d, Simulation  # type: ignore
+from boltzmann.utils.mpl import PngWriter, OrangeBlue
 from boltzmann.simulation import parse_cli, run_sim
-from boltzmann_rs import calc_curl_2d, Simulation  # type: ignore
 
 basic_config()
 logger = logging.getLogger(__name__)
-
-
-def make_cmap(name: str, colors: list) -> LinearSegmentedColormap:
-    nodes = np.linspace(0, 1, len(colors))
-    return LinearSegmentedColormap.from_list(name, list(zip(nodes, colors)))
-
-
-colors = [
-    "#ffe359",
-    "#ff8000",
-    "#734c26",
-    "#1c1920",
-    "#1c1920",
-    "#1c1920",
-    "#265773",
-    "#0f82b8",
-    "#8fceff",
-]
-
-nodes = [0.0, 0.16666667, 0.33333333, 0.49, 0.5, 0.51, 0.66666667, 0.83333333, 1.0]
-
-OrangeBlue = LinearSegmentedColormap.from_list("OrangeBlue", list(zip(nodes, colors)))
 
 # %% Params
 
@@ -54,7 +31,7 @@ Re = 1000  # Reynolds number [1]
 nu_si = 1e-4  # kinematic viscosity [m^2/s]
 u_si = Re * nu_si / d_si  # flow velocity [m/s]
 
-# LBM parameterization
+# LBM parameters
 L = 3000
 
 D = L * (d_si / y_si)
@@ -81,7 +58,6 @@ out_dt_si = dt * n
 time_meta = TimeMeta.make(
     dt_step=dt,
     dt_output=out_dt_si,
-    # dt_output=dt,
     output_count=800,
 )
 
@@ -116,27 +92,27 @@ if args.resume:
         # tracer_B = sim.get_tracer(2)
 else:
     with time(logger, "Creating simulation"):
-        sim = Simulation(args.dev, cnt, q=9, omega_ns=omega_ns)
-        tracer_R = sim.add_tracer(q=5, omega_ad=omega_ad)
-        tracer_G = sim.add_tracer(q=5, omega_ad=omega_ad)
-        # tracer_B = sim.add_tracer(q=5, omega_ad=omega_ad)
+        sim = Simulation(args.dev, cnt, omega_ns=omega_ns)
+        tracer_R = sim.add_tracer(omega_ad=omega_ad)
+        tracer_G = sim.add_tracer(omega_ad=omega_ad)
+        # tracer_B = sim.add_tracer(omega_ad=omega_ad)
 
     with time(logger, "Setting initial values"):
         # fixed velocity in- & out-flow
-        sim.cells.cell_type[+0, :] = CellType.FIXED_FLUID.value  # left
-        sim.cells.cell_type[-1, :] = CellType.FIXED_FLUID.value  # right
-        sim.cells.cell_type[+0, :] |= CellType.FIXED_SCALAR_VALUE.value  # left
-        sim.cells.cell_type[-1, :] |= CellType.FIXED_SCALAR_VALUE.value  # right
+        sim.cells.flags[+0, :] = CellType.FIXED_FLUID.value  # left
+        sim.cells.flags[-1, :] = CellType.FIXED_FLUID.value  # right
+        sim.cells.flags[+0, :] |= CellType.FIXED_SCALAR_VALUE.value  # left
+        sim.cells.flags[-1, :] |= CellType.FIXED_SCALAR_VALUE.value  # right
 
         # cylinder
         XX, YY = np.meshgrid(domain.x, domain.y, indexing="ij")
         cx = d_si * 2.5
         cy = 0.0
         RR = (XX - cx) ** 2 + (YY - cy) ** 2
-        sim.cells.cell_type[RR < (d_si / 2) ** 2] = CellType.WALL.value
+        sim.cells.flags[RR < (d_si / 2) ** 2] = CellType.WALL.value
 
         # Ramp the velocity from zero to flow velocity moving away from the walls.
-        WW = 1 - 1 * (sim.cells.cell_type == CellType.WALL.value)
+        WW = 1 - 1 * (sim.cells.flags == CellType.WALL.value)
         DD = distance_transform_edt(WW).clip(0, int((y_si / 10) / domain.dx))  # type: ignore
         DD = DD / np.max(DD)
         sim.fluid.vel[:, :, 0] = u_si * DD
@@ -167,7 +143,7 @@ else:
         # mask = (mask == 1) & (mask == 2)
         tracer_R.val[:, : domain.counts[1] // 2][mask[:, : domain.counts[1] // 2]] = 1.0
         tracer_G.val[:, domain.counts[1] // 2 :][mask[:, domain.counts[1] // 2 :]] = 1.0
-        sim.cells.cell_type[mask] |= CellType.FIXED_SCALAR_VALUE.value
+        sim.cells.flags[mask] |= CellType.FIXED_SCALAR_VALUE.value
 
         # IMPORTANT: convert velocity to lattice units / timestep
         sim.fluid.vel[:] = scales.to_lattice_units(sim.fluid.vel, **VELOCITY)
@@ -188,22 +164,30 @@ fox = domain.counts[1] // 60
 foy = 0
 
 try:
-    FONT = ImageFont.truetype("/home/dan/micromamba/envs/boltzmann/fonts/Inconsolata-Bold.ttf", fsz)
+    FONT = ImageFont.truetype(
+        "/home/dan/micromamba/envs/boltzmann/fonts/Inconsolata-Bold.ttf", fsz
+    )
 except OSError as e:
     raise OSError("Couldn't load True-Type Font file") from e
 
 
 def write_png(
-    path: Path, data: np.ndarray, label: str, background: Literal["dark", "light"], **kwargs
+    path: Path,
+    data: np.ndarray,
+    label: str,
+    background: Literal["dark", "light"],
+    **kwargs,
 ):
     outx = 6000
 
     tcol = (255, 255, 255) if background == "dark" else (0, 0, 0)
     bcol = (0, 0, 0) if background == "dark" else (255, 255, 255)
 
-    with PngWriter(path, outx, sim.cells.cell_type, data, **kwargs) as img:
+    with PngWriter(path, outx, sim.cells.flags, data, **kwargs) as img:
         draw = ImageDraw.Draw(img)
-        draw.text((fox, foy), label, tcol, font=FONT, stroke_width=fsz // 15, stroke_fill=bcol)
+        draw.text(
+            (fox, foy), label, tcol, font=FONT, stroke_width=fsz // 15, stroke_fill=bcol
+        )
 
 
 # output is slow so we parallelize it
@@ -218,7 +202,7 @@ def write_output(base: Path, iter: int):
     with time(logger, "calc curl"):
         curl__ = curl_.reshape(sim.fluid.rho.shape)
         qcrit__ = qcrit_.reshape(sim.fluid.rho.shape)
-        calc_curl_2d(sim.fluid.vel, sim.cells.cell_type, cnt, curl__, qcrit__)  # in LU
+        calc_curl_2d(sim.fluid.vel, sim.cells.flags, cnt, curl__, qcrit__)  # in LU
         curl_[:] = curl_ * ((dx / dt) / dx)  # in SI
         curl_[:] = np.tanh(curl_ / vmax_curl) * vmax_curl
         qcrit_[:] = qcrit_ * ((dx / dt) / dx) ** 2  # in SI
@@ -292,7 +276,9 @@ def write_output(base: Path, iter: int):
 
 # %% Main Loop
 
-run_sim(args.base, time_meta, sim, write_output, write_checkpoints=not args.no_checkpoint)
+run_sim(
+    args.base, time_meta, sim, write_output, write_checkpoints=not args.no_checkpoint
+)
 
 
 # render with
@@ -301,3 +287,4 @@ run_sim(args.base, time_meta, sim, write_output, write_checkpoints=not args.no_c
 
 # see: https://trac.ffmpeg.org/wiki/Encode/H.264
 # export FPS=30; ffmpeg -framerate $FPS -i out/cols_%06d.png -framerate $FPS -i out/curl_%06d.png -framerate $FPS -i out/vmag_%06d.png -framerate $FPS -i out/qcrit_%06d.png -filter_complex "[0]pad=iw+5:ih+5:iw:ih[tl];[1]pad=iw:ih+5:0:ih[tr];[2]pad=iw+5:ih:iw:0[bl];[3]pad=iw:ih:0:0[br];[tl][tr][bl][br]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0[v]" -map "[v]" -c:v libx264 -crf 23 -tune animation -y vs4.mp4
+# export FPS=30; ffmpeg -framerate $FPS -i out/cols_%06d.png -framerate $FPS -i out/curl_%06d.png -framerate $FPS -i out/vmag_%06d.png -filter_complex "[1]pad=iw:ih+2:0:2[v1];[2]pad=iw:ih+2:0:2[v2];[0][v1][v2]vstack=inputs=3" -c:v libx264 -crf 23 -tune animation -y vs_re1000.mp4
