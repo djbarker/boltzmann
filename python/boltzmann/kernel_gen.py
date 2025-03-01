@@ -1,9 +1,18 @@
+"""
+This script auto-generates the kernels for the OpenCL updates.
+It's not actually needed to run the module since the OpenCL kernels get compiled into the Rust extension module.
+For this reason its dependencies do not form part of the package dependencies (e.g. sympy).
+"""
+
+import re
+import sympy as sp
+
 from enum import Enum
 from fractions import Fraction
 from typing import Literal
 from textwrap import dedent, indent
 from contextlib import contextmanager
-
+from sympy.printing import ccode
 
 from boltzmann.core import CellType
 
@@ -146,6 +155,48 @@ class Kernel:
         return self
 
 
+def _dot(x: list[sp.Expr], f: list[sp.Expr | int]) -> sp.Expr:
+    """
+    Simplified dot product of sympy expressions.
+    """
+    return sp.simplify(sp.Add(*[sp.Mul(xx, ff) for xx, ff in zip(x, f)]))
+
+
+def _to_cl(feq: sp.Expr) -> str:
+    """
+    Turn the output str (which would be valid python) into valid OpenCL.
+    """
+    # feq = str(feq)
+    # # add decimal points
+    # feq = re.subn(r"(\d+)", r"\1.", str(feq))[0]
+    # # replace powers
+    # feq = re.subn(
+    #     r"(\w)\*\*(\d+)", lambda m: "*" + "*".join([m.group(1)] * int(m.group(2))), feq
+    # )[0]
+
+    def pow_to_mul(expr: sp.Expr) -> sp.Expr | sp.Basic:
+        """
+        see: https://stackoverflow.com/questions/14264431/expanding-algebraic-powers-in-python-sympy
+        """
+        pows = list(expr.atoms(sp.Pow))
+        if any(not e.is_Integer for b, e in (i.as_base_exp() for i in pows)):
+            raise ValueError("A power contains a non-integer exponent")
+        repl = zip(
+            pows,
+            (
+                sp.Mul(*[b] * e, evaluate=False)
+                for b, e in (i.as_base_exp() for i in pows)
+            ),
+        )
+        return expr.subs(repl)
+
+    feq = pow_to_mul(feq)
+
+    feq = ccode(feq)  # does most of the work
+
+    return feq
+
+
 def gen_kernel_AA_v1(
     model: VelocitySet, kernel_type: Literal["fluid", "scalar"]
 ) -> str:
@@ -157,6 +208,10 @@ def gen_kernel_AA_v1(
     nvel = model.Q
     ndim = model.D
     axes = [Axis.X, Axis.Y, Axis.Z][:ndim]
+
+    # sympy symbols useful for later
+    v_ = sp.symbols([f"v{a.name}" for a in axes])
+    f_ = sp.symbols([f"f_[{i}]" for i in range(nvel)])
 
     kernel = Kernel()
 
@@ -176,15 +231,15 @@ def gen_kernel_AA_v1(
     kernel += f"if ({cond}) return;\n\n"
 
     # calculate the 1d index into the data
-    stride = ["1"]
+    stride = [1]
     index = []
     for axis in axes[::-1]:
-        s = " * ".join(stride)
-        i = f"i{axis.name} * {s}"
-        stride.append(f"s[{axis.idx}]")
+        s = sp.Mul(*stride)
+        i = sp.Symbol(f"i{axis.name}") * s
+        stride.append(sp.Symbol(f"s[{axis.idx}]"))
         index.append(i)
 
-    ii = " + ".join(index)
+    ii = sp.simplify(sp.Add(*index))
     kernel += f"const size_t ii = {ii};\n\n"
 
     # check the cell type
@@ -206,10 +261,13 @@ def gen_kernel_AA_v1(
 
     # calculate offset indices
     inner1 = ""
-    inner2 = "0"  # relying on the compiler to optimize this away
+    inner2 = 0
     for axis in axes:
         inner1 += f"const int i{axis.name}_ = (i{axis.name} + qs[i][{axis.value}] + s[{axis.idx}]) % s[{axis.idx}];\n"
-        inner2 = f"{inner2} * s[{axis.idx}] + i{axis.name}_"
+        inner2 = inner2 * sp.Symbol(f"s[{axis.idx}]") + sp.Symbol(f"i{axis.name}_")
+
+    inner2 = sp.simplify(inner2)
+
     kernel += f"""
     int off[{nvel}];
 
@@ -243,15 +301,15 @@ def gen_kernel_AA_v1(
     for i in range(nvel):
         rho.append(f"f_[{i}]")
         for axis in axes:
-            vel[axis.idx].append(f"({model.qs[i][axis.idx]} * f_[{i}])")
+            vel[axis.idx].append(model.qs[i][axis.idx])
 
     rho = " + ".join(rho)
-    vel = [f"({'+'.join(v)}) / r" for v in vel]
+    vel = [str(_dot(f_, v)) for v in vel]
 
     with kernel.no_format():
         kernel += f"float r = {rho};\n"
         for axis in axes:
-            kernel += f"float v{axis.name} = {vel[axis.idx]};\n"
+            kernel += f"float v{axis.name} = ({vel[axis.idx]}) / r;\n"
 
     # add gravity if needed
     if kernel_type == "fluid":
@@ -268,18 +326,19 @@ def gen_kernel_AA_v1(
         kernel += f"v{axis.name} = vel[ii*{ndim} + {axis.idx}];\n"
     kernel += "}\n\n"
 
-    def _c_frac(w: Fraction) -> str:
-        return f"{w.numerator}.0/{w.denominator}.0"
-
     # calculate equilibrium & collide
     vv = " + ".join([f"v{axis.name} * v{axis.name}" for axis in axes])
     kernel += f"const float vv = {vv};\n\n"
+    # IDEA: we can use sympy to simply this!
     with kernel.no_format():
         for i in range(nvel):
-            uq = " + ".join(
-                [f"{model.qs[i][axis.idx]} * v{axis.name}" for axis in axes]
+            uq = _dot(v_, [model.qs[i][a.idx] for a in axes])
+            feq = model.ws[i] * (
+                1 + 3 * uq + 0.5 * (9 * (uq * uq) - 3 * sp.Symbol("vv"))
             )
-            feq = f"r * ({_c_frac(model.ws[i])}) * (1 + {uq} + 0.5 * (9 * ({uq}) * ({uq}) - 3 * vv))"
+            feq = sp.simplify(feq, rational=True)
+            feq = _to_cl(feq)
+            feq = f"r * ({feq})"
             kernel += f"f_[{i}] += omega * ({feq} - f_[{i}]);\n"
 
     # write back
@@ -309,9 +368,9 @@ def gen_kernel_AA_v1(
     args_s = ", ".join(f"int s{a.name}" for a in axes)
 
     if kernel_type == "fluid":
-        args = f"__constant int *s, int even, float omega, __constant float *g, global float *f, global float *rho, global float *vel, __constant int *cell"
+        args = "__constant int *s, int even, float omega, __constant float *g, global float *f, global float *rho, global float *vel, __constant int *cell"
     else:
-        args = f"__constant int *s, int even, float omega, global float *f, global float *val, global float *vel, __constant int *cell"
+        args = "__constant int *s, int even, float omega, global float *f, global float *val, global float *vel, __constant int *cell"
 
     kernel.kernel = dedent(
         f"""
