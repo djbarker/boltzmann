@@ -27,8 +27,8 @@ _Code at [`jets/jets.py`](/python/examples/jets/jets.py)._
 
 <p>
     <div align="center" style="display: flex; flex-wrap: nowrap;">
-        <image src="voronoi_velocity.png" width=50%px/>
-        <image src="voronoi_tracer.png" width=50%px/>
+        <image src="voronoi_velocity.png" width=48%px/>
+        <image src="voronoi_tracer.png" width=48%px/>
     </div>
 </p>
 
