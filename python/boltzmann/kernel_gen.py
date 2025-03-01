@@ -16,6 +16,36 @@ class VelocitySet:
     def __init__(self, ws: list[Fraction], qs: list[list[int]]) -> None:
         assert len(ws) == len(qs)
 
+        def key(q):
+            """
+            Sort the velocites in the order we would write them manually.
+            Not necessary but makes debugging the auto-generated kernels easier.
+            """
+
+            s = next(filter(lambda x: x != 0, q), 0)
+            q = [s * qq for qq in q]
+
+            k = 0
+            for i, qq in enumerate(q):
+                k += (qq % 3) * (3**i) * 2
+
+            # extra term to sort by number of components
+            n = sum(qq != 0 for qq in q)
+            k += n * (3 ** len(q)) * 2
+
+            # extra term to put opposite pairs together
+            if s < 0:
+                k += 1
+
+            return k
+
+        # sort together
+        wq = [(w, q) for w, q in sorted(zip(ws, qs), key=lambda x: key(x[1]))]
+
+        # pull out ws & qs
+        ws = [w for w, _ in wq]
+        qs = [q for _, q in wq]
+
         def _neg(x: list[int]) -> list[int]:
             return [-xx for xx in x]
 
@@ -61,7 +91,13 @@ D2Q9 = tensor_product(D1Q3, D1Q3)
 D3Q27 = tensor_product(D2Q9, D1Q3)
 
 D2Q5 = VelocitySet(
-    [Fraction("1/3"), Fraction("1/6"), Fraction("1/6"), Fraction("1/6"), Fraction("1/6")],
+    [
+        Fraction("1/3"),
+        Fraction("1/6"),
+        Fraction("1/6"),
+        Fraction("1/6"),
+        Fraction("1/6"),
+    ],
     [
         [0, 0],
         [1, 0],
@@ -110,7 +146,9 @@ class Kernel:
         return self
 
 
-def gen_kernel_AA1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]) -> str:
+def gen_kernel_AA_v1(
+    model: VelocitySet, kernel_type: Literal["fluid", "scalar"]
+) -> str:
     """
     This is a pretty basic transcoding of my hand-written AA-pattern+BKG kernel for D2Q9 which is
     generic over the velocity set.
@@ -122,13 +160,15 @@ def gen_kernel_AA1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]) 
 
     kernel = Kernel()
 
+    val_name = "rho" if kernel_type == "fluid" else "val"
+
     # get the velocity set
     qs = ", ".join(f"{{{', '.join(list(map(str, q)))}}}" for q in model.qs)
     kernel += f"const int qs[{nvel}][{ndim}] = {{{qs}}};\n\n"
 
     # get the OpenCL indices
     for axis in axes:
-        kernel += f"const int i{axis.name} = get_global_id({axis.idx});\n"
+        kernel += f"const size_t i{axis.name} = get_global_id({axis.idx});\n"
     kernel += "\n"
 
     # check if we actually need to do any work
@@ -145,16 +185,18 @@ def gen_kernel_AA1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]) 
         index.append(i)
 
     ii = " + ".join(index)
-    kernel += f"const int ii = {ii};\n\n"
+    kernel += f"const size_t ii = {ii};\n\n"
 
     # check the cell type
     fixed = (
-        CellType.FIXED_FLUID.value if kernel_type == "fluid" else CellType.FIXED_SCALAR_VALUE.value
+        CellType.FIXED_FLUID.value
+        if kernel_type == "fluid"
+        else CellType.FIXED_SCALAR_VALUE.value
     )
     kernel += f"""
     const int c = cell[ii];
-    const int wall = (c & {CellType.WALL.value});
-    const int fixed = (c & {fixed});
+    const bool wall = (c & {CellType.WALL.value});
+    const bool fixed = (c & {fixed});
 
     if (wall) {{
         // wall => do nothing
@@ -201,7 +243,7 @@ def gen_kernel_AA1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]) 
     for i in range(nvel):
         rho.append(f"f_[{i}]")
         for axis in axes:
-            vel[axis.idx].append(f"(f_[{i}] * {model.qs[i][axis.idx]})")
+            vel[axis.idx].append(f"({model.qs[i][axis.idx]} * f_[{i}])")
 
     rho = " + ".join(rho)
     vel = [f"({'+'.join(v)}) / r" for v in vel]
@@ -211,37 +253,41 @@ def gen_kernel_AA1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]) 
         for axis in axes:
             kernel += f"float v{axis.name} = {vel[axis.idx]};\n"
 
-    vv = " + ".join([f"v{axis.name} * v{axis.name}" for axis in axes])
-    kernel += f"const float vv = {vv};\n\n"
-
     # add gravity if needed
     if kernel_type == "fluid":
         for axis in axes:
             kernel += f"v{axis.name} += (g[{axis.idx}] / omega);\n"
 
     # update values if fixed
-    kernel += """
-    if (fixed) {
+    kernel += f"""
+    if (fixed) {{
         omega = 1.0;
-        r = rho[ii];
+        r = {val_name}[ii];
     """
     for axis in axes:
         kernel += f"v{axis.name} = vel[ii*{ndim} + {axis.idx}];\n"
     kernel += "}\n\n"
 
+    def _c_frac(w: Fraction) -> str:
+        return f"{w.numerator}.0/{w.denominator}.0"
+
     # calculate equilibrium & collide
+    vv = " + ".join([f"v{axis.name} * v{axis.name}" for axis in axes])
+    kernel += f"const float vv = {vv};\n\n"
     with kernel.no_format():
         for i in range(nvel):
-            uq = " + ".join([f"{model.qs[i][axis.idx]} * v{axis.name}" for axis in axes])
-            feq = f"r * ({model.ws[i]}) * (1 + {uq} + 0.5 * (({uq}) * ({uq}) - vv))"
+            uq = " + ".join(
+                [f"{model.qs[i][axis.idx]} * v{axis.name}" for axis in axes]
+            )
+            feq = f"r * ({_c_frac(model.ws[i])}) * (1 + {uq} + 0.5 * (9 * ({uq}) * ({uq}) - 3 * vv))"
             kernel += f"f_[{i}] += omega * ({feq} - f_[{i}]);\n"
 
     # write back
     writes_even = ""
     writes_odd = ""
     for i in range(nvel):
-        writes_even += f"f[{model.js[i]} + {i}] = f_[{i}];\n"
-        writes_odd += f"f[off[0] + {model.js[i]}] = f_[{i}];\n"
+        writes_even += f"f[off[{model.js[i]}] + {i}] = f_[{model.js[i]}];\n"
+        writes_odd += f"f[off[0] + {i}] = f_[{i}];\n"
 
     kernel += f"""
     if (even) {{
@@ -253,9 +299,10 @@ def gen_kernel_AA1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]) 
     """
 
     # update macroscopic variables
-    kernel += "rho[ii] = r;\n"
-    for axis in axes:
-        kernel += f"vel[ii*{ndim} + {axis.idx}] = v{axis.name};\n"
+    kernel += f"{val_name}[ii] = r;\n"
+    if kernel_type == "fluid":
+        for axis in axes:
+            kernel += f"vel[ii*{ndim} + {axis.idx}] = v{axis.name};\n"
 
     # now finally wrap it in the function call
     args_g = ", ".join(f"float g{a.name}" for a in axes)
@@ -277,3 +324,14 @@ def gen_kernel_AA1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]) 
     )
 
     return kernel.kernel
+
+
+if __name__ == "__main__":
+    import sys
+
+    fname = sys.argv[1]
+
+    with open(fname, "w") as fout:
+        for model, kernel in [(D2Q5, "tracer"), (D2Q9, "fluid"), (D3Q27, "fluid")]:
+            print(gen_kernel_AA_v1(model, kernel), file=fout)
+            print("\n\n", file=fout)
