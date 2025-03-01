@@ -22,3 +22,17 @@ The simulation is of two jets colliding head-on.
 Each jet & its motion is highlighted by the tracers, here coloured yellow and purple for each jet.
 
 _Code at [`jets/jets.py`](/python/examples/jets/jets.py)._
+
+## Porous Media
+
+<p>
+    <div align="center" style="display: flex; flex-wrap: nowrap;">
+        <image src="voronoi_velocity.png" height=300px/>
+        <image src="voronoi_tracer.png" height=300px/>
+    </div>
+</p>
+
+Shows the flow through a 2D [packed-bed](https://en.wikipedia.org/wiki/Packed_bed) with procedurally generated particles.
+The simulation has 2.3 million grid cells with a Reynold's number of ~250.
+
+_Code at [`voronoi/voronoi.py`](/python/examples/voronoi/voronoi.py)_
