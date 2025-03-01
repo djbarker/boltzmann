@@ -61,7 +61,7 @@ np.random.seed(42)
 
 # Create the simulation
 tau = 0.51
-sim = Simulation("cpu", [200, 100], 9, 1 / tau)  # D2Q9 + BGK
+sim = Simulation("cpu", [200, 100], 1 / tau)
 
 # Set some initial condition
 sim.fluid.vel[:, 40:60, 0] = 0.1
