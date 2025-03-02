@@ -117,6 +117,39 @@ D2Q5 = VelocitySet(
 )
 
 
+def make_advdiff_isotropic(d: int) -> VelocitySet:
+    """
+    Make an isotropic advection-diffusion velocity set.
+    """
+    match d:
+        case 1:
+            f = Fraction("1/3")
+        case 2:
+            f = Fraction("2/3")
+        case 3:
+            # see: https://journals.aps.org/pre/pdf/10.1103/PhysRevE.105.025308
+            f = Fraction("19/20")
+        case _:
+            raise ValueError(f"Invalid dimension {d}")
+
+    ws = [Fraction(1, 1) - f]
+    qs = [[0] * d]
+
+    w = f / (d * 2)
+    for i in range(d):
+        q1 = [0] * d
+        q2 = [0] * d
+        q1[i] = 1
+        q2[i] = -1
+        qs.extend([q1, q2])
+        ws.extend([w, w])
+
+    return VelocitySet(ws, qs)
+
+
+D3Q7 = make_advdiff_isotropic(3)
+
+
 class Axis(Enum):
     X = 0
     Y = 1
@@ -309,7 +342,10 @@ def gen_kernel_AA_v1(
     with kernel.no_format():
         kernel += f"float r = {rho};\n"
         for axis in axes:
-            kernel += f"float v{axis.name} = ({vel[axis.idx]}) / r;\n"
+            if kernel_type == "fluid":
+                kernel += f"float v{axis.name} = ({vel[axis.idx]}) / r;\n"
+            else:
+                kernel += f"float v{axis.name} = vel[{ndim} * ii + {axis.idx}];\n"
 
     # add gravity if needed
     if kernel_type == "fluid":
@@ -368,9 +404,9 @@ def gen_kernel_AA_v1(
     args_s = ", ".join(f"int s{a.name}" for a in axes)
 
     if kernel_type == "fluid":
-        args = "__constant int *s, int even, float omega, __constant float *g, global float *f, global float *rho, global float *vel, __constant int *cell"
+        args = "__constant int *s, int even, float omega, __constant float *g, global float *f, global float *rho, global float *vel, global int *cell"
     else:
-        args = "__constant int *s, int even, float omega, global float *f, global float *val, global float *vel, __constant int *cell"
+        args = "__constant int *s, int even, float omega, global float *f, global float *val, global float *vel, global int *cell"
 
     kernel.kernel = dedent(
         f"""
@@ -391,6 +427,11 @@ if __name__ == "__main__":
     fname = sys.argv[1]
 
     with open(fname, "w") as fout:
-        for model, kernel in [(D2Q5, "tracer"), (D2Q9, "fluid"), (D3Q27, "fluid")]:
+        for model, kernel in [
+            (D2Q5, "tracer"),
+            (D2Q9, "fluid"),
+            (D3Q7, "tracer"),
+            (D3Q27, "fluid"),
+        ]:
             print(gen_kernel_AA_v1(model, kernel), file=fout)
             print("\n\n", file=fout)
