@@ -213,7 +213,7 @@ kernel void update_d2q5_bgk_handrolled(__constant int *s, int even, float omega,
 
 kernel void update_d2q5_bgk(__constant int *s, int even, float omega,
                             global float *f, global float *val,
-                            global float *vel, __constant int *cell) {
+                            global float *vel, global int *cell) {
   const int qs[5][2] = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
   const size_t ix = get_global_id(0);
@@ -261,8 +261,8 @@ kernel void update_d2q5_bgk(__constant int *s, int even, float omega,
 
   // clang-format off
    float r = f_[0] + f_[1] + f_[2] + f_[3] + f_[4];
-   float vx = (f_[1] - f_[2]) / r;
-   float vy = (f_[3] - f_[4]) / r;
+   float vx = vel[2 * ii + 0];
+   float vy = vel[2 * ii + 1];
   // clang-format on
 
   if (fixed) {
@@ -303,7 +303,7 @@ kernel void update_d2q5_bgk(__constant int *s, int even, float omega,
 kernel void update_d2q9_bgk(__constant int *s, int even, float omega,
                             __constant float *g, global float *f,
                             global float *rho, global float *vel,
-                            __constant int *cell) {
+                            global int *cell) {
   const int qs[9][2] = {{0, 0}, {1, 0},   {-1, 0}, {0, 1}, {0, -1},
                         {1, 1}, {-1, -1}, {1, -1}, {-1, 1}};
 
@@ -415,10 +415,114 @@ kernel void update_d2q9_bgk(__constant int *s, int even, float omega,
   vel[ii * 2 + 1] = vy;
 }
 
+kernel void update_d3q7_bgk(__constant int *s, int even, float omega,
+                            global float *f, global float *val,
+                            global float *vel, global int *cell) {
+  const int qs[7][3] = {{0, 0, 0},  {1, 0, 0}, {-1, 0, 0}, {0, 1, 0},
+                        {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+
+  const size_t ix = get_global_id(0);
+  const size_t iy = get_global_id(1);
+  const size_t iz = get_global_id(2);
+
+  if (ix >= s[0] || iy >= s[1] || iz >= s[2])
+    return;
+
+  const size_t ii = ix * s[1] * s[2] + iy * s[2] + iz;
+
+  const int c = cell[ii];
+  const bool wall = (c & 1);
+  const bool fixed = (c & 8);
+
+  if (wall) {
+    // wall => do nothing
+    return;
+  }
+
+  int off[7];
+
+#pragma unroll
+  for (int i = 0; i < 7; i++) {
+    const int ix_ = (ix + qs[i][0] + s[0]) % s[0];
+    const int iy_ = (iy + qs[i][1] + s[1]) % s[1];
+    const int iz_ = (iz + qs[i][2] + s[2]) % s[2];
+
+    off[i] = (iz_ + s[2] * (ix_ * s[1] + iy_)) * 7;
+  }
+
+  float f_[7];
+  if (even) {
+    f_[0] = f[off[0] + 0];
+    f_[1] = f[off[2] + 1];
+    f_[2] = f[off[1] + 2];
+    f_[3] = f[off[4] + 3];
+    f_[4] = f[off[3] + 4];
+    f_[5] = f[off[6] + 5];
+    f_[6] = f[off[5] + 6];
+
+  } else {
+    f_[0] = f[off[0] + 0];
+    f_[1] = f[off[0] + 2];
+    f_[2] = f[off[0] + 1];
+    f_[3] = f[off[0] + 4];
+    f_[4] = f[off[0] + 3];
+    f_[5] = f[off[0] + 6];
+    f_[6] = f[off[0] + 5];
+  }
+
+  // clang-format off
+   float r = f_[0] + f_[1] + f_[2] + f_[3] + f_[4] + f_[5] + f_[6];
+   float vx = vel[3 * ii + 0];
+   float vy = vel[3 * ii + 1];
+   float vz = vel[3 * ii + 2];
+  // clang-format on
+
+  if (fixed) {
+    omega = 1.0;
+    r = val[ii];
+    vx = vel[ii * 3 + 0];
+    vy = vel[ii * 3 + 1];
+    vz = vel[ii * 3 + 2];
+  }
+
+  const float vv = vx * vx + vy * vy + vz * vz;
+
+  // clang-format off
+   f_[0] += omega * (r * (1.0/20.0 - 3.0/40.0*vv) - f_[0]);
+   f_[1] += omega * (r * (-19.0/80.0*vv + (57.0/80.0)*pow(vx, 2) + (19.0/40.0)*vx + 19.0/120.0) - f_[1]);
+   f_[2] += omega * (r * (-19.0/80.0*vv + (57.0/80.0)*pow(vx, 2) - 19.0/40.0*vx + 19.0/120.0) - f_[2]);
+   f_[3] += omega * (r * (-19.0/80.0*vv + (57.0/80.0)*pow(vy, 2) + (19.0/40.0)*vy + 19.0/120.0) - f_[3]);
+   f_[4] += omega * (r * (-19.0/80.0*vv + (57.0/80.0)*pow(vy, 2) - 19.0/40.0*vy + 19.0/120.0) - f_[4]);
+   f_[5] += omega * (r * (-19.0/80.0*vv + (57.0/80.0)*pow(vz, 2) + (19.0/40.0)*vz + 19.0/120.0) - f_[5]);
+   f_[6] += omega * (r * (-19.0/80.0*vv + (57.0/80.0)*pow(vz, 2) - 19.0/40.0*vz + 19.0/120.0) - f_[6]);
+  // clang-format on
+
+  if (even) {
+    f[off[0] + 0] = f_[0];
+    f[off[2] + 1] = f_[2];
+    f[off[1] + 2] = f_[1];
+    f[off[4] + 3] = f_[4];
+    f[off[3] + 4] = f_[3];
+    f[off[6] + 5] = f_[6];
+    f[off[5] + 6] = f_[5];
+
+  } else {
+    f[off[0] + 0] = f_[0];
+    f[off[0] + 1] = f_[1];
+    f[off[0] + 2] = f_[2];
+    f[off[0] + 3] = f_[3];
+    f[off[0] + 4] = f_[4];
+    f[off[0] + 5] = f_[5];
+    f[off[0] + 6] = f_[6];
+  }
+
+  val[ii] = r;
+}
+
 kernel void update_d3q27_bgk(__constant int *s, int even, float omega,
                              __constant float *g, global float *f,
                              global float *rho, global float *vel,
-                             __constant int *cell) {
+                             global int *cell) {
   const int qs[27][3] = {{0, 0, 0},    {1, 0, 0},   {-1, 0, 0},  {0, 1, 0},
                          {0, -1, 0},   {0, 0, 1},   {0, 0, -1},  {1, 1, 0},
                          {-1, -1, 0},  {1, -1, 0},  {-1, 1, 0},  {1, 0, 1},

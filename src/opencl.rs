@@ -75,6 +75,7 @@ impl OpenCLCtx {
             (2, 9, EqnType::NavierStokes),
             (3, 27, EqnType::NavierStokes),
             (2, 5, EqnType::AdvectionDiffusion),
+            (3, 7, EqnType::AdvectionDiffusion),
         ];
 
         let mut kernels = HashMap::new();
