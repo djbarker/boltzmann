@@ -36,7 +36,7 @@ sim.fluid.rho[:] += 0.01 * np.random.uniform(-1, 1, sim.fluid.rho.shape)
 # %%
 
 tprev = 0
-for i, tcurr in enumerate([3000, 10000, 15000, 20000]):
+for i, tcurr in enumerate([3000]):  # , 10000, 15000, 20000]):
     # Run it
     sim.iterate(tcurr - tprev)
     tprev = tcurr

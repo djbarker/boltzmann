@@ -15,13 +15,13 @@ _Code at [`vortex_street/vortex_street.py`](/python/examples/vortex_street/vorte
 
 ## Colliding Jets
 
-![Colliding jets with tracers](jets.png)
+![Colliding jets with tracers](jets_2d.png)
 
 An example simulation showing the use of tracers.
 The simulation is of two jets colliding head-on. 
 Each jet & its motion is highlighted by the tracers, here coloured yellow and purple for each jet.
 
-_Code at [`jets/jets.py`](/python/examples/jets/jets.py)._
+_Code at [`jets_2d/jets.py`](/python/examples/jets_2d/jets.py)._
 
 ## Porous Media
 
@@ -32,7 +32,23 @@ _Code at [`jets/jets.py`](/python/examples/jets/jets.py)._
     </div>
 </p>
 
-Shows the flow through a 2D [packed-bed](https://en.wikipedia.org/wiki/Packed_bed) with procedurally generated particles.
+Shows the flow through a periodic 2D [packed-bed](https://en.wikipedia.org/wiki/Packed_bed) with procedurally generated particles.
 The simulation has 2.3 million grid cells with a Reynold's number of ~250.
 
 _Code at [`voronoi/voronoi.py`](/python/examples/voronoi/voronoi.py)_
+
+## Colliding Jets 3D
+
+
+<p>
+    <div align="center" style="display: flex; flex-wrap: nowrap;">
+        <image src="jets_3d_velocity.png" width=48%px/>
+        <image src="jets_3d_qcriterion.png" width=48%px/>
+    </div>
+</p>
+
+3D simulation showing two slightly off-center jets colliding.
+The volumetric plots show the velocity magnitude (orange color-scheme) and the Q-criterion (green color-scheme).
+The simulation has 64 million grid cells.
+
+_Code at [`jets_3d/jets.py`](/python/examples/voronoi/voronoi.py)_
