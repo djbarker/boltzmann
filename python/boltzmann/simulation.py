@@ -8,9 +8,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from boltzmann.utils.option import Some, to_opt
 import numpy as np
 
-from boltzmann.core import Simulation, TimeMeta
+from boltzmann.core import Simulation
 from boltzmann.utils.logger import PerfInfo, dotted, tick, time
 
 
@@ -26,6 +27,48 @@ class OutputCallback(Protocol):
     """
 
     def __call__(self, base: Path, iter: int): ...
+
+
+@dataclass
+class TimeMeta:
+    """
+    Contains parameters for output interval and simulation duration.
+    """
+
+    dt_step: float
+    dt_output: float
+    t_max: float
+    output_count: int
+
+    @property
+    def batch_steps(self) -> int:
+        return int(self.dt_output / self.dt_step + 1e-8)
+
+    @staticmethod
+    def make(
+        *,
+        dt_step: float,
+        dt_output: float | None = None,
+        t_max: float | None = None,
+        output_count: int | None = None,
+    ) -> "TimeMeta":
+        d_ = to_opt(dt_output)
+        t_ = to_opt(t_max)
+        i_ = to_opt(output_count)
+
+        match (d_, t_, i_):
+            case (None, Some(t), Some(i)):
+                d = t / i
+            case (Some(d), None, Some(i)):
+                t = i * d
+            case (Some(d), Some(t), None):
+                i = int(t / d + 1e-8)
+            case _:
+                raise ValueError(
+                    f"Must specify dt_step and exactly two other arguments! [{dt_output=}, {t_max=}, {output_count=}]"
+                )
+
+        return TimeMeta(dt_step, d, t, i)
 
 
 def run_sim(

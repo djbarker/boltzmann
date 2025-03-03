@@ -1,6 +1,7 @@
 # %% Imports
 
 import logging
+from boltzmann.units import Domain, Scales
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
@@ -11,13 +12,10 @@ from dataclasses import dataclass, field
 from boltzmann.utils.logger import basic_config, dotted
 from boltzmann.core import (
     CellFlags,
-    Domain,
-    Scales,
     SimulationMeta,
-    TimeMeta,
     check_lbm_params,
 )
-from boltzmann.simulation import run_sim_cli
+from boltzmann.simulation import TimeMeta, run_sim_cli
 from boltzmann.utils.vtkio import VtiWriter
 from boltzmann_rs import Simulation
 
@@ -35,12 +33,7 @@ def u_analytical(y, t, W: float, g: float, nu: float, n: int = 20):
     for i in range(0, n):
         j = 2 * i + 1
         k = np.pi * j / W
-        u += (
-            (g / nu)
-            * (2 * ((-1) ** j - 1) / (k**3 * W))
-            * np.exp(-nu * k**2 * t)
-            * np.sin(k * y)
-        )
+        u += (g / nu) * (2 * ((-1) ** j - 1) / (k**3 * W)) * np.exp(-nu * k**2 * t) * np.sin(k * y)
 
     return u
 
@@ -188,9 +181,7 @@ class PlanePoiseuille:
         if self.vti:
             with VtiWriter(str(base / f"data_{step:06d}.vti"), domain) as writer:
                 writer.add_data("density", sim.fluid.rho)
-                writer.add_data(
-                    "velocity", sim.fluid.vel * scales.dx / scales.dt, default=True
-                )
+                writer.add_data("velocity", sim.fluid.vel * scales.dx / scales.dt, default=True)
                 writer.add_data("cell", sim.domain.cell_type)
 
     def write_checkpoint(self, base: Path):

@@ -2,7 +2,8 @@
 
 import logging
 from typing import Literal
-from boltzmann.simulation import parse_cli, run_sim
+from boltzmann.simulation import TimeMeta, parse_cli, run_sim
+from boltzmann.units import Domain, Scales
 import numpy as np
 
 from PIL import ImageDraw, ImageFont
@@ -10,10 +11,7 @@ from pathlib import Path
 
 from boltzmann.utils.logger import basic_config, time, dotted
 from boltzmann.core import (
-    Domain,
-    Scales,
     CellFlags,
-    TimeMeta,
     calc_lbm_params,
 )
 from boltzmann.core import calc_curl_2d, Simulation  # type: ignore

@@ -3,6 +3,7 @@
 from concurrent.futures import ThreadPoolExecutor
 import logging
 from typing import Literal
+from boltzmann.units import Domain, Scales
 import numpy as np
 
 from scipy.ndimage import distance_transform_edt
@@ -11,15 +12,12 @@ from pathlib import Path
 
 from boltzmann.utils.logger import basic_config, time, dotted
 from boltzmann.core import (
-    Domain,
-    Scales,
     CellFlags,
-    TimeMeta,
     calc_lbm_params,
 )
 from boltzmann.core import calc_curl_2d, Simulation  # type: ignore
 from boltzmann.utils.mpl import PngWriter, OrangeBlue
-from boltzmann.simulation import parse_cli, run_sim
+from boltzmann.simulation import TimeMeta, parse_cli, run_sim
 
 basic_config()
 logger = logging.getLogger(__name__)

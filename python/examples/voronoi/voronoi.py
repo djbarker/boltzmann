@@ -1,6 +1,7 @@
 # %% Imports
 
 import logging
+from boltzmann.units import Domain, Scales
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
 import numpy as np
@@ -13,14 +14,11 @@ from scipy.stats.qmc import PoissonDisk
 
 from boltzmann.utils.logger import basic_config, dotted, time
 from boltzmann.core import (
-    Domain,
     Simulation,
     CellFlags,
-    TimeMeta,
     calc_lbm_params,
-    Scales,
 )
-from boltzmann.simulation import parse_cli, run_sim
+from boltzmann.simulation import TimeMeta, parse_cli, run_sim
 
 np.random.seed(42)
 
@@ -208,9 +206,7 @@ def write_output(base: Path, iter: int):
     plt.imshow(conc.T, cmap=cmap, interpolation="none", vmin=0.0, vmax=0.9)
     _annotate("Tracer")
     plt.axis("off")
-    plt.savefig(
-        base / f"conc_{iter:06d}.png", bbox_inches="tight", pad_inches=0, dpi=300
-    )
+    plt.savefig(base / f"conc_{iter:06d}.png", bbox_inches="tight", pad_inches=0, dpi=300)
     plt.close()
 
     cmap = plt.get_cmap("inferno")
@@ -229,6 +225,4 @@ def write_output(base: Path, iter: int):
 
 # %% Run the simulation
 
-run_sim(
-    args.base, time_meta, sim, write_output, write_checkpoints=not args.no_checkpoint
-)
+run_sim(args.base, time_meta, sim, write_output, write_checkpoints=not args.no_checkpoint)

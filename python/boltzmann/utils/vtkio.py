@@ -5,7 +5,7 @@ import numpy as np
 import vtk
 from vtk.util.numpy_support import numpy_to_vtk
 
-from boltzmann.core import Domain
+from boltzmann.units import Domain
 
 
 logger = logging.getLogger(__name__)
@@ -44,9 +44,7 @@ class VtiWriter:
         self.path = str(path)
         self.data: dict[str, np.ndarray] = {}  # The field data. A name -> data mapping.
         self.counts = list(counts)
-        self.default: str | None = (
-            None  # Name of the field displayed by default in ParaView.
-        )
+        self.default: str | None = None  # Name of the field displayed by default in ParaView.
 
     @property
     def ndim(self) -> int:
@@ -96,9 +94,7 @@ class VtiWriter:
         """
 
         if self.default is not None and self.default != name:
-            raise ValueError(
-                f"Default key already set! [old={self.default!r}, new={name!r}]"
-            )
+            raise ValueError(f"Default key already set! [old={self.default!r}, new={name!r}]")
 
         self.default = name
 
@@ -144,9 +140,7 @@ class VtiWriter:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
-            logger.warning(
-                f"Not writing VTK file due to exception. [path={self.path!r}]"
-            )
+            logger.warning(f"Not writing VTK file due to exception. [path={self.path!r}]")
             return
 
         self.write()
