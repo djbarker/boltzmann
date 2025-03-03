@@ -10,7 +10,14 @@ from PIL import ImageDraw, ImageFont
 from pathlib import Path
 
 from boltzmann.utils.logger import basic_config, time, dotted
-from boltzmann.core import VELOCITY, Domain, Scales, CellType, TimeMeta, calc_lbm_params
+from boltzmann.core import (
+    VELOCITY,
+    Domain,
+    Scales,
+    CellFlags,
+    TimeMeta,
+    calc_lbm_params,
+)
 from boltzmann.core import calc_curl_2d, Simulation  # type: ignore
 from boltzmann.utils.mpl import PngWriter, OrangeBlue
 from boltzmann.simulation import parse_cli, run_sim
@@ -99,20 +106,20 @@ else:
 
     with time(logger, "Setting initial values"):
         # fixed velocity in- & out-flow
-        sim.cells.flags[+0, :] = CellType.FIXED_FLUID.value  # left
-        sim.cells.flags[-1, :] = CellType.FIXED_FLUID.value  # right
-        sim.cells.flags[+0, :] |= CellType.FIXED_SCALAR_VALUE.value  # left
-        sim.cells.flags[-1, :] |= CellType.FIXED_SCALAR_VALUE.value  # right
+        sim.cells.flags[+0, :] = CellFlags.FIXED_FLUID  # left
+        sim.cells.flags[-1, :] = CellFlags.FIXED_FLUID  # right
+        sim.cells.flags[+0, :] |= CellFlags.FIXED_SCALAR_VALUE  # left
+        sim.cells.flags[-1, :] |= CellFlags.FIXED_SCALAR_VALUE  # right
 
         # cylinder
         XX, YY = np.meshgrid(domain.x, domain.y, indexing="ij")
         cx = d_si * 2.5
         cy = 0.0
         RR = (XX - cx) ** 2 + (YY - cy) ** 2
-        sim.cells.flags[RR < (d_si / 2) ** 2] = CellType.WALL.value
+        sim.cells.flags[RR < (d_si / 2) ** 2] = CellFlags.WALL
 
         # Ramp the velocity from zero to flow velocity moving away from the walls.
-        WW = 1 - 1 * (sim.cells.flags == CellType.WALL.value)
+        WW = 1 - 1 * (sim.cells.flags == CellFlags.WALL)
         DD = distance_transform_edt(WW).clip(0, int((y_si / 10) / domain.dx))  # type: ignore
         DD = DD / np.max(DD)
         sim.fluid.vel[:, :, 0] = u_si * DD
@@ -134,16 +141,16 @@ else:
         #     tracer_R_[xs, ys] = c[0] * darken
         #     tracer_G_[xs, ys] = c[1] * darken
         #     tracer_B_[xs, ys] = c[2] * darken
-        #     cells_[xs, ys] = CellType.FIXED.value
+        #     cells_[xs, ys] = CellType.FIXED
         #
-        # cells_[xs, :] = CellType.FIXED.value
+        # cells_[xs, :] = CellType.FIXED
 
         mask = distance_transform_edt(WW)
         mask = (0 < mask) & (mask <= 4)  # type: ignore
         # mask = (mask == 1) & (mask == 2)
         tracer_R.val[:, : domain.counts[1] // 2][mask[:, : domain.counts[1] // 2]] = 1.0
         tracer_G.val[:, domain.counts[1] // 2 :][mask[:, domain.counts[1] // 2 :]] = 1.0
-        sim.cells.flags[mask] |= CellType.FIXED_SCALAR_VALUE.value
+        sim.cells.flags[mask] |= CellFlags.FIXED_SCALAR_VALUE
 
         # IMPORTANT: convert velocity to lattice units / timestep
         sim.fluid.vel[:] = scales.to_lattice_units(sim.fluid.vel, **VELOCITY)

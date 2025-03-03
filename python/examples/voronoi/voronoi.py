@@ -16,7 +16,7 @@ from boltzmann.core import (
     VELOCITY,
     Domain,
     Simulation,
-    CellType,
+    CellFlags,
     TimeMeta,
     calc_lbm_params,
     Scales,
@@ -194,7 +194,7 @@ def write_output(base: Path, iter: int):
             fontsize=15,
         )
 
-    mask = (sim.cells.flags & CellType.WALL.value) > 0
+    mask = (sim.cells.flags & CellFlags.WALL) > 0
 
     vmag = np.sqrt(np.sum(sim.fluid.vel**2, axis=-1))
     vmag[mask] = np.nan

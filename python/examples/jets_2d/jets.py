@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from boltzmann.core import Simulation, CellType
+from boltzmann.core import Simulation, CellFlags
 
 np.random.seed(42)
 
@@ -21,15 +21,15 @@ sx = slice(cnt[0] // 3, cnt[0] // 3 + nn[0])
 sy = slice(cnt[1] // 2 - nn[1], cnt[1] // 2 + nn[1])
 sim.fluid.vel[sx, sy, 0] = 0.1
 red.val[sx, sy] = 1.0
-sim.cells.flags[sx, sy] |= CellType.FIXED_FLUID_VELOCITY.value
-sim.cells.flags[sx, sy] |= CellType.FIXED_SCALAR_VALUE.value
+sim.cells.flags[sx, sy] |= CellFlags.FIXED_FLUID_VELOCITY
+sim.cells.flags[sx, sy] |= CellFlags.FIXED_SCALAR_VALUE
 
 sx = slice(2 * cnt[0] // 3 - nn[0], 2 * cnt[0] // 3)
 sy = slice(cnt[1] // 2 - nn[1], cnt[1] // 2 + nn[1])
 sim.fluid.vel[sx, sy, 0] = -0.1
 grn.val[sx, sy] = 1.0
-sim.cells.flags[sx, sy] |= CellType.FIXED_FLUID_VELOCITY.value
-sim.cells.flags[sx, sy] |= CellType.FIXED_SCALAR_VALUE.value
+sim.cells.flags[sx, sy] |= CellFlags.FIXED_FLUID_VELOCITY
+sim.cells.flags[sx, sy] |= CellFlags.FIXED_SCALAR_VALUE
 
 sim.fluid.rho[:] += 0.01 * np.random.uniform(-1, 1, sim.fluid.rho.shape)
 

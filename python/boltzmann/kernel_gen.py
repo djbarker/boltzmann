@@ -14,7 +14,7 @@ from textwrap import dedent, indent
 from contextlib import contextmanager
 from sympy.printing import ccode
 
-from boltzmann.core import CellType
+from boltzmann.core import CellFlags
 
 
 class VelocitySet:
@@ -277,13 +277,13 @@ def gen_kernel_AA_v1(
 
     # check the cell type
     fixed = (
-        CellType.FIXED_FLUID.value
+        CellFlags.FIXED_FLUID
         if kernel_type == "fluid"
-        else CellType.FIXED_SCALAR_VALUE.value
+        else CellFlags.FIXED_SCALAR_VALUE
     )
     kernel += f"""
     const int c = cell[ii];
-    const bool wall = (c & {CellType.WALL.value});
+    const bool wall = (c & {CellFlags.WALL});
     const bool fixed = (c & {fixed});
 
     if (wall) {{

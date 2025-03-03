@@ -12,7 +12,7 @@ from boltzmann.utils.logger import basic_config, dotted
 from boltzmann.core import (
     ACCELERATION,
     VELOCITY,
-    CellType,
+    CellFlags,
     Domain,
     Scales,
     SimulationMeta,
@@ -37,7 +37,12 @@ def u_analytical(y, t, W: float, g: float, nu: float, n: int = 20):
     for i in range(0, n):
         j = 2 * i + 1
         k = np.pi * j / W
-        u += (g / nu) * (2 * ((-1) ** j - 1) / (k**3 * W)) * np.exp(-nu * k**2 * t) * np.sin(k * y)
+        u += (
+            (g / nu)
+            * (2 * ((-1) ** j - 1) / (k**3 * W))
+            * np.exp(-nu * k**2 * t)
+            * np.sin(k * y)
+        )
 
     return u
 
@@ -115,8 +120,8 @@ cnt = domain.counts.astype(np.int32)
 sim = Simulation(cnt, q=9, omega_ns=1 / tau)
 
 cells_ = domain.unflatten(sim.domain.cell_type)
-cells_[+0, :] = CellType.WALL.value
-cells_[-1, :] = CellType.WALL.value
+cells_[+0, :] = CellFlags.WALL
+cells_[-1, :] = CellFlags.WALL
 
 vel_ = domain.unflatten(sim.fluid.vel)
 vel_[:, :, 0] = ((g_si / (2 * nu_si)) * domain.x * (L_si - domain.x))[:, None]
@@ -162,8 +167,17 @@ class PlanePoiseuille:
         # ax.plot(100 * domain.x, 100 * u, "g--", linewidth=1.5, label="Analytical")
 
         # Simulation.
-        u = np.sqrt(np.sum(scales.to_physical_units(vel_, **VELOCITY) ** 2, axis=-1))[:, 1]
-        ax.plot(100 * domain.x, 100 * u, linewidth=2.5, c="#7d39aa", alpha=0.8, label="Simulation")
+        u = np.sqrt(np.sum(scales.to_physical_units(vel_, **VELOCITY) ** 2, axis=-1))[
+            :, 1
+        ]
+        ax.plot(
+            100 * domain.x,
+            100 * u,
+            linewidth=2.5,
+            c="#7d39aa",
+            alpha=0.8,
+            label="Simulation",
+        )
 
         ax.legend(edgecolor="none")
         # ax.set_ylim(ymin=0)
@@ -178,7 +192,9 @@ class PlanePoiseuille:
         if self.vti:
             with VtiWriter(str(base / f"data_{step:06d}.vti"), domain) as writer:
                 writer.add_data("density", sim.fluid.rho)
-                writer.add_data("velocity", sim.fluid.vel * scales.dx / scales.dt, default=True)
+                writer.add_data(
+                    "velocity", sim.fluid.vel * scales.dx / scales.dt, default=True
+                )
                 writer.add_data("cell", sim.domain.cell_type)
 
     def write_checkpoint(self, base: Path):

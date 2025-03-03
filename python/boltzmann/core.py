@@ -11,7 +11,7 @@ from typing import Sequence, overload
 from boltzmann.utils.option import Some, to_opt, map_opt, Option
 
 __all__ = [
-    "CellType",
+    "CellFlags",
     "calc_lbm_params",
     "check_lbm_params",
 ]
@@ -294,14 +294,13 @@ ACCELERATION = dict(L=1, T=-2)
 DENSITY = dict(M=1, L=-3)
 
 
-class CellType(Enum):
+class CellFlags:
     FLUID = 0
     WALL = 1
     FIXED_FLUID_VELOCITY = 2
     FIXED_FLUID_DENSITY = 4
-    # == FIXED_FLUID_VELOCITY | FIXED_FLUID_DENSITY
-    FIXED_FLUID = 6
     FIXED_SCALAR_VALUE = 8
+    FIXED_FLUID = FIXED_FLUID_VELOCITY | FIXED_FLUID_DENSITY
 
 
 def check_lbm_params(Re: float, L: float, tau: float, M_max: float = 0.1):
