@@ -170,9 +170,7 @@ fox = domain.counts[1] // 60
 foy = 0
 
 try:
-    FONT = ImageFont.truetype(
-        "/home/dan/micromamba/envs/boltzmann/fonts/Inconsolata-Bold.ttf", fsz
-    )
+    FONT = ImageFont.truetype("/home/dan/micromamba/envs/boltzmann/fonts/Inconsolata-Bold.ttf", fsz)
 except OSError as e:
     raise OSError("Couldn't load True-Type Font file") from e
 
@@ -191,9 +189,7 @@ def write_png(
 
     with PngWriter(path, outx, sim.cells.flags, data, **kwargs) as img:
         draw = ImageDraw.Draw(img)
-        draw.text(
-            (fox, foy), label, tcol, font=FONT, stroke_width=fsz // 15, stroke_fill=bcol
-        )
+        draw.text((fox, foy), label, tcol, font=FONT, stroke_width=fsz // 15, stroke_fill=bcol)
 
 
 # output is slow so we parallelize it
@@ -282,9 +278,7 @@ def write_output(base: Path, iter: int):
 
 # %% Main Loop
 
-run_sim(
-    args.base, time_meta, sim, write_output, write_checkpoints=not args.no_checkpoint
-)
+run_sim(args.base, time_meta, sim, write_output, write_checkpoints=not args.no_checkpoint)
 
 
 # render with

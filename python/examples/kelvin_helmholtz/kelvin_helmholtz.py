@@ -2,52 +2,28 @@
 
 import logging
 from typing import Literal
+from boltzmann.simulation import parse_cli, run_sim
 import numpy as np
 import matplotlib.pyplot as plt
 
-from matplotlib.colors import LinearSegmentedColormap
 from PIL import ImageDraw, ImageFont
 from pathlib import Path
-from pprint import pformat
-from dataclasses import asdict
 
 from boltzmann.utils.logger import basic_config, time, dotted
 from boltzmann.core import (
-    VELOCITY,
     Domain,
     Scales,
-    SimulationMeta,
-    CellType,
+    CellFlags,
     TimeMeta,
     calc_lbm_params,
 )
+from boltzmann.core import calc_curl_2d, Simulation  # type: ignore
 from boltzmann.utils.mpl import PngWriter
-from boltzmann.simulation import (
-    SimulationLoop,
-    run_sim_cli,
-    load_fluid,
-    load_scalar,
-    save_fluid,
-    save_scalar,
-)
-from boltzmann_rs import (
-    calc_curl_2d,
-    Simulation,
-)
 
 
 basic_config()
 logger = logging.getLogger(__name__)
-logger.info("Starting")
 
-verbose = False
-
-# Make custom colormap for vorticity.
-
-colors = plt.cm.Spectral(np.linspace(0, 1, 11))
-colors[6, :] = 1.0  # Make center white not cream.
-nodes = np.linspace(0, 1, len(colors))
-mycmap = LinearSegmentedColormap.from_list("mycmap", list(zip(nodes, colors)))
 
 # %% Params
 
@@ -61,7 +37,7 @@ d_si = y_si / 25  # transition region width [m]
 u_si = 2.5  # flow velocity [m/s]
 nu_si = 1e-5  # kinematic viscosity [m^2/s]
 
-Re = u_si * d_si / nu_si
+Re = int(u_si * d_si / nu_si)
 
 # LBM parameters
 L = 4000
@@ -99,11 +75,6 @@ lower = np.array([0 * x_si, -y_si / 2.0])
 upper = np.array([1 * x_si, +y_si / 2.0])
 domain = Domain.make(lower=lower, upper=upper, dx=dx)
 
-sim_meta = SimulationMeta(domain, time_meta)
-
-logger.info(f"\n{pformat(asdict(sim_meta), sort_dicts=False, width=10)}")
-dotted(logger, "Iters / output", int(out_dt_si / dt))
-
 # color scheme constants
 # vmax_vmag = 1.6 * v0_si
 vmax_vmag = 1.3 * u_si
@@ -115,51 +86,52 @@ vmax_conc = 1.00
 # %% Initialize arrays
 
 omega_ns = 1 / tau
-omega_ad = 1 / 0.52
+omega_ad = 1 / min(0.52, tau)
 
-cnt = domain.counts.astype(np.int32)
+cnt = domain.counts
 
-with time(logger, "Creating simulation"):
-    sim = Simulation(cnt, q=9, omega_ns=omega_ns)
-    tracer = sim.add_tracer(q=5, omega_ad=omega_ad)
+args = parse_cli(base=f"out_re{Re}")
 
-with time(logger, "Setting initial values"):
-    # fixed velocity in- & out-flow
-    cells_ = domain.unflatten(sim.domain.cell_type)
-    cells_[:, +0] = CellType.FIXED.value  # bottom
-    cells_[:, -1] = CellType.FIXED.value  # top
+# Either load the simulatin or create it
+if args.resume:
+    with time(logger, "Loading simulation"):
+        sim = Simulation.load_checkpoint(args.dev, str(args.base / "checkpoint.mpk"))
+        tracer = sim.get_tracer(0)
+else:
+    with time(logger, "Creating simulation"):
+        sim = Simulation(args.dev, cnt, omega_ns=omega_ns)
+        tracer = sim.add_tracer(omega_ad=omega_ad)
 
-    # set velocity
-    vel_ = domain.unflatten(sim.fluid.vel)
-    vel_[:, :, 0] = u_si * np.tanh(domain.y / d_si)[None, :]
+    with time(logger, "Setting initial values"):
+        # fixed velocity in- & out-flow
+        sim.cells.flags[:, +0] = CellFlags.FIXED_FLUID | CellFlags.FIXED_SCALAR_VALUE  # bottom
+        sim.cells.flags[:, -1] = CellFlags.FIXED_FLUID | CellFlags.FIXED_SCALAR_VALUE  # top
 
-    # perturb velocity
-    vy_si = np.zeros_like(domain.x)
-    vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 1) * 0.001
-    vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 2) * 0.0001
-    vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 3) * 0.00001
-    vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 4) * 0.000001
-    vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 5) * 0.0000001
-    vel_[:, 1:-1, 1] = vy_si[:, None]
+        # set velocity
+        sim.fluid.vel[:, :, 0] = u_si * np.tanh(domain.y / d_si)[None, :]
 
-    # set concentration
-    conc_ = domain.unflatten(tracer.val)
-    conc_[:, : domain.counts[1] // 2] = 1.0  # lower half
-    conc_[: domain.counts[0] // 2, domain.counts[1] // 2 :] = 0.5  # upper-left half
+        # perturb velocity
+        vy_si = np.zeros_like(domain.x)
+        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 1) * 0.001
+        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 2) * 0.0001
+        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 3) * 0.00001
+        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 4) * 0.000001
+        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 5) * 0.0000001
+        sim.fluid.vel[:, 1:-1, 1] = vy_si[:, None]
 
-    # allocate extra arrays for plotting to avoid reallocating each step
-    vmag_ = np.zeros_like(conc_)
-    curl_ = np.zeros_like(conc_)
-    qcrit_ = np.zeros_like(vel_[:, :, 0])
+        # set concentration
+        tracer.val[:, : domain.counts[1] // 2] = 1.0  # lower half
 
-    # IMPORTANT: convert velocity to lattice units / timestep
-    vel_[:] = scales.to_lattice_units(vel_, **VELOCITY)
-
-with time(logger, "finalizing"):
-    sim.finalize(True)
+        # IMPORTANT: convert velocity to lattice units / timestep
+        sim.fluid.vel[:] = scales.velocity.to_lattice_units(sim.fluid.vel)
 
 
 # %% Define simulation loop
+
+# allocate extra arrays for plotting to avoid reallocating each step
+vmag_ = np.zeros_like(sim.fluid.rho)
+curl_ = np.zeros_like(sim.fluid.rho)
+qcrit_ = np.zeros_like(sim.fluid.rho)
 
 fsz = domain.counts[1] // 15
 fox = domain.counts[1] // 60
@@ -172,154 +144,70 @@ except OSError as e:
 
 
 def write_png(
-    path: Path, data: np.ndarray, label: str, background: Literal["dark", "light"], **kwargs
+    path: Path,
+    data: np.ndarray,
+    label: str,
+    background: Literal["dark", "light"],
+    **kwargs,
 ):
     outx = 2000
 
-    col = (255, 255, 255) if background == "dark" else (0, 0, 0)
+    tcol = (255, 255, 255) if background == "dark" else (0, 0, 0)
+    bcol = (0, 0, 0) if background == "dark" else (255, 255, 255)
 
-    with PngWriter(path, outx, domain, cells_, data, **kwargs) as img:
+    with PngWriter(path, outx, sim.cells.flags, data, **kwargs) as img:
         draw = ImageDraw.Draw(img)
-        draw.text((fox, foy), label, col, font=FONT)
+        draw.text((fox, foy), label, tcol, font=FONT, stroke_width=fsz // 15, stroke_fill=bcol)
 
 
-class KelvinHelmholtz(SimulationLoop):
-    def loop_for(self, steps: int):
-        if np.any(~np.isfinite(sim.fluid.f)) or np.any(~np.isfinite(tracer.g)):
-            raise ValueError("Non-finite value detected.")
+def write_output(base: Path, iter: int):
+    global curl_, vmag_, qcrit_
+    with time(logger, "calc curl"):
+        curl__ = curl_.reshape(sim.fluid.rho.shape)
+        qcrit__ = qcrit_.reshape(sim.fluid.rho.shape)
+        calc_curl_2d(sim.fluid.vel, sim.cells.flags, cnt, curl__, qcrit__)  # in LU
+        curl_[:] = curl_ * ((dx / dt) / dx)  # in SI
+        curl_[:] = np.tanh(curl_ / vmax_curl) * vmax_curl
+        qcrit_[:] = qcrit_ * ((dx / dt) / dx) ** 2  # in SI
+        qcrit_[:] = np.tanh(qcrit_ / vmax_qcrit) * vmax_qcrit
 
-        self.sim.iterate(steps)
+    with time(logger, "calc vmag"):
+        vmag_[:] = np.sqrt(np.sum(sim.fluid.vel**2, -1))
+        vmag_[:] = scales.velocity.to_physical_units(vmag_)
+        vmag_[:] = ((np.tanh(2 * (vmag_ / vmax_vmag) - 1) + 1) / 2) * vmax_vmag
 
-    def write_output(self, base: Path, step: int):
-        global conc_, curl_, vmag_
-        with time(logger, "calc curl", silent=not verbose):
-            curl__ = curl_.reshape(sim.fluid.rho.shape)
-            qcrit__ = qcrit_.reshape(sim.fluid.rho.shape)
-            calc_curl_2d(sim.fluid.vel, sim.domain.cell_type, cnt, curl__, qcrit__)  # in LU
-            curl_[:] = curl_ * ((dx / dt) / dx)  # in SI
-            curl_[:] = np.tanh(curl_ / vmax_curl) * vmax_curl
-            qcrit_[:] = qcrit_ * ((dx / dt) / dx) ** 2  # in SI
-            qcrit_[:] = np.tanh(qcrit_ / vmax_qcrit) * vmax_qcrit
+    with time(logger, "writing output"):
+        write_png(
+            base / f"vmag_{iter:06d}.png",
+            vmag_,
+            "Velocity",
+            "dark",
+            cmap="inferno",
+            vmax=vmax_vmag,
+        )
 
-        with time(logger, "calc vmag", silent=not verbose):
-            vmag_[:] = np.sqrt(np.sum(vel_**2, -1))
-            vmag_[:] = scales.to_physical_units(vmag_, **VELOCITY)
-            vmag_[:] = ((np.tanh(2 * (vmag_ / vmax_vmag) - 1) + 1) / 2) * vmax_vmag
+        write_png(
+            base / f"conc_{iter:06d}.png",
+            tracer.val,
+            "Tracer",
+            "dark",
+            cmap="cividis",
+            vmin=0,
+            vmax=vmax_conc,
+        )
 
-        with time(logger, "writing output", 1, silent=not verbose):
-            write_png(
-                base / f"vmag_{step:06d}.png",
-                vmag_,
-                "Velocity",
-                "dark",
-                cmap="inferno",
-                vmax=vmax_vmag,
-            )
-
-            write_png(
-                base / f"conc_{step:06d}.png",
-                conc_,
-                "Tracer",
-                "dark",
-                cmap="cividis",
-                vmin=0,
-                vmax=vmax_conc,
-            )
-
-            write_png(
-                base / f"curl_{step:06d}.png",
-                curl_,
-                "Vorticity",
-                "light",
-                cmap="RdBu",
-                # cmap=mycmap,
-                vmin=-vmax_curl,
-                vmax=vmax_curl,
-            )
-
-    def write_checkpoint(self, base: Path):
-        with time(logger, "writing checkpoint", 1, silent=not verbose):
-            save_fluid(base, sim.fluid)
-            save_scalar(base, tracer, "tracer")
-
-    def read_checkpoint(self, base: Path):
-        load_fluid(base, sim.fluid)
-        load_scalar(base, tracer, "tracer")
-        sim.finalize(False)
+        write_png(
+            base / f"curl_{iter:06d}.png",
+            curl_,
+            "Vorticity",
+            "light",
+            cmap="RdBu_r",
+            # cmap=mycmap,
+            vmin=-vmax_curl,
+            vmax=vmax_curl,
+        )
 
 
 # %% Main Loop
 
-run_sim_cli(sim_meta, KelvinHelmholtz(sim))
-
-# render with
-# export FPS=30; ffmpeg -framerate $FPS -i out/conc_%06d.png -framerate $FPS -i out/curl_%06d.png                                      -c:v libx264 -crf 10 -filter_complex "[1]pad=iw:ih+2:0:2[v1];[0][v1]vstack=inputs=2" -y kh.mp4
-# export FPS=30; ffmpeg -framerate $FPS -i out/conc_%06d.png -framerate $FPS -i out/curl_%06d.png -framerate $FPS -i out/vmag_%06d.png -c:v libx264 -crf 10 -filter_complex "[1]pad=iw:ih+2:0:2[v1];[2]pad=iw:ih+2:0:2[v2];[0][v1][v2]vstack=inputs=3" -y kh4.mp4
-
-import sys
-
-sys.exit()
-
-# %%
-
-import logging
-import matplotlib.pyplot as plt
-import numpy as np
-
-import boltzmann_rs as bz
-
-from boltzmann.utils.logger import basic_config, time
-
-basic_config()
-logger = logging.getLogger("kh")
-
-cnt = np.array([1000, 1000], dtype=np.int32)
-sim = bz.Simulation(cnt, q=9, omega_ns=0.51)
-sim.add_tracer(q=5, omega_ad=0.51)
-v = sim.fluid.vel.reshape([1000, 1000, 2])
-r = sim.fluid.rho.reshape([1000, 1000])
-C = sim.tracer.val.reshape([1000, 1000])
-v[:, 350:450, 0] = 0.1
-v[:, 350:450, 1] = -0.05
-# r[10, 10] = 1.01
-x = np.linspace(-2, 2, 1000)
-XX, YY = np.meshgrid(x, x)
-RR = np.sqrt(XX**2 + YY**2)
-C[:] = np.exp(-((RR - 0.7) ** 2) / (2 * 0.01))
-sim.finalize(True)
-
-vmag = np.sqrt(np.sum(v**2, axis=-1))
-vmax = vmag.max()
-plt.imshow(vmag.T, vmin=0, vmax=vmax, interpolation="none")
-plt.colorbar()
-plt.show()
-
-plt.imshow(C.T, vmax=1)
-plt.colorbar()
-plt.show()
-
-# vort = np.zeros_like(sim.fluid.rho)
-# bz.calc_curl_2d(sim.fluid.vel, sim.domain.cell_type, cnt, vort)
-# vort_ = vort.reshape([1000, 1000])
-# plt.imshow(vort_)
-# plt.show()
-
-print(r.min(), r.max())
-
-# %%
-
-cells = sim.fluid.rho.shape[0]
-steps = 200
-with time(logger, cells * steps):
-    sim.iterate(steps)
-
-vmag = np.sqrt(np.sum(v**2, axis=-1))
-plt.imshow(vmag.T, vmin=0, vmax=vmax, interpolation="none")
-plt.colorbar()
-plt.show()
-
-plt.imshow(C.T, vmax=1.05)
-plt.colorbar()
-plt.show()
-
-print(r.min(), r.max())
+run_sim(args.base, time_meta, sim, write_output, write_checkpoints=not args.no_checkpoint)
