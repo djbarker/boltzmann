@@ -57,7 +57,7 @@ def to_dims(dims: DimsT) -> list[int]:
 @dataclass
 class Domain:
     """
-    Describes the domain grid and provides functions for creating & reshaping arrays.
+    Describes the domain grid.
 
     The semantics are that each cell has a size of `dx`, the `lower` & `upper` arrays are the lower
     and upper _edges_ of the cells respectively.
@@ -169,6 +169,18 @@ class Domain:
     @property
     def depth(self) -> float:
         return self.get_extent(2)
+
+    def meshgrid(self) -> tuple[np.ndarray, ...]:
+        """
+        Return a meshgrid of the domain.
+
+        .. code-block: python
+
+            dom = Domain.make(lower=[-0.5, 0], upper=[0.5, 1.0], counts=[100, 100])
+            XX, YY = dom.meshgrid()
+
+        """
+        return np.meshgrid(*[self.get_dim(i) for i in range(self.dims)], indexing="ij")
 
 
 @dataclass
@@ -302,9 +314,7 @@ class Scales:
             case (Some(x), Some(t), None):
                 pass
             case _:
-                msg = (
-                    f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
-                )
+                msg = f"Must specify exactly two of dx, dt and cs! [{dx=}, {dt=}, {cs=}]"
                 raise ValueError(msg)
 
         return Scales(x, t, dm)
