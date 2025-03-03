@@ -6,6 +6,12 @@ from matplotlib.colors import Colormap
 from PIL.Image import Image, Resampling, fromarray
 from pathlib import Path
 
+__all__ = [
+    "make_cmap",
+    "OrangeBlue",
+    "PngWriter",
+]
+
 
 def make_cmap(name: str, colors: list) -> LinearSegmentedColormap:
     """
