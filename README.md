@@ -79,6 +79,7 @@ curl = dvydx - dvxdy
 plt.imshow(curl.T, cmap="RdBu")
 plt.show()
 ```
+
 This should produce the plot below
 
 <p align="center">
@@ -90,6 +91,8 @@ This should produce the plot below
     Basic 2D simulation showing <a href="https://en.wikipedia.org/wiki/Kelvin%E2%80%93Helmholtz_instability">Kelvin-Helmoltz instability</a>.
     </i>
 </p>
+
+The code for this example is at [`examples/basic.py`](/python/examples/basic.py).
 
 ## Examples
 
