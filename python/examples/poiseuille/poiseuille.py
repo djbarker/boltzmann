@@ -10,8 +10,6 @@ from dataclasses import dataclass, field
 
 from boltzmann.utils.logger import basic_config, dotted
 from boltzmann.core import (
-    ACCELERATION,
-    VELOCITY,
     CellFlags,
     Domain,
     Scales,
@@ -109,7 +107,7 @@ logger.info(f"Cell counts ............. {tuple(domain.counts)}")
 logger.info(f"Iters / output .......... {time.batch_steps}")
 logger.info(f"Reynolds number ......... {Re:,.0f}")
 
-g_lu = scales.to_lattice_units(g_si, **ACCELERATION)
+g_lu = scales.acceleration.to_lattice_units(g_si)
 g_lu = np.array([0, g_lu], dtype=np.float32)
 
 # %% Initialize arrays
@@ -125,7 +123,7 @@ cells_[-1, :] = CellFlags.WALL
 
 vel_ = domain.unflatten(sim.fluid.vel)
 vel_[:, :, 0] = ((g_si / (2 * nu_si)) * domain.x * (L_si - domain.x))[:, None]
-vel_[:] = scales.to_lattice_units(vel_, **VELOCITY)
+vel_[:] = scales.velocity.to_lattice_units(vel_)
 
 mem_mb = (sim.domain.size_bytes + sim.fluid.size_bytes) / 1e6
 logger.info(f"Memory usage: {mem_mb:,.2f} MB")
@@ -167,9 +165,7 @@ class PlanePoiseuille:
         # ax.plot(100 * domain.x, 100 * u, "g--", linewidth=1.5, label="Analytical")
 
         # Simulation.
-        u = np.sqrt(np.sum(scales.to_physical_units(vel_, **VELOCITY) ** 2, axis=-1))[
-            :, 1
-        ]
+        u = np.sqrt(np.sum(scales.velocity.to_physical_units(vel_) ** 2, axis=-1))[:, 1]
         ax.plot(
             100 * domain.x,
             100 * u,
@@ -210,7 +206,7 @@ run_sim_cli(meta, PlanePoiseuille(vti=False))
 
 # %% Save final output
 
-vel_[:] = scales.to_physical_units(vel_, **VELOCITY)
+vel_[:] = scales.velocity.to_physical_units(vel_)
 np.save(f"out/final.{tau}.{L}.npy", vel_)
 sys.exit(0)
 

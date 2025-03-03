@@ -13,14 +13,12 @@ from scipy.stats.qmc import PoissonDisk
 
 from boltzmann.utils.logger import basic_config, dotted, time
 from boltzmann.core import (
-    VELOCITY,
     Domain,
     Simulation,
     CellFlags,
     TimeMeta,
     calc_lbm_params,
     Scales,
-    ACCELERATION,
 )
 from boltzmann.simulation import parse_cli, run_sim
 
@@ -172,7 +170,7 @@ else:
     tracer.val[mask] = 1.0
 
     # IMPORTANT: convert gravity lattice units before setting
-    g_lu = scales.to_lattice_units(g_si, **ACCELERATION)
+    g_lu = scales.acceleration.to_lattice_units(g_si)
     sim.set_gravity(np.array([0.0, g_lu], np.float32))
 
 
@@ -226,7 +224,7 @@ def write_output(base: Path, iter: int):
     plt.savefig(base / "density.png", bbox_inches="tight", pad_inches=0, dpi=300)
     plt.close()
 
-    print(scales.to_lattice_units(u_si, **VELOCITY), np.nanmax(vmag))
+    print(scales.velocity.to_lattice_units(u_si), np.nanmax(vmag))
 
 
 # %% Run the simulation

@@ -214,10 +214,68 @@ class TimeMeta:
 
 
 @dataclass
+class UnitConverter:
+    """
+    Convert a specific dimensional quantity between physical & lattice units.
+    """
+
+    to_physical: float
+    to_lattice: float
+
+    @overload
+    def to_lattice_units(self, value: float) -> float: ...
+
+    @overload
+    def to_lattice_units(self, value: np.ndarray) -> np.ndarray: ...
+
+    @overload
+    def to_physical_units(self, value: float) -> float: ...
+
+    @overload
+    def to_physical_units(self, value: np.ndarray) -> np.ndarray: ...
+
+    def to_lattice_units(self, value: float | np.ndarray) -> float | np.ndarray:
+        """
+        Convert the given dimensional value(s) into lattice-units using the correct conversion factor.
+
+        NOTE: Be very careful if assigning the result of this since it creates a copy.
+              You probably want to assign the elements rather than the whole array, e.g
+
+              >>> vel_ = converter.to_lattice_units(vel_)     # Wrong! vel_ will have a new buffer.
+              >>> vel_[:] = converter.to_lattice_units(vel_)  # Right! Write to the vel_ buffer.
+        """
+        return value * self.to_lattice
+
+    def to_physical_units(self, value: float | np.ndarray) -> float | np.ndarray:
+        """
+        Convert the given dimensional value(s) into physical-units using the correct conversion factor.
+
+        NOTE: Be very careful if assigning the result of this since it creates a copy.
+              You probably want to assign the elements rather than the whole array, e.g
+
+              >>> vel_ = converter.to_physical_units(vel_)     # Wrong! vel_ will have a new buffer.
+              >>> vel_[:] = converter.to_physical_units(vel_)  # Right! Write to the vel_ buffer.
+        """
+        return value * self.to_physical
+
+
+@dataclass
 class Scales:
     """
-    Characteristic scale of fundamental units.
+    Characteristic scales of fundamental units.
     Used to convert between physical units (SI) and simulation (lattice) units.
+
+    To convert you must use this to construct a `UnitConverter` object for the given powers.
+    Convenience properties exist for the three most common cases; distance, velocity & acceleration.
+
+    .. code-block: python
+
+        scales = Scales.make(dx=dx, dt=dt)
+        vel_si = 1.0  # [m/s]
+
+        # The statements below are equivalent:
+        vel_lu = scales.converter(L=1, T=-1).to_lattice_units(vel_si)
+        vel_lu = scales.velocity.to_lattice_units(vel_si)
     """
 
     dx: float
@@ -259,39 +317,27 @@ class Scales:
         """
         return (self.dx / self.dt) / np.sqrt(3)
 
-    def to_lattice_units(
-        self, value: float | np.ndarray, L: int = 0, T: int = 0, M: int = 0
-    ) -> float | np.ndarray:
+    def converter(self, L: int = 0, T: int = 0, M: int = 0) -> UnitConverter:
         """
-        Convert the given dimensional value(s) into lattice-units using the correct conversion factor.
-
-        NOTE: Be very careful if assigning the result of this since it creates a copy.
-              You probably want to assign the elements rather than the whole array, e.g
-
-              >>> vel_ = scales.to_lattice_units(vel_, **VELOCITY)       # Wrong! vel_ will have a new buffer.
-              >>> vel_[:] = = scales.to_lattice_units(vel_, **VELOCITY)  # Right! Write to the vel_ buffer.
+        Construct a `UnitConverter` object for the given dimensionality.
         """
-        return value * pow(self.dx, -L) * pow(self.dt, -T) * pow(self.dm, -M)
+        factor = pow(self.dx, L) * pow(self.dt, T) * pow(self.dm, M)
+        return UnitConverter(
+            to_physical=factor,
+            to_lattice=1.0 / factor,
+        )
 
-    @overload
-    def to_physical_units(
-        self, value: np.ndarray, L: int = 0, T: int = 0, M: int = 0
-    ) -> np.ndarray: ...
+    @property
+    def distance(self) -> UnitConverter:
+        return self.converter(L=1, T=0)
 
-    @overload
-    def to_physical_units(
-        self, value: float, L: int = 0, T: int = 0, M: int = 0
-    ) -> float: ...
+    @property
+    def velocity(self) -> UnitConverter:
+        return self.converter(L=1, T=-1)
 
-    def to_physical_units(
-        self, value: float | np.ndarray, L: int = 0, T: int = 0, M: int = 0
-    ) -> float | np.ndarray:
-        return value * pow(self.dx, L) * pow(self.dt, T) * pow(self.dm, M)
-
-
-VELOCITY = dict(L=1, T=-1)
-ACCELERATION = dict(L=1, T=-2)
-DENSITY = dict(M=1, L=-3)
+    @property
+    def acceleration(self) -> UnitConverter:
+        return self.converter(L=1, T=-2)
 
 
 class CellFlags:
@@ -305,7 +351,7 @@ class CellFlags:
 
 def check_lbm_params(Re: float, L: float, tau: float, M_max: float = 0.1):
     """
-    Check if the chosen parameters are likely to be stable or not.
+    Check if the chosen parameters are likely to be stable or not with BGK collision operator.
     """
 
     # Maximum value of tau implied by Mach condition.

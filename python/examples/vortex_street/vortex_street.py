@@ -11,7 +11,6 @@ from pathlib import Path
 
 from boltzmann.utils.logger import basic_config, time, dotted
 from boltzmann.core import (
-    VELOCITY,
     Domain,
     Scales,
     CellFlags,
@@ -153,7 +152,7 @@ else:
         sim.cells.flags[mask] |= CellFlags.FIXED_SCALAR_VALUE
 
         # IMPORTANT: convert velocity to lattice units / timestep
-        sim.fluid.vel[:] = scales.to_lattice_units(sim.fluid.vel, **VELOCITY)
+        sim.fluid.vel[:] = scales.velocity.to_lattice_units(sim.fluid.vel)
 
 
 # %% Define simulation output
@@ -217,7 +216,7 @@ def write_output(base: Path, iter: int):
 
     with time(logger, "calc vmag"):
         vmag_[:] = np.sqrt(np.sum(sim.fluid.vel**2, axis=-1))
-        vmag_[:] = scales.to_physical_units(vmag_, **VELOCITY)
+        vmag_[:] = scales.velocity.to_physical_units(vmag_)
         vmag_[:] = np.tanh(vmag_ / vmax_vmag) * vmax_vmag
 
     tracer_[:, :, 0] = tracer_R.val
