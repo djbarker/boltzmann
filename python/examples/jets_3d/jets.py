@@ -10,7 +10,7 @@ import numpy as np
 
 from boltzmann.core import Simulation, check_lbm_params
 from boltzmann.utils.logger import basic_config, dotted, time
-from boltzmann.vtkio import VtiWriter
+from boltzmann.utils.vtkio import VtiWriter
 
 
 basic_config()

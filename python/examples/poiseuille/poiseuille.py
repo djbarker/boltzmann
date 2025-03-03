@@ -18,7 +18,7 @@ from boltzmann.core import (
     check_lbm_params,
 )
 from boltzmann.simulation import run_sim_cli
-from boltzmann.vtkio import VtiWriter
+from boltzmann.utils.vtkio import VtiWriter
 from boltzmann_rs import Simulation
 
 basic_config()
