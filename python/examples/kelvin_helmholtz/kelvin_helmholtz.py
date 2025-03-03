@@ -4,7 +4,6 @@ import logging
 from typing import Literal
 from boltzmann.simulation import parse_cli, run_sim
 import numpy as np
-import matplotlib.pyplot as plt
 
 from PIL import ImageDraw, ImageFont
 from pathlib import Path
@@ -34,15 +33,15 @@ aspect_ratio = 2
 y_si = 2.0
 x_si = y_si * aspect_ratio
 d_si = y_si / 25  # transition region width [m]
-u_si = 2.5  # flow velocity [m/s]
+u_si = 0.5  # flow velocity [m/s]
 nu_si = 1e-5  # kinematic viscosity [m^2/s]
 
-Re = int(u_si * d_si / nu_si)
+Re = int(u_si * d_si / nu_si + 0.5)
 
 # LBM parameters
 L = 4000
 
-(tau, u) = calc_lbm_params(Re, L, M_max=0.1)
+(tau, u) = calc_lbm_params(Re, L, tau=0.55, M_max=0.1)
 dx = y_si / L
 dt = (u / u_si) * dx
 
@@ -86,7 +85,7 @@ vmax_conc = 1.00
 # %% Initialize arrays
 
 omega_ns = 1 / tau
-omega_ad = 1 / min(0.52, tau)
+omega_ad = 1 / min(0.51, tau)
 
 cnt = domain.counts
 
@@ -133,15 +132,6 @@ vmag_ = np.zeros_like(sim.fluid.rho)
 curl_ = np.zeros_like(sim.fluid.rho)
 qcrit_ = np.zeros_like(sim.fluid.rho)
 
-fsz = domain.counts[1] // 15
-fox = domain.counts[1] // 60
-foy = 0
-
-try:
-    FONT = ImageFont.truetype("/home/dan/micromamba/envs/boltzmann/fonts/Inconsolata-Bold.ttf", fsz)
-except OSError as e:
-    raise OSError("Couldn't load True-Type Font file") from e
-
 
 def write_png(
     path: Path,
@@ -152,24 +142,27 @@ def write_png(
 ):
     outx = 2000
 
+    # colours
     tcol = (255, 255, 255) if background == "dark" else (0, 0, 0)
     bcol = (0, 0, 0) if background == "dark" else (255, 255, 255)
 
+    # font
+    fsz = domain.counts[1] // 15
+    fox = domain.counts[1] // 60
+    foy = 0
+    f = ImageFont.truetype("NotoSans-BoldItalic", fsz)
+
     with PngWriter(path, outx, sim.cells.flags, data, **kwargs) as img:
         draw = ImageDraw.Draw(img)
-        draw.text((fox, foy), label, tcol, font=FONT, stroke_width=fsz // 15, stroke_fill=bcol)
+        draw.text((fox, foy), label, tcol, font=f, stroke_width=fsz // 15, stroke_fill=bcol)
 
 
 def write_output(base: Path, iter: int):
     global curl_, vmag_, qcrit_
     with time(logger, "calc curl"):
-        curl__ = curl_.reshape(sim.fluid.rho.shape)
-        qcrit__ = qcrit_.reshape(sim.fluid.rho.shape)
-        calc_curl_2d(sim.fluid.vel, sim.cells.flags, cnt, curl__, qcrit__)  # in LU
+        calc_curl_2d(sim.fluid.vel, sim.cells.flags, cnt, curl_, qcrit_)  # in LU
         curl_[:] = curl_ * ((dx / dt) / dx)  # in SI
         curl_[:] = np.tanh(curl_ / vmax_curl) * vmax_curl
-        qcrit_[:] = qcrit_ * ((dx / dt) / dx) ** 2  # in SI
-        qcrit_[:] = np.tanh(qcrit_ / vmax_qcrit) * vmax_qcrit
 
     with time(logger, "calc vmag"):
         vmag_[:] = np.sqrt(np.sum(sim.fluid.vel**2, -1))
