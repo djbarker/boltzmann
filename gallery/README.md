@@ -39,7 +39,6 @@ _Code at [`voronoi/voronoi.py`](/python/examples/voronoi/voronoi.py)_
 
 ## Colliding Jets 3D
 
-
 <p>
     <div align="center" style="display: flex; flex-wrap: nowrap;">
         <image src="jets_3d_velocity.png" width=48%px/>
@@ -52,3 +51,20 @@ The volumetric plots show the velocity magnitude (orange color-scheme) and the Q
 The simulation has 64 million grid cells.
 
 _Code at [`jets_3d/jets.py`](/python/examples/voronoi/voronoi.py)_
+
+## Kelvin-Helmholtz Instability
+
+<p>
+    <div align="center" style="display: flex; flex-wrap: nowrap;">
+        <image src="kelvin_helmholtz_tracer.png" width=48%px/>
+        <image src="kelvin_helmholtz_vorticity.png" width=48%px/>
+    </div>
+</p>
+
+Simulation showing the development of the [Kelvin-Helmholtz instability](https://en.wikipedia.org/wiki/Kelvin%E2%80%93Helmholtz_instability) at a shear boundary.
+The top of the plot is moving to the right, while the bottom is moving to the left. 
+This situation is unstable and slight perturbations grow and form large vortices.
+This motion is highlighted by showing a tracer which is advected with the fluid.
+The simulation has 32 million grid cells.
+
+_Code at [`kelvin_helmholtz/kelvin_helmholtz.py`](/python/examples/kelvin_helmholtz/kelvin_helmholtz.py)_
