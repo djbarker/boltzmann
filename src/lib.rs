@@ -191,6 +191,11 @@ impl CellsPy {
     fn size_bytes(&self) -> usize {
         self.sim.lock().unwrap().cells.size_bytes()
     }
+
+    #[getter]
+    fn count(&self) -> usize {
+        self.sim.lock().unwrap().cells.counts.product()
+    }
 }
 
 #[pyclass(eq, eq_int, name = "DeviceType")]
