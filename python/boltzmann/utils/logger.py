@@ -10,7 +10,7 @@ __all__ = [
     "basic_config",
     "PerfInfo",
     "PerfTimer",
-    "time",
+    "timed",
     "dotted",
 ]
 
@@ -112,7 +112,7 @@ def tick() -> PerfTimer:
 
 
 @contextmanager
-def time(
+def timed(
     logger: logging.Logger, message: str = "", events: int = 1, *, silent: bool = False
 ) -> Generator[PerfTimer, Any, Any]:
     """

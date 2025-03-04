@@ -10,7 +10,7 @@ from scipy.ndimage import distance_transform_edt
 from PIL import ImageDraw, ImageFont
 from pathlib import Path
 
-from boltzmann.utils.logger import basic_config, time, dotted
+from boltzmann.utils.logger import basic_config, timed, dotted
 from boltzmann.core import (
     CellFlags,
     calc_lbm_params_lu,
@@ -89,19 +89,19 @@ args = parse_cli(base=f"out_re{Re}")
 
 # Either load the simulation or create it.
 if args.resume:
-    with time(logger, "Loading simulation"):
+    with timed(logger, "Loading simulation"):
         sim = Simulation.load_checkpoint(args.dev, str(args.base / "checkpoint.mpk"))
         tracer_R = sim.get_tracer(0)
         tracer_G = sim.get_tracer(1)
         # tracer_B = sim.get_tracer(2)
 else:
-    with time(logger, "Creating simulation"):
+    with timed(logger, "Creating simulation"):
         sim = Simulation(args.dev, cnt, omega_ns=omega_ns)
         tracer_R = sim.add_tracer(omega_ad=omega_ad)
         tracer_G = sim.add_tracer(omega_ad=omega_ad)
         # tracer_B = sim.add_tracer(omega_ad=omega_ad)
 
-    with time(logger, "Setting initial values"):
+    with timed(logger, "Setting initial values"):
         # fixed velocity in- & out-flow
         sim.cells.flags[+0, :] = CellFlags.FIXED_FLUID  # left
         sim.cells.flags[-1, :] = CellFlags.FIXED_FLUID  # right
@@ -199,7 +199,7 @@ def write_output(base: Path, iter: int):
 
     # First gather the various data to output.
 
-    with time(logger, "calc curl"):
+    with timed(logger, "calc curl"):
         curl__ = curl_.reshape(sim.fluid.rho.shape)
         qcrit__ = qcrit_.reshape(sim.fluid.rho.shape)
         calc_curl_2d(sim.fluid.vel, sim.cells.flags, cnt, curl__, qcrit__)  # in LU
@@ -208,7 +208,7 @@ def write_output(base: Path, iter: int):
         qcrit_[:] = qcrit_ * ((dx / dt) / dx) ** 2  # in SI
         qcrit_[:] = np.tanh(qcrit_ / vmax_qcrit) * vmax_qcrit
 
-    with time(logger, "calc vmag"):
+    with timed(logger, "calc vmag"):
         vmag_[:] = np.sqrt(np.sum(sim.fluid.vel**2, axis=-1))
         vmag_[:] = scales.velocity.to_physical_units(vmag_)
         vmag_[:] = np.tanh(vmag_ / vmax_vmag) * vmax_vmag
@@ -219,7 +219,7 @@ def write_output(base: Path, iter: int):
 
     # Then write out the PNG files.
 
-    with time(logger, "writing output", 1):
+    with timed(logger, "writing output", 1):
         futs = []
         futs.append(
             executor.submit(

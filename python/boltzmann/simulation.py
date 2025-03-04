@@ -12,7 +12,7 @@ from boltzmann.utils.option import Some, to_opt
 import numpy as np
 
 from boltzmann.core import Simulation
-from boltzmann.utils.logger import PerfInfo, dotted, tick, time
+from boltzmann.utils.logger import PerfInfo, dotted, tick, timed
 
 
 logger = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ def run_sim(
     if sim.iteration > 0:
         logger.info(f"Resuming from step {sim_i}")
 
-    with time(logger, f"Wrote step {sim_i} outputs."):
+    with timed(logger, f"Wrote step {sim_i} outputs."):
         outf(base, sim_i)
 
     timer_total = tick()
@@ -108,7 +108,7 @@ def run_sim(
     for i in range(sim_i + 1, max_i):
         timer = tick()
 
-        with time(logger, "iterating"):
+        with timed(logger, "iterating"):
             sim.iterate(batch_iters)
 
         # Logging & checkpointing follow.
@@ -123,7 +123,7 @@ def run_sim(
         outf(base, i)
 
         if write_checkpoints:
-            with time(logger, "checkpointing"):
+            with timed(logger, "checkpointing"):
                 # First write to a temp file, then move into place atomically to avoid corruption.
                 sim.write_checkpoint(str(base / "checkpoint.mpk.tmp"))
                 os.replace(base / "checkpoint.mpk.tmp", base / "checkpoint.mpk")

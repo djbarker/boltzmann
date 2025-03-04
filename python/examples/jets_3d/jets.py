@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from boltzmann.core import Simulation, check_lbm_params
-from boltzmann.utils.logger import basic_config, dotted, time
+from boltzmann.utils.logger import basic_config, dotted, timed
 from boltzmann.utils.vtkio import VtiWriter
 
 
@@ -106,7 +106,7 @@ calc_q()
 write_out(0)
 
 for i in range(1, 200):
-    with time(logger, f"Step {i}", events=cell_cnt * 50):
+    with timed(logger, f"Step {i}", events=cell_cnt * 50):
         sim.iterate(50)
 
     calc_q()

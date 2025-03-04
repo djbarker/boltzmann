@@ -9,7 +9,7 @@ import numpy as np
 from PIL import ImageDraw, ImageFont
 from pathlib import Path
 
-from boltzmann.utils.logger import basic_config, time, dotted
+from boltzmann.utils.logger import basic_config, timed, dotted
 from boltzmann.core import (
     CellFlags,
     calc_lbm_params_lu,
@@ -94,15 +94,15 @@ args = parse_cli(base=f"out_re{Re}")
 
 # Either load the simulatin or create it
 if args.resume:
-    with time(logger, "Loading simulation"):
+    with timed(logger, "Loading simulation"):
         sim = Simulation.load_checkpoint(args.dev, str(args.base / "checkpoint.mpk"))
         tracer = sim.get_tracer(0)
 else:
-    with time(logger, "Creating simulation"):
+    with timed(logger, "Creating simulation"):
         sim = Simulation(args.dev, cnt, omega_ns=omega_ns)
         tracer = sim.add_tracer(omega_ad=omega_ad)
 
-    with time(logger, "Setting initial values"):
+    with timed(logger, "Setting initial values"):
         # fixed velocity in- & out-flow
         sim.cells.flags[:, +0] = CellFlags.FIXED_FLUID | CellFlags.FIXED_SCALAR_VALUE  # bottom
         sim.cells.flags[:, -1] = CellFlags.FIXED_FLUID | CellFlags.FIXED_SCALAR_VALUE  # top
@@ -160,17 +160,17 @@ def write_png(
 
 def write_output(base: Path, iter: int):
     global curl_, vmag_, qcrit_
-    with time(logger, "calc curl"):
+    with timed(logger, "calc curl"):
         calc_curl_2d(sim.fluid.vel, sim.cells.flags, cnt, curl_, qcrit_)  # in LU
         curl_[:] = curl_ * ((dx / dt) / dx)  # in SI
         curl_[:] = np.tanh(curl_ / vmax_curl) * vmax_curl
 
-    with time(logger, "calc vmag"):
+    with timed(logger, "calc vmag"):
         vmag_[:] = np.sqrt(np.sum(sim.fluid.vel**2, -1))
         vmag_[:] = scales.velocity.to_physical_units(vmag_)
         vmag_[:] = ((np.tanh(2 * (vmag_ / vmax_vmag) - 1) + 1) / 2) * vmax_vmag
 
-    with time(logger, "writing output"):
+    with timed(logger, "writing output"):
         write_png(
             base / f"vmag_{iter:06d}.png",
             vmag_,

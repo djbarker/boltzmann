@@ -12,7 +12,7 @@ from scipy.signal import convolve2d
 from scipy.ndimage import distance_transform_edt
 from scipy.stats.qmc import PoissonDisk
 
-from boltzmann.utils.logger import basic_config, dotted, time
+from boltzmann.utils.logger import basic_config, dotted, timed
 from boltzmann.core import (
     Simulation,
     CellFlags,
@@ -141,11 +141,11 @@ args = parse_cli()
 
 # Either load the simulation or create it.
 if args.resume:
-    with time(logger, "Loading simulation"):
+    with timed(logger, "Loading simulation"):
         sim = Simulation.load_checkpoint(args.dev, str(args.base / "checkpoint.mpk"))
         tracer = sim.get_tracer(0)
 else:
-    with time(logger, "Creating simulation"):
+    with timed(logger, "Creating simulation"):
         sim = Simulation(args.dev, counts, q=9, omega_ns=omega_ns)
         tracer = sim.add_tracer(q=5, omega_ad=omega_ad)
 
