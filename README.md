@@ -4,7 +4,7 @@ A GPU accelerated Python package for running [Lattice-Boltzmann](https://en.wiki
 
 <p align="center">
     <picture align="center">
-        <a href="/gallery/">
+        <a href="https://github.com/djbarker/boltzmann/tree/master/gallery">
             <img src="gallery/banner.png"/>
         </a>
     </picture>
