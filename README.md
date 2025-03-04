@@ -16,14 +16,14 @@ A GPU accelerated Python package for running [Lattice-Boltzmann](https://en.wiki
 
 ## Highlights 
 
-- Accelerated with [OpenCL](https://en.wikipedia.org/wiki/OpenCL).
-- Uses the efficient AA-pattern for in-place streaming & collision.
-- [Advection-diffusion](https://en.wikipedia.org/wiki/Convection%E2%80%93diffusion_equation) kernels for tracers.
-- Support for 2D and 3D simulations.
-- Save & re-load your simulations (checkpointing).
-- Simple interface; simluation data is exposed to Python as [`numpy`](https://numpy.org/) arrays.
-- Utilities to map from physical to simulation units.
-- Utilities to output `.vti` files for analysis in [ParaView](https://www.paraview.org/)
+- 🚀 Accelerated with [OpenCL](https://en.wikipedia.org/wiki/OpenCL).
+- ⏩ Uses the efficient AA-pattern for in-place streaming & collision.
+- 🎨 [Advection-diffusion](https://en.wikipedia.org/wiki/Convection%E2%80%93diffusion_equation) kernels for tracers.
+- 📦 Support for 2D and 3D simulations.
+- 💾 Save & re-load your simulations (checkpointing).
+- 🔢 Simple interface; simluation data is exposed to Python as [`numpy`](https://numpy.org/) arrays.
+- 📏 Utilities to map from physical to simulation units.
+- 🔎 Utilities to output `.vti` files for analysis in [ParaView](https://www.paraview.org/)
 
 ## Get Started
 
