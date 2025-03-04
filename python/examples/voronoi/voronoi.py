@@ -16,7 +16,7 @@ from boltzmann.utils.logger import basic_config, dotted, time
 from boltzmann.core import (
     Simulation,
     CellFlags,
-    calc_lbm_params,
+    calc_lbm_params_lu,
 )
 from boltzmann.simulation import TimeMeta, parse_cli, run_sim
 
@@ -98,7 +98,7 @@ u_si = (1 / 8) * (g_si / nu_si) * w_si**2  # flow velocity [m/s]
 Re = int(u_si * w_si / nu_si)  # Reynolds number [1]
 D = L * (w_si / x_si)  # channel width [cells]
 
-(tau, u) = calc_lbm_params(Re, D, tau=0.505, M_max=0.1)
+(tau, u) = calc_lbm_params_lu(Re, D, tau=0.505, M_max=0.1)
 dx = x_si / L
 dt = (u / x_si) * dx
 

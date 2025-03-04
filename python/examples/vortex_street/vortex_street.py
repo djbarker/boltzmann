@@ -13,7 +13,7 @@ from pathlib import Path
 from boltzmann.utils.logger import basic_config, time, dotted
 from boltzmann.core import (
     CellFlags,
-    calc_lbm_params,
+    calc_lbm_params_lu,
 )
 from boltzmann.core import calc_curl_2d, Simulation  # type: ignore
 from boltzmann.utils.mpl import PngWriter, OrangeBlue
@@ -39,7 +39,7 @@ u_si = Re * nu_si / d_si  # flow velocity [m/s]
 L = 3000
 
 D = L * (d_si / y_si)
-(tau, u) = calc_lbm_params(Re, D, M_max=0.1)
+(tau, u) = calc_lbm_params_lu(Re, D, M_max=0.1)
 dx = y_si / L
 dt = (u / u_si) * dx
 

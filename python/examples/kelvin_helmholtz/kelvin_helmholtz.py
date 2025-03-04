@@ -12,7 +12,8 @@ from pathlib import Path
 from boltzmann.utils.logger import basic_config, time, dotted
 from boltzmann.core import (
     CellFlags,
-    calc_lbm_params,
+    calc_lbm_params_lu,
+    calc_lbm_params_si,
 )
 from boltzmann.core import calc_curl_2d, Simulation  # type: ignore
 from boltzmann.utils.mpl import PngWriter
@@ -30,17 +31,18 @@ logger = logging.getLogger(__name__)
 aspect_ratio = 2
 y_si = 2.0
 x_si = y_si * aspect_ratio
-d_si = y_si / 25  # transition region width [m]
-u_si = 0.5  # flow velocity [m/s]
+d_si = y_si / 50  # transition region width [m]
+u_si = 2.5  # flow velocity [m/s]
 nu_si = 1e-5  # kinematic viscosity [m^2/s]
 
-Re = int(u_si * d_si / nu_si + 0.5)
+Re = int(u_si * d_si / nu_si + 1e-8)
 
 # LBM parameters
 L = 4000
-
-(tau, u) = calc_lbm_params(Re, L, tau=0.55, M_max=0.1)
+D = L * (d_si / y_si)
 dx = y_si / L
+
+(tau, u) = calc_lbm_params_si(dx, u_si, y_si, nu_si, slack=10.0)
 dt = (u / u_si) * dx
 
 dotted(logger, "Reynolds number", Re)
@@ -53,8 +55,7 @@ dotted(logger, "dt", dt)
 scales = Scales.make(dx=dx, dt=dt)
 
 # dimensionless time does not depend on viscosity, purely on distances
-fps = 30
-out_dx_si = x_si / (20 * fps)  # want to output when flow has moved this far
+out_dx_si = x_si / 250  # want to output when flow has moved this far
 sim_dx_si = u_si * dt  # flow moves this far in dt (i.e. one iteration)
 n = out_dx_si / sim_dx_si
 n = int(n + 1e-8)
@@ -66,6 +67,8 @@ time_meta = TimeMeta.make(
     output_count=1200,
 )
 
+dotted(logger, "Steps/output", f"{out_dt_si / dt:,.0f}")
+# raise ValueError
 
 # geometry
 lower = np.array([0 * x_si, -y_si / 2.0])
@@ -75,7 +78,7 @@ domain = Domain.make(lower=lower, upper=upper, dx=dx)
 # color scheme constants
 # vmax_vmag = 1.6 * v0_si
 vmax_vmag = 1.3 * u_si
-vmax_curl = u_si / d_si
+vmax_curl = 0.6 * u_si / d_si
 vmax_qcrit = 0.2 * (u_si / d_si) ** 2
 vmax_conc = 1.00
 
@@ -109,11 +112,11 @@ else:
 
         # perturb velocity
         vy_si = np.zeros_like(domain.x)
-        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 1) * 0.001
-        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 2) * 0.0001
-        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 3) * 0.00001
-        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 4) * 0.000001
-        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 5) * 0.0000001
+        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 1) * 0.000001
+        # vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 2) * 0.00001
+        # vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 3) * 0.0001
+        # vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 4) * 0.001
+        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 5) * 0.001
         sim.fluid.vel[:, 1:-1, 1] = vy_si[:, None]
 
         # set concentration
