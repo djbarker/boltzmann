@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{BufReader, BufWriter};
 use std::path::Path;
 
@@ -92,7 +93,7 @@ pub struct Simulation {
     pub(crate) opencl: OpenCLCtx,
     pub cells: Cells,
     pub fluid: Fluid,
-    pub tracers: Vec<Scalar>,
+    pub tracers: HashMap<String, Scalar>,
     pub gravity: Array1<f32>,
     pub iteration: u64,
 }
@@ -101,7 +102,7 @@ pub struct Simulation {
 struct SimulationDeserializer {
     cells: CellsDeserializer,
     fluid: FluidDeserializer,
-    tracers: Vec<ScalarDeserializer>,
+    tracers: HashMap<String, ScalarDeserializer>,
     gravity: Array1<f32>,
     iteration: u64,
 }
@@ -118,7 +119,7 @@ impl SimulationDeserializer {
             tracers: self
                 .tracers
                 .into_iter()
-                .map(|t| t.with_context(&opencl))
+                .map(|(n, t)| (n, t.with_context(&opencl)))
                 .collect(),
             gravity: self.gravity,
             iteration: self.iteration,
@@ -136,7 +137,7 @@ impl Simulation {
             opencl: opencl,
             cells: cells,
             fluid: fluid,
-            tracers: Vec::new(),
+            tracers: HashMap::new(),
             gravity: Array1::zeros([counts.len()]),
             iteration: 0,
         }
@@ -146,8 +147,24 @@ impl Simulation {
         self.gravity = gravity;
     }
 
-    pub fn add_tracer(&mut self, tracer: Scalar) {
-        self.tracers.push(tracer);
+    /// Add a [`Scalar`] field with the given name.
+    ///
+    /// Panics if the name already exists.
+    pub fn add_tracer(&mut self, name: impl AsRef<str>, tracer: Scalar) {
+        if self
+            .tracers
+            .insert(name.as_ref().to_owned(), tracer)
+            .is_some()
+        {
+            panic!("Existing tracer '{}'", name.as_ref());
+        }
+    }
+
+    /// Return a previously added [`Scalar`] field.
+    ///
+    /// Returns [`Some<Scalar>`] if the field exists, otherwise [`None`].
+    pub fn get_tracer(&self, name: impl AsRef<str>) -> Option<&Scalar> {
+        self.tracers.get(name.as_ref())
     }
 
     /// Calculate equilibrium distribution functions from macroscopic variables.
@@ -158,7 +175,7 @@ impl Simulation {
     /// We also need to call [`Simulation::finalize`] to copy the data to the OpenCL device.
     fn equilibrate(&mut self) {
         self.fluid.equilibrate();
-        for tracer in self.tracers.iter_mut() {
+        for (_, tracer) in self.tracers.iter_mut() {
             tracer.equilibrate(self.fluid.vel.host.view());
         }
     }
@@ -169,7 +186,7 @@ impl Simulation {
     fn finalize(&mut self) {
         self.cells.write_to_dev(&self.opencl);
         self.fluid.write_to_dev(&self.opencl);
-        for tracer in self.tracers.iter_mut() {
+        for (_, tracer) in self.tracers.iter_mut() {
             tracer.write_to_dev(&self.opencl);
         }
     }
@@ -238,7 +255,7 @@ impl Simulation {
                     .expect("ExecuteKernel::new failed.")
             };
 
-            for tracer in self.tracers.iter_mut() {
+            for (_, tracer) in self.tracers.iter_mut() {
                 unsafe {
                     ExecuteKernel::new(get_kernel(&self.opencl, tracer))
                         .set_arg(&s.dev)
@@ -260,7 +277,7 @@ impl Simulation {
 
         // Read the data back from the OpenCL device buffers to the host arrays.
         self.fluid.read_to_host(&self.opencl);
-        for tracer in self.tracers.iter_mut() {
+        for (_, tracer) in self.tracers.iter_mut() {
             tracer.read_to_host(&self.opencl);
         }
 

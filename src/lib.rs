@@ -8,6 +8,7 @@ use ndarray::{arr1, Array1, ArrayView1, ArrayViewD, ArrayViewMutD};
 use numpy::{PyArrayDyn, PyReadonlyArray1, PyReadonlyArrayDyn, PyReadwriteArrayDyn};
 use opencl::{DeviceType, OpenCLCtx};
 use pyo3::prelude::*;
+use pyo3::types::PyString;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 // Imports from this lib:
@@ -126,8 +127,8 @@ impl FluidPy {
 struct ScalarPy {
     sim: Arc<Mutex<Simulation>>,
 
-    /// The index of the [`Scalar`] object inside the [`Simulation::tracers`] array.
-    index: usize,
+    /// The name of the [`Scalar`] object inside the [`Simulation::tracers`] map.
+    name: String,
 }
 
 #[pymethods]
@@ -136,7 +137,7 @@ impl ScalarPy {
     fn g<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
         let borrow = this.borrow();
         let sim = borrow.sim.lock().unwrap();
-        if let Some(tracer) = sim.tracers.get(borrow.index) {
+        if let Some(tracer) = sim.tracers.get(borrow.name.as_str()) {
             let array = &tracer.g.host;
             unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
         } else {
@@ -150,7 +151,7 @@ impl ScalarPy {
     fn val<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
         let borrow = this.borrow();
         let sim = borrow.sim.lock().unwrap();
-        if let Some(tracer) = sim.tracers.get(borrow.index) {
+        if let Some(tracer) = sim.tracers.get(borrow.name.as_str()) {
             let array = &tracer.C.host;
             unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
         } else {
@@ -166,7 +167,7 @@ impl ScalarPy {
             .lock()
             .unwrap()
             .tracers
-            .get(self.index)
+            .get(self.name.as_str())
             .unwrap()
             .size_bytes()
     }
@@ -273,7 +274,7 @@ impl SimulationPy {
     fn size_bytes(&self) -> usize {
         let sim = self.sim();
         let mut size_bytes = sim.fluid.size_bytes() + sim.cells.size_bytes();
-        for tracer in sim.tracers.iter() {
+        for (_, tracer) in sim.tracers.iter() {
             size_bytes += tracer.size_bytes();
         }
         size_bytes
@@ -296,32 +297,37 @@ impl SimulationPy {
     /// Add a scalar field which will follow the [Advection-Diffusion equation](https://en.wikipedia.org/wiki/Convection%E2%80%93diffusion_equation).
     ///
     /// Returns the [`ScalarPy`] object for the added tracer; you must keep this around to access the data.
-    #[pyo3(signature = (omega_ad, q=None))]
+    /// This function is idempotent (over the name) and will return the existing tracer if it already exists.
+    #[pyo3(signature = (name, omega_ad, q=None))]
     fn add_tracer<'py>(
         this: Bound<'py, Self>,
+        name: String,
         omega_ad: f32,
         q: Option<usize>,
     ) -> PyResult<Bound<'py, ScalarPy>> {
         let this = this.borrow_mut();
         let mut sim = this.sim();
 
-        // If q is not provided infer the most common kernels for each dimension.
-        let q = q.unwrap_or(match sim.cells.counts.len() {
-            1 => 3,
-            2 => 5,
-            3 => 7,
-            _ => panic!("Invalid number of dimensions. Expected either 1, 2 or 3."),
-        });
+        // Add the tracer if it does not exist.
+        if sim.get_tracer(&name).is_none() {
+            // If q is not provided infer the most common kernels for each dimension.
+            let q = q.unwrap_or(match sim.cells.counts.len() {
+                1 => 3,
+                2 => 5,
+                3 => 7,
+                _ => panic!("Invalid number of dimensions. Expected either 1, 2 or 3."),
+            });
 
-        let c = sim.cells.counts.as_slice().unwrap();
-        let tracer = Scalar::new(&sim.opencl, c, q, omega_ad);
-        sim.add_tracer(tracer);
+            let c = sim.cells.counts.as_slice().unwrap();
+            let tracer = Scalar::new(&sim.opencl, c, q, omega_ad);
+            sim.add_tracer(&name, tracer);
+        }
 
         let bound = Bound::new(
             this.py(),
             ScalarPy {
                 sim: this.sim.clone(),
-                index: sim.tracers.len() - 1,
+                name: name.clone(),
             },
         )
         .expect("Bound::new ScalarPy failed.");
@@ -332,13 +338,13 @@ impl SimulationPy {
     /// Get a scalar field by index, which as previously been added.
     ///
     /// TODO: would be nice to make this by name or something (e.g. store a map of [`Scalar`]s not just a vec).
-    fn get_tracer<'py>(this: Bound<'py, Self>, idx: usize) -> PyResult<Bound<'py, ScalarPy>> {
+    fn get_tracer<'py>(this: Bound<'py, Self>, name: String) -> PyResult<Bound<'py, ScalarPy>> {
         let this = this.borrow();
         let bound = Bound::new(
             this.py(),
             ScalarPy {
                 sim: this.sim.clone(),
-                index: idx,
+                name: name,
             },
         )
         .expect("Bound::new ScalarPy failed.");
