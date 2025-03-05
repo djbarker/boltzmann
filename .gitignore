@@ -84,3 +84,6 @@ docs/_build/
 # TODO list(s)
 TODO.md
 todo.md
+
+# WIP => exclude for now
+docs/
