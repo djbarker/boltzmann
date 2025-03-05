@@ -4,7 +4,6 @@ It's not actually needed to run the module since the OpenCL kernels get compiled
 For this reason its dependencies do not form part of the package dependencies (e.g. sympy).
 """
 
-import re
 import sympy as sp
 
 from enum import Enum
@@ -120,6 +119,7 @@ D2Q5 = VelocitySet(
 def make_advdiff_isotropic(d: int) -> VelocitySet:
     """
     Make an isotropic advection-diffusion velocity set.
+    See https://journals.aps.org/pre/pdf/10.1103/PhysRevE.105.025308.
     """
     match d:
         case 1:
@@ -127,7 +127,6 @@ def make_advdiff_isotropic(d: int) -> VelocitySet:
         case 2:
             f = Fraction("2/3")
         case 3:
-            # see: https://journals.aps.org/pre/pdf/10.1103/PhysRevE.105.025308
             f = Fraction("19/20")
         case _:
             raise ValueError(f"Invalid dimension {d}")
@@ -151,6 +150,10 @@ D3Q7 = make_advdiff_isotropic(3)
 
 
 class Axis(Enum):
+    """
+    :meta private:
+    """
+
     X = 0
     Y = 1
     Z = 2
@@ -195,44 +198,7 @@ def _dot(x: list[sp.Expr], f: list[sp.Expr | int]) -> sp.Expr:
     return sp.simplify(sp.Add(*[sp.Mul(xx, ff) for xx, ff in zip(x, f)]))
 
 
-def _to_cl(feq: sp.Expr) -> str:
-    """
-    Turn the output str (which would be valid python) into valid OpenCL.
-    """
-    # feq = str(feq)
-    # # add decimal points
-    # feq = re.subn(r"(\d+)", r"\1.", str(feq))[0]
-    # # replace powers
-    # feq = re.subn(
-    #     r"(\w)\*\*(\d+)", lambda m: "*" + "*".join([m.group(1)] * int(m.group(2))), feq
-    # )[0]
-
-    def pow_to_mul(expr: sp.Expr) -> sp.Expr | sp.Basic:
-        """
-        see: https://stackoverflow.com/questions/14264431/expanding-algebraic-powers-in-python-sympy
-        """
-        pows = list(expr.atoms(sp.Pow))
-        if any(not e.is_Integer for b, e in (i.as_base_exp() for i in pows)):
-            raise ValueError("A power contains a non-integer exponent")
-        repl = zip(
-            pows,
-            (
-                sp.Mul(*[b] * e, evaluate=False)
-                for b, e in (i.as_base_exp() for i in pows)
-            ),
-        )
-        return expr.subs(repl)
-
-    feq = pow_to_mul(feq)
-
-    feq = ccode(feq)  # does most of the work
-
-    return feq
-
-
-def gen_kernel_AA_v1(
-    model: VelocitySet, kernel_type: Literal["fluid", "scalar"]
-) -> str:
+def gen_kernel_AA_v1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]) -> str:
     """
     This is a pretty basic transcoding of my hand-written AA-pattern+BKG kernel for D2Q9 which is
     generic over the velocity set.
@@ -276,11 +242,7 @@ def gen_kernel_AA_v1(
     kernel += f"const size_t ii = {ii};\n\n"
 
     # check the cell type
-    fixed = (
-        CellFlags.FIXED_FLUID
-        if kernel_type == "fluid"
-        else CellFlags.FIXED_SCALAR_VALUE
-    )
+    fixed = CellFlags.FIXED_FLUID if kernel_type == "fluid" else CellFlags.FIXED_SCALAR_VALUE
     kernel += f"""
     const int c = cell[ii];
     const bool wall = (c & {CellFlags.WALL});
@@ -369,11 +331,9 @@ def gen_kernel_AA_v1(
     with kernel.no_format():
         for i in range(nvel):
             uq = _dot(v_, [model.qs[i][a.idx] for a in axes])
-            feq = model.ws[i] * (
-                1 + 3 * uq + 0.5 * (9 * (uq * uq) - 3 * sp.Symbol("vv"))
-            )
+            feq = model.ws[i] * (1 + 3 * uq + 0.5 * (9 * (uq * uq) - 3 * sp.Symbol("vv")))
             feq = sp.simplify(feq, rational=True)
-            feq = _to_cl(feq)
+            feq = ccode(feq)
             feq = f"r * ({feq})"
             kernel += f"f_[{i}] += omega * ({feq} - f_[{i}]);\n"
 
@@ -400,9 +360,6 @@ def gen_kernel_AA_v1(
             kernel += f"vel[ii*{ndim} + {axis.idx}] = v{axis.name};\n"
 
     # now finally wrap it in the function call
-    args_g = ", ".join(f"float g{a.name}" for a in axes)
-    args_s = ", ".join(f"int s{a.name}" for a in axes)
-
     if kernel_type == "fluid":
         args = "__constant int *s, int even, float omega, __constant float *g, global float *f, global float *rho, global float *vel, global int *cell"
     else:

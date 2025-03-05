@@ -21,13 +21,13 @@ __all__ = [
 
 def basic_config(logger: logging.Logger | None = None, level: int | str | None = None):
     """
+    .. role:: bash(code)
+        :language: bash
+
     Set up the logger configuration.
 
     :param logger: The logger to configure. If :py:const:`None`, the root logger is used.
     :param level: The log level. If :py:const:`None`, look at the :bash:`$LOG_LEVEL` environment variable.
-
-    .. role:: bash(code)
-        :language: bash
     """
     logger = logger or logging.getLogger()
 

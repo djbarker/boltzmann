@@ -24,22 +24,33 @@ if hasattr(boltzmann.boltzmann, "__all__"):
 
 # ------------------------------------
 
-Device = Literal["cpu", "gpu"]
+Device = Literal["cpu", "gpu"]  #: OpenCL device type on which type to run the simulations.
 
 
 class CellFlags:
-    FLUID = 0
-    WALL = 1
-    FIXED_FLUID_VELOCITY = 2
-    FIXED_FLUID_DENSITY = 4
-    FIXED_SCALAR_VALUE = 8
-    FIXED_FLUID = FIXED_FLUID_VELOCITY | FIXED_FLUID_DENSITY
+    """
+    Flags which control the simulations behaviour at a given cell.
+    """
+
+    # fmt: off
+    FLUID = 0                 #: The default value, the fluid & any tracers will evolve as usual.
+    WALL = 1                  #: The fluid obeys the `no-slip boundary condition <https://en.wikipedia.org/wiki/No-slip_condition>`_ & tracers will see `zero concentration gradient <https://en.wikipedia.org/wiki/Neumann_boundary_condition>`_.
+    FIXED_FLUID_VELOCITY = 2  #: The fluid velocity is fixed at the initial value, the density will evolve as usual.
+    FIXED_FLUID_DENSITY = 4   #: The fluid density is fixed at the initial value, the velocity will evolve as usual.
+    FIXED_SCALAR_VALUE = 8    #: The scalar value is fixed at the initial value. The fluid evolves as normal.
+    FIXED_FLUID = FIXED_FLUID_VELOCITY | FIXED_FLUID_DENSITY  #: Both fluid density & velocity are fixed to their initial values.
+    # fmt: on
 
 
 def check_lbm_params(Re: float, L: float, tau: float, M_max: float = 0.1, slack: float = 0.0):
     """
     Check if the chosen parameters are likely to be stable or not with BGK collision operator.
+    For more information see https://dbarker.uk/lbm_parameterization/.
 
+    :param Re: Desired Reynold's number of the system.
+    :param L: Characteristic length of the system.
+    :param tau: Relaxation time of the system.
+    :param M_max: Maximum Mach number of the system.
     :param slack: Extra margin on the checks. Must be in range (-1, inf).
                   Values < 0 imply stricter checks, wheras > 0 imply more relaxed checks.
     """
@@ -71,6 +82,14 @@ def calc_lbm_params_lu(
     """
     Choose the values of tau and u which maximize simulation speed & verify stability.
     If you specify tau that value will be used instead.
+
+    :param Re: Desired Reynold's number of the system.
+    :param L: Characteristic length of the system.
+    :param tau: Relaxation time of the system.
+    :param M_max: Maximum Mach number of the system.
+    :param tau_max: Hard cap on the value of tau allowed.
+    :param tau_min: Hard floor on the value of tau allowed.
+    :param slack: See :py:meth:`check_lbm_params`.
     """
 
     if tau is None:
@@ -95,6 +114,7 @@ def calc_lbm_params_si(
     # bounds
     M_max: float = 0.1,
     tau_max: float = 1.0,
+    tau_min: float = 0.5,
     slack: float = 0.0,
 ) -> tuple[float, float]:
     """
@@ -103,11 +123,18 @@ def calc_lbm_params_si(
 
     Sometimes it is more natural to specify the physical parameters directly rather than via
     Reynold's number.
+
+    :param M_max: Maximum Mach number of the system.
+    :param tau_max: Hard cap on the value of tau allowed.
+    :param tau_min: Hard floor on the value of tau allowed.
+    :param slack: See :py:meth:`check_lbm_params`.
     """
 
     Re = u_si * L_si / nu_si
     L = L_si / dx
-    tau, u = calc_lbm_params_lu(Re, L, tau=tau, M_max=M_max, tau_max=tau_max, slack=slack)
+    tau, u = calc_lbm_params_lu(
+        Re, L, tau=tau, M_max=M_max, tau_min=tau_min, tau_max=tau_max, slack=slack
+    )
 
     # sanity check:
     tau_ = np.sqrt(3) * nu_si * M_max / (dx * u_si) + 0.5

@@ -169,14 +169,15 @@ def make_sim(
 
         # An example script:
         $ cat my_sim.py
-        time = TimeMeta.make(dt_step=0.01, dt_output=0.1, output_count=100)
-        sim = make_runner([100, 100], 1 / 0.51, time)
+        out = "out"
+        sim = make_runner([100, 100], 1 / 0.51, out)
 
         if sim.iterations == 0:
             # set initial conditions
             ...
 
-        for iter in sim.run():
+        time = TimeMeta.make(dt_step=0.01, dt_output=0.1, output_count=100)
+        for iter in run_sim(sim, time, out):
             write_output(iter)  # for example
 
         # Use the CLI to resume a previously started simulation:
@@ -237,6 +238,7 @@ class SimulationScript:
     Simple class which lets us build simulation scripts via decorators on functions.
 
     Under the hood it calls :py:meth:`make_sim` and :py:meth:`run_sim` so the behaviour is the same.
+    But this saves us some wiring of command line arguments into the function calls.
     The difference is purely in the syntax of how the simulation is configured & set up.
 
     .. code-block:: python
