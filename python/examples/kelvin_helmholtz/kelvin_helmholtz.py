@@ -1,21 +1,16 @@
 # %% Imports
 
 import logging
-from typing import Literal
-from boltzmann.simulation import TimeMeta, parse_cli, run_sim
-from boltzmann.units import Domain, Scales
 import numpy as np
 
+from typing import Literal
 from PIL import ImageDraw, ImageFont
-from pathlib import Path
 
+from boltzmann.core import CellFlags, calc_lbm_params_si
+from boltzmann.core import calc_curl_2d  # type: ignore
+from boltzmann.simulation import TimeMeta, make_sim, run_sim
+from boltzmann.units import Domain, Scales
 from boltzmann.utils.logger import basic_config, timed, dotted
-from boltzmann.core import (
-    CellFlags,
-    calc_lbm_params_lu,
-    calc_lbm_params_si,
-)
-from boltzmann.core import calc_curl_2d, Simulation  # type: ignore
 from boltzmann.utils.mpl import PngWriter
 
 
@@ -38,7 +33,7 @@ nu_si = 1e-5  # kinematic viscosity [m^2/s]
 Re = int(u_si * d_si / nu_si + 1e-8)
 
 # LBM parameters
-L = 4000
+L = 3000
 D = L * (d_si / y_si)
 dx = y_si / L
 
@@ -49,8 +44,8 @@ dotted(logger, "Reynolds number", Re)
 dotted(logger, "tau", tau)
 dotted(logger, "u", u)
 dotted(logger, "L", L)
-dotted(logger, "dx", dx)
-dotted(logger, "dt", dt)
+dotted(logger, "dx", dx, "m")
+dotted(logger, "dt", dt, "s")
 
 scales = Scales.make(dx=dx, dt=dt)
 
@@ -67,8 +62,7 @@ time_meta = TimeMeta.make(
     output_count=1200,
 )
 
-dotted(logger, "Steps/output", f"{out_dt_si / dt:,.0f}")
-# raise ValueError
+dotted(logger, "Batch size", f"{out_dt_si / dt:,.0f}")
 
 # geometry
 lower = np.array([0 * x_si, -y_si / 2.0])
@@ -88,54 +82,40 @@ vmax_conc = 1.00
 omega_ns = 1 / tau
 omega_ad = 1 / min(0.51, tau)
 
+out = "out"
 cnt = domain.counts
+sim = make_sim(cnt, omega_ns, out)
 
-args = parse_cli(base=f"out_re{Re}")
+tracer = sim.add_tracer("tracer", omega_ad)
 
-# Either load the simulatin or create it
-if args.resume:
-    with timed(logger, "Loading simulation"):
-        sim = Simulation.load_checkpoint(args.dev, str(args.base / "checkpoint.mpk"))
-        tracer = sim.get_tracer(0)
-else:
-    with timed(logger, "Creating simulation"):
-        sim = Simulation(args.dev, cnt, omega_ns=omega_ns)
-        tracer = sim.add_tracer(omega_ad=omega_ad)
+if sim.iteration == 0:
+    # fixed velocity in- & out-flow
+    sim.cells.flags[:, +0] = CellFlags.FIXED_FLUID | CellFlags.FIXED_SCALAR_VALUE  # bottom
+    sim.cells.flags[:, -1] = CellFlags.FIXED_FLUID | CellFlags.FIXED_SCALAR_VALUE  # top
 
-    with timed(logger, "Setting initial values"):
-        # fixed velocity in- & out-flow
-        sim.cells.flags[:, +0] = CellFlags.FIXED_FLUID | CellFlags.FIXED_SCALAR_VALUE  # bottom
-        sim.cells.flags[:, -1] = CellFlags.FIXED_FLUID | CellFlags.FIXED_SCALAR_VALUE  # top
+    # set velocity
+    sim.fluid.vel[:, :, 0] = u_si * np.tanh(domain.y / d_si)[None, :]
 
-        # set velocity
-        sim.fluid.vel[:, :, 0] = u_si * np.tanh(domain.y / d_si)[None, :]
+    # perturb velocity
+    vy_si = np.zeros_like(domain.x)
+    vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 1) * 0.000001
+    # vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 2) * 0.00001
+    # vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 4) * 0.0001
+    vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 8) * 0.001
+    sim.fluid.vel[:, 1:-1, 1] = vy_si[:, None]
 
-        # perturb velocity
-        vy_si = np.zeros_like(domain.x)
-        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 1) * 0.000001
-        # vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 2) * 0.00001
-        # vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 3) * 0.0001
-        # vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 4) * 0.001
-        vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 5) * 0.001
-        sim.fluid.vel[:, 1:-1, 1] = vy_si[:, None]
+    # set concentration
+    tracer.val[:, : domain.counts[1] // 2] = 1.0  # lower half
 
-        # set concentration
-        tracer.val[:, : domain.counts[1] // 2] = 1.0  # lower half
-
-        # IMPORTANT: convert velocity to lattice units / timestep
-        sim.fluid.vel[:] = scales.velocity.to_lattice_units(sim.fluid.vel)
+    # IMPORTANT: convert velocity to lattice units / timestep
+    sim.fluid.vel[:] = scales.velocity.to_lattice_units(sim.fluid.vel)
 
 
-# %% Define simulation loop
-
-# allocate extra arrays for plotting to avoid reallocating each step
-vmag_ = np.zeros_like(sim.fluid.rho)
-curl_ = np.zeros_like(sim.fluid.rho)
-qcrit_ = np.zeros_like(sim.fluid.rho)
+# %% Main simulation loop
 
 
 def write_png(
-    path: Path,
+    path: str,
     data: np.ndarray,
     label: str,
     background: Literal["dark", "light"],
@@ -158,8 +138,13 @@ def write_png(
         draw.text((fox, foy), label, tcol, font=f, stroke_width=fsz // 15, stroke_fill=bcol)
 
 
-def write_output(base: Path, iter: int):
-    global curl_, vmag_, qcrit_
+# allocate extra arrays for plotting to avoid reallocating each step
+vmag_ = np.zeros_like(sim.fluid.rho)
+curl_ = np.zeros_like(sim.fluid.rho)
+qcrit_ = np.zeros_like(sim.fluid.rho)
+
+
+for iter in run_sim(sim, time_meta, out):
     with timed(logger, "calc curl"):
         calc_curl_2d(sim.fluid.vel, sim.cells.flags, cnt, curl_, qcrit_)  # in LU
         curl_[:] = curl_ * ((dx / dt) / dx)  # in SI
@@ -172,7 +157,7 @@ def write_output(base: Path, iter: int):
 
     with timed(logger, "writing output"):
         write_png(
-            base / f"vmag_{iter:06d}.png",
+            f"{out}/vmag_{iter:06d}.png",
             vmag_,
             "Velocity",
             "dark",
@@ -181,7 +166,7 @@ def write_output(base: Path, iter: int):
         )
 
         write_png(
-            base / f"conc_{iter:06d}.png",
+            f"{out}/conc_{iter:06d}.png",
             tracer.val,
             "Tracer",
             "dark",
@@ -191,17 +176,11 @@ def write_output(base: Path, iter: int):
         )
 
         write_png(
-            base / f"curl_{iter:06d}.png",
+            f"{out}/curl_{iter:06d}.png",
             curl_,
             "Vorticity",
             "light",
             cmap="RdBu_r",
-            # cmap=mycmap,
             vmin=-vmax_curl,
             vmax=vmax_curl,
         )
-
-
-# %% Main Loop
-
-run_sim(args.base, time_meta, sim, write_output, write_checkpoints=not args.no_checkpoint)
