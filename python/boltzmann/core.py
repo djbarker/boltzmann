@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Literal
 
 import numpy as np
 
@@ -6,6 +7,7 @@ from math import sqrt
 
 
 __all__ = [
+    "Device",
     "CellFlags",
     "calc_lbm_params_lu",
     "check_lbm_params",
@@ -21,6 +23,8 @@ if hasattr(boltzmann.boltzmann, "__all__"):
     __all__.extend(boltzmann.boltzmann.__all__)
 
 # ------------------------------------
+
+Device = Literal["cpu", "gpu"]
 
 
 class CellFlags:
