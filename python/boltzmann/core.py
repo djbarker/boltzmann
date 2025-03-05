@@ -10,6 +10,7 @@ __all__ = [
     "Device",
     "CellFlags",
     "calc_lbm_params_lu",
+    "calc_lbm_params_si",
     "check_lbm_params",
 ]
 
@@ -30,6 +31,7 @@ Device = Literal["cpu", "gpu"]  #: OpenCL device type on which type to run the s
 class CellFlags:
     """
     Flags which control the simulations behaviour at a given cell.
+    Multiple flags can be combined using the bitwise OR operator.
     """
 
     # fmt: off
@@ -123,7 +125,13 @@ def calc_lbm_params_si(
 
     Sometimes it is more natural to specify the physical parameters directly rather than via
     Reynold's number.
+    Under the hood, however, this function calls :py:meth:`calc_lbm_params_lu`.
 
+    :param dx: Lattice spacing.
+    :param u_si: Characteristic velocity of the system.
+    :param L_si: Characteristic length-scale of the system.
+    :param nu_si: Kinematic viscosity of the system.
+    :param tau: Relaxation time of the BGK collision operator.
     :param M_max: Maximum Mach number of the system.
     :param tau_max: Hard cap on the value of tau allowed.
     :param tau_min: Hard floor on the value of tau allowed.
