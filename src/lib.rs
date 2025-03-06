@@ -8,7 +8,6 @@ use ndarray::{arr1, Array1, ArrayView1, ArrayViewD, ArrayViewMutD};
 use numpy::{PyArrayDyn, PyReadonlyArray1, PyReadonlyArrayDyn, PyReadwriteArrayDyn};
 use opencl::{DeviceType, OpenCLCtx};
 use pyo3::prelude::*;
-use pyo3::types::PyString;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 // Imports from this lib:
@@ -89,6 +88,7 @@ fn calc_curl_qcrit_2d(
         });
 }
 
+/// Stores the density and velocity fields, relaxation parameter and a velocity set.
 #[pyclass(name = "Fluid")]
 struct FluidPy {
     sim: Arc<Mutex<Simulation>>,
@@ -96,6 +96,9 @@ struct FluidPy {
 
 #[pymethods]
 impl FluidPy {
+    /// The distribution function data.
+    /// You probably do not need to access this directly.
+    /// It is exposed for completeness.
     #[getter]
     fn f<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
         let borrow = this.borrow();
@@ -103,6 +106,7 @@ impl FluidPy {
         unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
     }
 
+    /// The fluid density data.
     #[getter]
     fn rho<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
         let borrow = this.borrow();
@@ -110,6 +114,7 @@ impl FluidPy {
         unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
     }
 
+    /// The fluid velocity data.
     #[getter]
     fn vel<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
         let borrow = this.borrow();
@@ -117,12 +122,16 @@ impl FluidPy {
         unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
     }
 
+    /// The memory usage of the :py:class:`Fluid`` object.
+    ///
+    /// :returns: The total size in bytes.
     #[getter]
     fn size_bytes(&self) -> usize {
         self.sim.lock().unwrap().fluid.size_bytes()
     }
 }
 
+/// Stores the scalar field data, relaxation parameter and a velocity set.
 #[pyclass(name = "Scalar")]
 struct ScalarPy {
     sim: Arc<Mutex<Simulation>>,
@@ -133,6 +142,9 @@ struct ScalarPy {
 
 #[pymethods]
 impl ScalarPy {
+    /// The distribution function data.
+    /// You probably do not need to access this directly.
+    /// It is exposed for completeness.
     #[getter]
     fn g<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
         let borrow = this.borrow();
@@ -147,6 +159,7 @@ impl ScalarPy {
         }
     }
 
+    /// The scalar field data.
     #[getter]
     fn val<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
         let borrow = this.borrow();
@@ -161,6 +174,9 @@ impl ScalarPy {
         }
     }
 
+    /// The memory usage of the :py:class:`Scalar`` object.
+    ///
+    /// :returns: The total size in bytes.
     #[getter]
     fn size_bytes(&self) -> usize {
         self.sim
@@ -173,6 +189,7 @@ impl ScalarPy {
     }
 }
 
+/// Stores the grid data, e.g. what flags are set for each cell and the size in each dimension.
 #[pyclass(name = "Cells")]
 struct CellsPy {
     sim: Arc<Mutex<Simulation>>,
@@ -180,6 +197,11 @@ struct CellsPy {
 
 #[pymethods]
 impl CellsPy {
+    /// The cell flag data.
+    ///
+    /// See :py:class:`~boltzmann.core.CellType` for the possible values.
+    ///
+    /// :returns: An array containing the flag value for each cell.
     #[getter]
     fn flags<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<i32>> {
         let borrow = this.borrow();
@@ -188,17 +210,24 @@ impl CellsPy {
         unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
     }
 
+    /// The memory usage of the :py:class:`Cells`` object.
+    ///
+    /// :returns: The total size in bytes.
     #[getter]
     fn size_bytes(&self) -> usize {
         self.sim.lock().unwrap().cells.size_bytes()
     }
 
+    /// The total number of grid cells.
+    ///
+    /// :returns: The product of the count in each dimension.
     #[getter]
     fn count(&self) -> usize {
         self.sim.lock().unwrap().cells.counts.product()
     }
 }
 
+/// :meta private:
 #[pyclass(eq, eq_int, name = "DeviceType")]
 #[derive(PartialEq)]
 enum DeviceTypePy {
@@ -231,9 +260,11 @@ impl Into<OpenCLCtx> for DeviceTypePy {
     }
 }
 
-/// Wrap the core [`Simulation`] class in an [`Arc`] + [`Mutex`] so it's threadsafe for Python.
+/// The central simulation object which groups together information about the domain (:py:class:`Cells`),
+/// the fluid (:py:class:`Fluid`) and any scalar fields (:py:class:`Scalar`).
 #[pyclass(name = "Simulation")]
 struct SimulationPy {
+    /// Wrap the core rust [`Simulation`] class in an [`Arc`] + [`Mutex`] so it's threadsafe for Python.
     sim: Arc<Mutex<Simulation>>,
 }
 
@@ -269,7 +300,9 @@ impl SimulationPy {
     //     unsafe { PyArray2::borrow_from_array(&array, this.into_any()) }
     // }
 
-    /// Get the total memory usage of the underlying [`Simulation`] object as seen on the GPU.
+    /// Get the total memory usage of the underlying :py:class:`Simulation` object as seen on the GPU.
+    ///
+    /// :returns: The total size in bytes.
     #[getter]
     fn size_bytes(&self) -> usize {
         let sim = self.sim();
@@ -280,24 +313,36 @@ impl SimulationPy {
         size_bytes
     }
 
+    /// The number of iterations that have been run so far.
     #[getter]
     fn iteration(&self) -> u64 {
         self.sim().iteration
     }
 
+    /// Run the lattice Boltzmann simulation.
+    ///
+    /// :param iters: The number of simulation timesteps to run.
     fn iterate(&mut self, iters: usize) {
         self.sim().iterate(iters)
     }
 
+    /// Set the body force that the fluid will feel.
+    ///
+    /// :param gravity: The body force vector in lattice units.
     fn set_gravity(&mut self, gravity: PyReadonlyArray1<f32>) {
         let gravity = gravity.as_array().to_owned();
         self.sim().set_gravity(gravity);
     }
 
-    /// Add a scalar field which will follow the [Advection-Diffusion equation](https://en.wikipedia.org/wiki/Convection%E2%80%93diffusion_equation).
+    /// Add a scalar field which will follow the `advection-diffusion equation <https://en.wikipedia.org/wiki/Convection%E2%80%93diffusion_equation>`_.
     ///
-    /// Returns the [`ScalarPy`] object for the added tracer; you must keep this around to access the data.
+    /// Returns the :py:class:`Scalar` object for the added tracer; you must keep this around to access the data.
     /// This function is idempotent (over the name) and will return the existing tracer if it already exists.
+    ///
+    /// :param name: The unique name of the tracer.
+    /// :param omega_ad: The relaxation parameter for the advection-diffusion equation.
+    /// :param q: The number of discrete velocities to use for the advection-diffusion equation kernel.
+    /// :returns: The :py:class:`Scalar` object.
     #[pyo3(signature = (name, omega_ad, q=None))]
     fn add_tracer<'py>(
         this: Bound<'py, Self>,
@@ -335,9 +380,10 @@ impl SimulationPy {
         Ok(bound)
     }
 
-    /// Get a scalar field by index, which as previously been added.
+    /// Get a previously added :py:class:`Scalar` field by name.
+    /// This will fail if the name is unknown.
     ///
-    /// TODO: would be nice to make this by name or something (e.g. store a map of [`Scalar`]s not just a vec).
+    /// :param name: The unique name of the tracer to get.
     fn get_tracer<'py>(this: Bound<'py, Self>, name: String) -> PyResult<Bound<'py, ScalarPy>> {
         let this = this.borrow();
         let bound = Bound::new(
@@ -352,6 +398,7 @@ impl SimulationPy {
         Ok(bound)
     }
 
+    /// The :py:class:`Cells` object containing the domain info for the simulation.
     #[getter]
     fn cells<'py>(this: Bound<'py, Self>) -> Bound<'py, CellsPy> {
         let this = this.borrow();
@@ -364,6 +411,7 @@ impl SimulationPy {
         .expect("Bound::new CellsPy failed.")
     }
 
+    /// The :py:class:`Fluid` object containing the fluid density & velocity fields.
     #[getter]
     fn fluid<'py>(this: Bound<'py, Self>) -> Bound<'py, FluidPy> {
         let this = this.borrow();
@@ -376,11 +424,17 @@ impl SimulationPy {
         .expect("Bound::new FluidPy failed.")
     }
 
+    /// Save a checkpoint in `MessagePack <https://msgpack.org/index.html>`_ format.
+    ///
+    /// :param path: Where to save the checkpoint.
     fn write_checkpoint(&self, path: String) -> PyResult<()> {
         self.sim().write_checkpoint(path)?;
         Ok(())
     }
 
+    /// Construct a :py:class:`Simulation` by loading from a previously saved checkpoint.
+    ///
+    /// :param path: Where to load the checkpoint from.
     #[staticmethod]
     fn load_checkpoint(dev: String, path: String) -> PyResult<SimulationPy> {
         let dev = DeviceTypePy::from(dev).into();
