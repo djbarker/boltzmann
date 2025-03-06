@@ -101,13 +101,13 @@ class EveryN(CheckpointGater):
     """
 
     interval: int
-    last: int = field(default=0)
-    curr: int = field(default=0)
+    _last: int = field(default=0)
+    _curr: int = field(default=0)
 
     def allow(self) -> bool:
-        self.curr += 1
-        if self.curr - self.last >= self.interval:
-            self.last = self.curr
+        self._curr += 1
+        if self._curr - self._last >= self.interval:
+            self._last = self._curr
             return True
         return False
 
@@ -119,12 +119,12 @@ class EveryT(CheckpointGater):
     """
 
     interval: datetime.timedelta
-    last: datetime.datetime = field(default=datetime.datetime(1970, 1, 1))
+    _last: datetime.datetime = field(default=datetime.datetime(1970, 1, 1))
 
     def allow(self) -> bool:
         now = datetime.datetime.now()
-        if now - self.last > self.interval:
-            self.last = now
+        if now - self._last > self.interval:
+            self._last = now
             return True
         return False
 
