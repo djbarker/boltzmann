@@ -233,12 +233,6 @@ class UnitConverter:
     @overload
     def to_lattice_units(self, value: np.ndarray) -> np.ndarray: ...
 
-    @overload
-    def to_physical_units(self, value: float) -> float: ...
-
-    @overload
-    def to_physical_units(self, value: np.ndarray) -> np.ndarray: ...
-
     def to_lattice_units(self, value: float | np.ndarray) -> float | np.ndarray:
         """
         Convert the given dimensional value(s) into lattice-units using the correct conversion factor.
@@ -251,6 +245,12 @@ class UnitConverter:
             >>> vel_[:] = converter.to_lattice_units(vel_)  # Right! Write to the vel_ buffer.
         """
         return value * self.to_lattice
+
+    @overload
+    def to_physical_units(self, value: float) -> float: ...
+
+    @overload
+    def to_physical_units(self, value: np.ndarray) -> np.ndarray: ...
 
     def to_physical_units(self, value: float | np.ndarray) -> float | np.ndarray:
         """
@@ -285,9 +285,9 @@ class Scales:
         vel_lu = scales.velocity.to_lattice_units(vel_si)
     """
 
-    dx: float
-    dt: float
-    dm: float = field(default=1)
+    dx: float  #: Lattice spacing.
+    dt: float  #: Time step.
+    dm: float = field(default=1)  #: Mass scale (usually unneeded.)
 
     def converter(self, L: int = 0, T: int = 0, M: int = 0) -> UnitConverter:
         """
