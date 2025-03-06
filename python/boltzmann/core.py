@@ -1,3 +1,9 @@
+"""
+The core lattice Boltzmann simulation classes.
+
+See :doc:`guides/basic <guides/basic>` for more information on how to use this module.
+"""
+
 from __future__ import annotations
 from typing import Literal
 

@@ -2,7 +2,7 @@
 This module provides some "glue" for easily making scripts which run simulations.
 It provides automatic progress logging, checkpointing, and simulation resumption via the command line.
 
-See :doc:`guides/scripts <guids/scripts>` for more information on how to use this module.
+See :doc:`guides/script <guides/script>` for more information on how to use this module.
 """
 
 from abc import ABC, abstractmethod
@@ -83,15 +83,13 @@ class IterInfo:
 
 class CheckpointGater(ABC):
     """
-    Tell :py:sim:`run_sim` when it should write a checkpoint.
+    Tell :py:meth:`run_sim` when it should write a checkpoint.
     """
 
     @abstractmethod
     def allow(self) -> bool:
         """
         Returns true if the simulation should write a checkpoint.
-
-        This is called at the end of each iteration and updates any necessary internal state.
         """
         pass
 
