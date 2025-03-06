@@ -74,7 +74,6 @@ docs/_build/
 # Simulation outputs
 *.vtp
 *.vti
-*.png
 *.mp4
 *.avi
 *.npy

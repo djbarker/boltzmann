@@ -1,0 +1,151 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>boltzmann.kernel_gen &mdash; Boltzmann 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Boltzmann
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="guides/basic.html">Basic Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/script.html">Simulation Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="boltzmann.html">boltzmann</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Boltzmann</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">boltzmann.kernel_gen</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/boltzmann.kernel_gen.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-boltzmann.kernel_gen">
+<span id="boltzmann-kernel-gen"></span><h1>boltzmann.kernel_gen<a class="headerlink" href="#module-boltzmann.kernel_gen" title="Link to this heading"></a></h1>
+<p>This script auto-generates the kernels for the OpenCL updates.
+It’s not actually needed to run the module since the OpenCL kernels get compiled into the Rust extension module.
+For this reason its dependencies do not form part of the package dependencies (e.g. sympy).</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.kernel_gen.VelocitySet">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.kernel_gen.</span></span><span class="sig-name descname"><span class="pre">VelocitySet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ws</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Fraction</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/boltzmann/kernel_gen.html#VelocitySet"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.kernel_gen.VelocitySet" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Information about the velocity set, used in kernel generation.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="boltzmann.kernel_gen.tensor_product">
+<span class="sig-prename descclassname"><span class="pre">boltzmann.kernel_gen.</span></span><span class="sig-name descname"><span class="pre">tensor_product</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">m1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#boltzmann.kernel_gen.VelocitySet" title="boltzmann.kernel_gen.VelocitySet"><span class="pre">VelocitySet</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">m2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#boltzmann.kernel_gen.VelocitySet" title="boltzmann.kernel_gen.VelocitySet"><span class="pre">VelocitySet</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#boltzmann.kernel_gen.VelocitySet" title="boltzmann.kernel_gen.VelocitySet"><span class="pre">VelocitySet</span></a></span></span><a class="reference internal" href="_modules/boltzmann/kernel_gen.html#tensor_product"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.kernel_gen.tensor_product" title="Link to this definition"></a></dt>
+<dd><p>Take the tensor product of two velocity sets.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="boltzmann.kernel_gen.make_advdiff_isotropic">
+<span class="sig-prename descclassname"><span class="pre">boltzmann.kernel_gen.</span></span><span class="sig-name descname"><span class="pre">make_advdiff_isotropic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#boltzmann.kernel_gen.VelocitySet" title="boltzmann.kernel_gen.VelocitySet"><span class="pre">VelocitySet</span></a></span></span><a class="reference internal" href="_modules/boltzmann/kernel_gen.html#make_advdiff_isotropic"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.kernel_gen.make_advdiff_isotropic" title="Link to this definition"></a></dt>
+<dd><p>Make an isotropic advection-diffusion velocity set.
+See <a class="reference external" href="https://journals.aps.org/pre/pdf/10.1103/PhysRevE.105.025308">https://journals.aps.org/pre/pdf/10.1103/PhysRevE.105.025308</a>.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.kernel_gen.Kernel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.kernel_gen.</span></span><span class="sig-name descname"><span class="pre">Kernel</span></span><a class="reference internal" href="_modules/boltzmann/kernel_gen.html#Kernel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.kernel_gen.Kernel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.kernel_gen.Kernel.no_format">
+<span class="sig-name descname"><span class="pre">no_format</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/boltzmann/kernel_gen.html#Kernel.no_format"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.kernel_gen.Kernel.no_format" title="Link to this definition"></a></dt>
+<dd><p>Disable clang-format for any statements added inside the block.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="boltzmann.kernel_gen.gen_kernel_AA_v1">
+<span class="sig-prename descclassname"><span class="pre">boltzmann.kernel_gen.</span></span><span class="sig-name descname"><span class="pre">gen_kernel_AA_v1</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#boltzmann.kernel_gen.VelocitySet" title="boltzmann.kernel_gen.VelocitySet"><span class="pre">VelocitySet</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'fluid'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'scalar'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/boltzmann/kernel_gen.html#gen_kernel_AA_v1"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.kernel_gen.gen_kernel_AA_v1" title="Link to this definition"></a></dt>
+<dd><p>This is a pretty basic transcoding of my hand-written AA-pattern+BKG kernel for D2Q9 which is
+generic over the velocity set.</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barker.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

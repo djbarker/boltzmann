@@ -1,0 +1,395 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>boltzmann.utils.logger &mdash; Boltzmann 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Boltzmann
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/basic.html">Basic Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/script.html">Simulation Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../boltzmann.html">boltzmann</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Boltzmann</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">boltzmann.utils.logger</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for boltzmann.utils.logger</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Utils for logging &amp; timing.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Generator</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;basic_config&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;PerfInfo&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;PerfTimer&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;timed&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;dotted&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<div class="viewcode-block" id="basic_config">
+<a class="viewcode-back" href="../../../boltzmann.utils.logger.html#boltzmann.utils.logger.basic_config">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">basic_config</span><span class="p">(</span><span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    .. role:: bash(code)</span>
+<span class="sd">        :language: bash</span>
+
+<span class="sd">    Set up the logger configuration.</span>
+
+<span class="sd">    :param logger: The logger to configure. If :py:const:`None`, the root logger is used.</span>
+<span class="sd">    :param level: The log level. If :py:const:`None`, look at the :bash:`$LOG_LEVEL` environment variable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span> <span class="ow">or</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span>
+
+    <span class="k">match</span> <span class="n">level</span><span class="p">:</span>
+        <span class="k">case</span> <span class="nb">int</span><span class="p">():</span>
+            <span class="k">pass</span>
+        <span class="k">case</span> <span class="nb">str</span><span class="p">():</span>
+            <span class="n">level</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLevelName</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
+        <span class="k">case</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">level</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLevelName</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;LOG_LEVEL&quot;</span><span class="p">,</span> <span class="s2">&quot;INFO&quot;</span><span class="p">))</span>
+        <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected int, str or None&quot;</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">logger</span><span class="o">.</span><span class="n">handlers</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">removeHandler</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+
+    <span class="n">fmt</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{asctime:s}</span><span class="s2"> - </span><span class="si">{levelname:5.5s}</span><span class="s2"> - [</span><span class="si">{module}</span><span class="s2">] </span><span class="si">{message}</span><span class="s2">&quot;</span>
+    <span class="n">formatter</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">Formatter</span><span class="p">(</span><span class="n">fmt</span><span class="o">=</span><span class="n">fmt</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;{&quot;</span><span class="p">)</span>
+
+    <span class="n">handler</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">()</span>
+    <span class="n">handler</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">formatter</span><span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">handler</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="PerfInfo">
+<a class="viewcode-back" href="../../../boltzmann.utils.logger.html#boltzmann.utils.logger.PerfInfo">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PerfInfo</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Stores information about performance; namely a number of events and the time taken to run them.</span>
+
+<span class="sd">    :py:class:`PerfInfo` objects can be added together (&amp; subtracted) which is useful for measuring long-running performance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">events</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1">#: The number of events that processed.</span>
+    <span class="n">micros</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1">#: The number of microseconds taken to process the events.</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">seconds</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The number of seconds taken to process the events.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">*</span> <span class="mf">1e-6</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">rate</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The rate, measured in events/second.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">events</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">seconds</span>
+
+<div class="viewcode-block" id="PerfInfo.fmt">
+<a class="viewcode-back" href="../../../boltzmann.utils.logger.html#boltzmann.utils.logger.PerfInfo.fmt">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fmt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">events_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A human-readable string formatted with the performance information.</span>
+
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            perf_info = PerfInfo(2500, 1_250_000)</span>
+<span class="sd">            perf_info.fmt(&quot;frobinations&quot;) # == &quot;2500 frobinations in 1.3 seconds =&gt; 2000.0 frobinations/sec&quot;</span>
+
+<span class="sd">        :param events_name: The plural &#39;name&#39; of the events being measured, e.g. &quot;updates&quot; or &quot;frames&quot;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: time delta formatting</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">events</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">events_name</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">seconds</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> seconds =&gt; </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">rate</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">events_name</span><span class="si">}</span><span class="s2">/sec&quot;</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fmt</span><span class="p">(</span><span class="s2">&quot;events&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rhs</span><span class="p">:</span> <span class="s2">&quot;PerfInfo&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PerfInfo&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rhs</span><span class="p">,</span> <span class="n">PerfInfo</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;rhs must be PerfInfo. [</span><span class="si">{</span><span class="n">rhs</span><span class="si">=!r}</span><span class="s2">]&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">PerfInfo</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">events</span> <span class="o">+</span> <span class="n">rhs</span><span class="o">.</span><span class="n">events</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">+</span> <span class="n">rhs</span><span class="o">.</span><span class="n">micros</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__sub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rhs</span><span class="p">:</span> <span class="s2">&quot;PerfInfo&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PerfInfo&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rhs</span><span class="p">,</span> <span class="n">PerfInfo</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;rhs must be PerfInfo. [</span><span class="si">{</span><span class="n">rhs</span><span class="si">=!r}</span><span class="s2">]&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">PerfInfo</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">events</span> <span class="o">-</span> <span class="n">rhs</span><span class="o">.</span><span class="n">events</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">-</span> <span class="n">rhs</span><span class="o">.</span><span class="n">micros</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__iadd__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rhs</span><span class="p">:</span> <span class="s2">&quot;PerfInfo&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PerfInfo&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rhs</span><span class="p">,</span> <span class="n">PerfInfo</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;rhs must be PerfInfo. [</span><span class="si">{</span><span class="n">rhs</span><span class="si">=!r}</span><span class="s2">]&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">events</span> <span class="o">+=</span> <span class="n">rhs</span><span class="o">.</span><span class="n">events</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">+=</span> <span class="n">rhs</span><span class="o">.</span><span class="n">micros</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+
+<div class="viewcode-block" id="PerfTimer">
+<a class="viewcode-back" href="../../../boltzmann.utils.logger.html#boltzmann.utils.logger.PerfTimer">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PerfTimer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Measure time and return a :py:class:`PerfInfo` object when done.</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        timer = tick()</span>
+<span class="sd">        do_something_expensive()</span>
+<span class="sd">        perf = timer.tock()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">start</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span>
+    <span class="n">events</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">elapsed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span>
+
+<div class="viewcode-block" id="PerfTimer.tock">
+<a class="viewcode-back" href="../../../boltzmann.utils.logger.html#boltzmann.utils.logger.PerfTimer.tock">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">tock</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">events</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PerfInfo</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a :py:class:`PerfInfo` with the given numer of processed events &amp; elapsed time.</span>
+
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            timer = tick()</span>
+<span class="sd">            for _ in range(10):</span>
+<span class="sd">                do_something()</span>
+<span class="sd">            perf = timer.tock(events=10)</span>
+
+<span class="sd">        :param events: Any additional events to add which have not already been added by calls to :py:meth:`add_events`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_events</span><span class="p">(</span><span class="n">events</span><span class="p">)</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elapsed</span>
+        <span class="k">return</span> <span class="n">PerfInfo</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">events</span><span class="p">,</span> <span class="n">delta</span><span class="o">.</span><span class="n">seconds</span> <span class="o">*</span> <span class="mf">1e6</span> <span class="o">+</span> <span class="n">delta</span><span class="o">.</span><span class="n">microseconds</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PerfTimer.add_events">
+<a class="viewcode-back" href="../../../boltzmann.utils.logger.html#boltzmann.utils.logger.PerfTimer.add_events">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_events</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">events</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PerfTimer&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add the given number of events to the timer.</span>
+
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            timer = tick()</span>
+<span class="sd">            for _ in range(10):</span>
+<span class="sd">                do_something()</span>
+<span class="sd">            timer.add_events(10)</span>
+<span class="sd">            perf = timer.tock()</span>
+
+<span class="sd">        :param events: The number of events to add.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">events</span> <span class="o">+=</span> <span class="n">events</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="PerfTimer.add_event">
+<a class="viewcode-back" href="../../../boltzmann.utils.logger.html#boltzmann.utils.logger.PerfTimer.add_event">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_event</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PerfTimer&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add the a single event to the timer.</span>
+
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            timer = tick()</span>
+<span class="sd">            for _ in range(10):</span>
+<span class="sd">                do_something()</span>
+<span class="sd">                timer.add_event()</span>
+<span class="sd">            perf = timer.tock()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_events</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">tick</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">PerfTimer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get a new :py:class:`PerfTimer` object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">PerfTimer</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(),</span> <span class="mi">0</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="timed">
+<a class="viewcode-back" href="../../../boltzmann.utils.logger.html#boltzmann.utils.logger.timed">[docs]</a>
+<span class="nd">@contextmanager</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">timed</span><span class="p">(</span>
+    <span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">events</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Generator</span><span class="p">[</span><span class="n">PerfTimer</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Time the contents of a with-statement, and log the result.</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        with timed(logger, &quot;the thing&quot;):</span>
+<span class="sd">            do_the_thing()</span>
+
+<span class="sd">    :param logger: The logger to write the timing information to.</span>
+<span class="sd">    :param message: An identifier for the block.</span>
+<span class="sd">    :param events: How many events are being processed in the block.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">timer</span> <span class="o">=</span> <span class="n">tick</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Starting </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">timer</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Finished </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">: &quot;</span>
+        <span class="n">perf</span> <span class="o">=</span> <span class="n">timer</span><span class="o">.</span><span class="n">tock</span><span class="p">(</span><span class="n">events</span><span class="o">=</span><span class="n">events</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="n">perf</span><span class="o">.</span><span class="n">seconds</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> seconds (</span><span class="si">{</span><span class="n">perf</span><span class="o">.</span><span class="n">rate</span><span class="si">}</span><span class="s2"> / sec)&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># TODO: this seems to print &quot;logger&quot; as the name of the logger, why?</span>
+<div class="viewcode-block" id="dotted">
+<a class="viewcode-back" href="../../../boltzmann.utils.logger.html#boltzmann.utils.logger.dotted">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">dotted</span><span class="p">(</span>
+    <span class="n">logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">,</span>
+    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="n">units</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">40</span><span class="p">,</span>
+    <span class="n">level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Log a value with some formatting to align consecuative calls.</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        dotted(logger, &quot;x&quot;, 42)</span>
+<span class="sd">        dotted(logger, &quot;pi&quot;, 3.14159)</span>
+<span class="sd">        dotted(logger, &quot;g&quot;, 9.81, &quot;m/s&quot;)</span>
+
+<span class="sd">        # output:</span>
+<span class="sd">        # x ................................... 42</span>
+<span class="sd">        # pi ............................. 3.14159</span>
+<span class="sd">        # g ................................. 9.81 m/s</span>
+
+<span class="sd">    :param logger: The logger to write the information to.</span>
+<span class="sd">    :param label: The label for the value.</span>
+<span class="sd">    :param value: The value to log.</span>
+<span class="sd">    :param units: The (optional) units for the value.</span>
+<span class="sd">    :param width: The width of the label and value (but not the units).</span>
+<span class="sd">    :param level: The log level to use (deault is :py:const:`logging.INFO`).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="n">dots</span> <span class="o">=</span> <span class="n">width</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">label</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span>
+    <span class="n">dots</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">dots</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="n">dots</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span> <span class="o">*</span> <span class="n">dots</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">level</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">dots</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">units</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barker.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

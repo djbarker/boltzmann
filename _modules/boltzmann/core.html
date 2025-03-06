@@ -1,0 +1,279 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>boltzmann.core &mdash; Boltzmann 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Boltzmann
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/basic.html">Basic Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/script.html">Simulation Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../boltzmann.html">boltzmann</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Boltzmann</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">boltzmann.core</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for boltzmann.core</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">The core lattice Boltzmann simulation classes.</span>
+
+<span class="sd">The Rust extension module is re-exported here for convenience &amp; clarity.</span>
+<span class="sd">If you wish to import from that directly you can import ``boltzmann.boltzmann``.</span>
+
+<span class="sd">See :doc:`guides/basic &lt;guides/basic&gt;` for more information on how to use this module.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">math</span><span class="w"> </span><span class="kn">import</span> <span class="n">sqrt</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;Device&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CellFlags&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;calc_lbm_params_lu&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;calc_lbm_params_si&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;check_lbm_params&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="c1"># ------------------------------------</span>
+<span class="c1"># Re-export the rust module here.</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">boltzmann.boltzmann</span>  <span class="c1"># type: ignore</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.boltzmann</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>  <span class="c1"># type: ignore  # noqa: F403</span>
+
+<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">boltzmann</span><span class="o">.</span><span class="n">boltzmann</span><span class="p">,</span> <span class="s2">&quot;__all__&quot;</span><span class="p">):</span>
+    <span class="n">__all__</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">boltzmann</span><span class="o">.</span><span class="n">boltzmann</span><span class="o">.</span><span class="n">__all__</span><span class="p">)</span>
+
+<span class="c1"># ------------------------------------</span>
+
+<span class="n">Device</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="s2">&quot;gpu&quot;</span><span class="p">]</span>  <span class="c1">#: OpenCL device type on which type to run the simulations.</span>
+
+
+<div class="viewcode-block" id="CellFlags">
+<a class="viewcode-back" href="../../boltzmann.core.html#boltzmann.core.CellFlags">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CellFlags</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Flags which control the simulations behaviour at a given cell.</span>
+<span class="sd">    Multiple flags can be combined using the bitwise OR operator.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># fmt: off</span>
+    <span class="n">FLUID</span> <span class="o">=</span> <span class="mi">0</span>                 <span class="c1">#: The default value, the fluid &amp; any tracers will evolve as usual.</span>
+    <span class="n">WALL</span> <span class="o">=</span> <span class="mi">1</span>                  <span class="c1">#: The fluid obeys the `no-slip boundary condition &lt;https://en.wikipedia.org/wiki/No-slip_condition&gt;`_ &amp; tracers will see `zero concentration gradient &lt;https://en.wikipedia.org/wiki/Neumann_boundary_condition&gt;`_.</span>
+    <span class="n">FIXED_FLUID_VELOCITY</span> <span class="o">=</span> <span class="mi">2</span>  <span class="c1">#: The fluid velocity is fixed at the initial value, the density will evolve as usual.</span>
+    <span class="n">FIXED_FLUID_DENSITY</span> <span class="o">=</span> <span class="mi">4</span>   <span class="c1">#: The fluid density is fixed at the initial value, the velocity will evolve as usual.</span>
+    <span class="n">FIXED_SCALAR_VALUE</span> <span class="o">=</span> <span class="mi">8</span>    <span class="c1">#: The scalar value is fixed at the initial value. The fluid evolves as normal.</span>
+    <span class="n">FIXED_FLUID</span> <span class="o">=</span> <span class="n">FIXED_FLUID_VELOCITY</span> <span class="o">|</span> <span class="n">FIXED_FLUID_DENSITY</span>  <span class="c1">#: Both fluid density &amp; velocity are fixed to their initial values.</span></div>
+
+    <span class="c1"># fmt: on</span>
+
+
+<div class="viewcode-block" id="check_lbm_params">
+<a class="viewcode-back" href="../../boltzmann.core.html#boltzmann.core.check_lbm_params">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">check_lbm_params</span><span class="p">(</span><span class="n">Re</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">L</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">tau</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">M_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">slack</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check if the chosen parameters are likely to be stable or not with BGK collision operator.</span>
+<span class="sd">    For more information see https://dbarker.uk/lbm_parameterization/.</span>
+
+<span class="sd">    :param Re: Desired Reynold&#39;s number of the system.</span>
+<span class="sd">    :param L: Characteristic length of the system.</span>
+<span class="sd">    :param tau: Relaxation time of the system.</span>
+<span class="sd">    :param M_max: Maximum Mach number of the system.</span>
+<span class="sd">    :param slack: Extra margin on the checks. Must be in range (-1, inf).</span>
+<span class="sd">                  Values &lt; 0 imply stricter checks, wheras &gt; 0 imply more relaxed checks.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">frac</span> <span class="o">=</span> <span class="n">slack</span> <span class="o">+</span> <span class="mf">1.0</span>
+
+    <span class="c1"># Maximum value of tau implied by Mach condition.</span>
+    <span class="n">tau_mach</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">M_max</span> <span class="o">*</span> <span class="n">frac</span><span class="p">)</span> <span class="o">*</span> <span class="n">L</span> <span class="o">/</span> <span class="n">Re</span> <span class="o">+</span> <span class="mf">0.5</span>
+
+    <span class="c1"># Minimum value of L implied by the BGK stability condition.</span>
+    <span class="n">L_stab</span> <span class="o">=</span> <span class="p">(</span><span class="n">Re</span> <span class="o">/</span> <span class="n">frac</span><span class="p">)</span> <span class="o">/</span> <span class="mi">24</span>
+
+    <span class="n">eps</span> <span class="o">=</span> <span class="mf">1e-8</span>
+    <span class="k">assert</span> <span class="n">L</span> <span class="o">+</span> <span class="n">eps</span> <span class="o">&gt;</span> <span class="n">L_stab</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;BGK stability condition violated. </span><span class="si">{</span><span class="n">L</span><span class="si">=}</span><span class="s2"> &lt; </span><span class="si">{</span><span class="n">L_stab</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">assert</span> <span class="n">tau</span> <span class="o">&lt;</span> <span class="n">tau_mach</span> <span class="o">+</span> <span class="n">eps</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Mach condition violated. </span><span class="si">{</span><span class="n">tau</span><span class="si">=}</span><span class="s2"> &gt; </span><span class="si">{</span><span class="n">tau_mach</span><span class="si">}</span><span class="s2">&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="calc_lbm_params_lu">
+<a class="viewcode-back" href="../../boltzmann.core.html#boltzmann.core.calc_lbm_params_lu">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">calc_lbm_params_lu</span><span class="p">(</span>
+    <span class="c1"># params</span>
+    <span class="n">Re</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">L</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">tau</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="c1"># bounds</span>
+    <span class="n">M_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+    <span class="n">tau_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">tau_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">slack</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Choose the values of tau and u which maximize simulation speed &amp; verify stability.</span>
+<span class="sd">    If you specify tau that value will be used instead.</span>
+
+<span class="sd">    :param Re: Desired Reynold&#39;s number of the system.</span>
+<span class="sd">    :param L: Characteristic length of the system.</span>
+<span class="sd">    :param tau: Relaxation time of the system.</span>
+<span class="sd">    :param M_max: Maximum Mach number of the system.</span>
+<span class="sd">    :param tau_max: Hard cap on the value of tau allowed.</span>
+<span class="sd">    :param tau_min: Hard floor on the value of tau allowed.</span>
+<span class="sd">    :param slack: See :py:meth:`check_lbm_params`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">tau</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">tau</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="n">M_max</span> <span class="o">*</span> <span class="n">L</span> <span class="o">/</span> <span class="n">Re</span> <span class="o">+</span> <span class="mf">0.5</span>  <span class="c1"># Maximum permissible by Mach condition</span>
+        <span class="n">tau</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">tau</span><span class="p">,</span> <span class="n">tau_min</span><span class="p">),</span> <span class="n">tau_max</span><span class="p">)</span>  <span class="c1"># Hard bounds on tau</span>
+
+    <span class="n">check_lbm_params</span><span class="p">(</span><span class="n">Re</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">M_max</span><span class="p">,</span> <span class="n">slack</span><span class="p">)</span>
+
+    <span class="n">nu</span> <span class="o">=</span> <span class="p">(</span><span class="n">tau</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="mi">3</span>
+    <span class="n">u</span> <span class="o">=</span> <span class="n">Re</span> <span class="o">*</span> <span class="n">nu</span> <span class="o">/</span> <span class="n">L</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">tau</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="calc_lbm_params_si">
+<a class="viewcode-back" href="../../boltzmann.core.html#boltzmann.core.calc_lbm_params_si">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">calc_lbm_params_si</span><span class="p">(</span>
+    <span class="c1"># params</span>
+    <span class="n">dx</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">u_si</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">L_si</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">nu_si</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">tau</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="c1"># bounds</span>
+    <span class="n">M_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+    <span class="n">tau_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">tau_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">slack</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Choose the values of tau and u which maximize simulation speed &amp; verify stability.</span>
+<span class="sd">    If you specify tau that value will be used instead.</span>
+
+<span class="sd">    Sometimes it is more natural to specify the physical parameters directly rather than via</span>
+<span class="sd">    Reynold&#39;s number.</span>
+<span class="sd">    Under the hood, however, this function calls :py:meth:`calc_lbm_params_lu`.</span>
+
+<span class="sd">    :param dx: Lattice spacing.</span>
+<span class="sd">    :param u_si: Characteristic velocity of the system.</span>
+<span class="sd">    :param L_si: Characteristic length-scale of the system.</span>
+<span class="sd">    :param nu_si: Kinematic viscosity of the system.</span>
+<span class="sd">    :param tau: Relaxation time of the BGK collision operator.</span>
+<span class="sd">    :param M_max: Maximum Mach number of the system.</span>
+<span class="sd">    :param tau_max: Hard cap on the value of tau allowed.</span>
+<span class="sd">    :param tau_min: Hard floor on the value of tau allowed.</span>
+<span class="sd">    :param slack: See :py:meth:`check_lbm_params`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">Re</span> <span class="o">=</span> <span class="n">u_si</span> <span class="o">*</span> <span class="n">L_si</span> <span class="o">/</span> <span class="n">nu_si</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">L_si</span> <span class="o">/</span> <span class="n">dx</span>
+    <span class="n">tau</span><span class="p">,</span> <span class="n">u</span> <span class="o">=</span> <span class="n">calc_lbm_params_lu</span><span class="p">(</span>
+        <span class="n">Re</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">tau</span><span class="o">=</span><span class="n">tau</span><span class="p">,</span> <span class="n">M_max</span><span class="o">=</span><span class="n">M_max</span><span class="p">,</span> <span class="n">tau_min</span><span class="o">=</span><span class="n">tau_min</span><span class="p">,</span> <span class="n">tau_max</span><span class="o">=</span><span class="n">tau_max</span><span class="p">,</span> <span class="n">slack</span><span class="o">=</span><span class="n">slack</span>
+    <span class="p">)</span>
+
+    <span class="c1"># sanity check:</span>
+    <span class="n">tau_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="n">nu_si</span> <span class="o">*</span> <span class="n">M_max</span> <span class="o">/</span> <span class="p">(</span><span class="n">dx</span> <span class="o">*</span> <span class="n">u_si</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.5</span>
+    <span class="n">tau_</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">tau_</span><span class="p">,</span> <span class="n">tau_max</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">tau</span> <span class="o">-</span> <span class="n">tau_</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-8</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;tau mismatch: </span><span class="si">{</span><span class="n">tau</span><span class="si">=}</span><span class="s2"> vs </span><span class="si">{</span><span class="n">tau_</span><span class="si">=}</span><span class="s2">&quot;</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">tau</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barker.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

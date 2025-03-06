@@ -1,0 +1,339 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>boltzmann.boltzmann &mdash; Boltzmann 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Boltzmann
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="guides/basic.html">Basic Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/script.html">Simulation Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="boltzmann.html">boltzmann</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Boltzmann</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">boltzmann.boltzmann</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/boltzmann.boltzmann.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-boltzmann.boltzmann">
+<span id="boltzmann-boltzmann"></span><h1>boltzmann.boltzmann<a class="headerlink" href="#module-boltzmann.boltzmann" title="Link to this heading"></a></h1>
+<p>A module for configuring and running lattice Boltzmann simulations from Python.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.calc_curl_2d">
+<span class="sig-prename descclassname"><span class="pre">boltzmann.boltzmann.</span></span><span class="sig-name descname"><span class="pre">calc_curl_2d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cells</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">curl</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qcrit</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#boltzmann.boltzmann.calc_curl_2d" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Simulation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.boltzmann.</span></span><span class="sig-name descname"><span class="pre">Simulation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dev</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">omega_ns</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#boltzmann.boltzmann.Simulation" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>The central simulation object which groups together information about the domain (<a class="reference internal" href="#boltzmann.boltzmann.Cells" title="boltzmann.boltzmann.Cells"><code class="xref py py-class docutils literal notranslate"><span class="pre">Cells</span></code></a>),
+the fluid (<a class="reference internal" href="#boltzmann.boltzmann.Fluid" title="boltzmann.boltzmann.Fluid"><code class="xref py py-class docutils literal notranslate"><span class="pre">Fluid</span></code></a>) and any scalar fields (<a class="reference internal" href="#boltzmann.boltzmann.Scalar" title="boltzmann.boltzmann.Scalar"><code class="xref py py-class docutils literal notranslate"><span class="pre">Scalar</span></code></a>).</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Simulation.add_tracer">
+<span class="sig-name descname"><span class="pre">add_tracer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">omega_ad</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#boltzmann.boltzmann.Simulation.add_tracer" title="Link to this definition"></a></dt>
+<dd><p>Add a scalar field which will follow the <a class="reference external" href="https://en.wikipedia.org/wiki/Convection%E2%80%93diffusion_equation">advection-diffusion equation</a>.</p>
+<p>Returns the <a class="reference internal" href="#boltzmann.boltzmann.Scalar" title="boltzmann.boltzmann.Scalar"><code class="xref py py-class docutils literal notranslate"><span class="pre">Scalar</span></code></a> object for the added tracer; you must keep this around to access the data.
+This function is idempotent (over the name) and will return the existing tracer if it already exists.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – The unique name of the tracer.</p></li>
+<li><p><strong>omega_ad</strong> – The relaxation parameter for the advection-diffusion equation.</p></li>
+<li><p><strong>q</strong> – The number of discrete velocities to use for the advection-diffusion equation kernel.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The <a class="reference internal" href="#boltzmann.boltzmann.Scalar" title="boltzmann.boltzmann.Scalar"><code class="xref py py-class docutils literal notranslate"><span class="pre">Scalar</span></code></a> object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Simulation.cells">
+<span class="sig-name descname"><span class="pre">cells</span></span><a class="headerlink" href="#boltzmann.boltzmann.Simulation.cells" title="Link to this definition"></a></dt>
+<dd><p>The <a class="reference internal" href="#boltzmann.boltzmann.Cells" title="boltzmann.boltzmann.Cells"><code class="xref py py-class docutils literal notranslate"><span class="pre">Cells</span></code></a> object containing the domain info for the simulation.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Simulation.fluid">
+<span class="sig-name descname"><span class="pre">fluid</span></span><a class="headerlink" href="#boltzmann.boltzmann.Simulation.fluid" title="Link to this definition"></a></dt>
+<dd><p>The <a class="reference internal" href="#boltzmann.boltzmann.Fluid" title="boltzmann.boltzmann.Fluid"><code class="xref py py-class docutils literal notranslate"><span class="pre">Fluid</span></code></a> object containing the fluid density &amp; velocity fields.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Simulation.get_tracer">
+<span class="sig-name descname"><span class="pre">get_tracer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#boltzmann.boltzmann.Simulation.get_tracer" title="Link to this definition"></a></dt>
+<dd><p>Get a previously added <a class="reference internal" href="#boltzmann.boltzmann.Scalar" title="boltzmann.boltzmann.Scalar"><code class="xref py py-class docutils literal notranslate"><span class="pre">Scalar</span></code></a> field by name.
+This will fail if the name is unknown.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> – The unique name of the tracer to get.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Simulation.iterate">
+<span class="sig-name descname"><span class="pre">iterate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">iters</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#boltzmann.boltzmann.Simulation.iterate" title="Link to this definition"></a></dt>
+<dd><p>Run the lattice Boltzmann simulation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>iters</strong> – The number of simulation timesteps to run.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Simulation.iteration">
+<span class="sig-name descname"><span class="pre">iteration</span></span><a class="headerlink" href="#boltzmann.boltzmann.Simulation.iteration" title="Link to this definition"></a></dt>
+<dd><p>The number of iterations that have been run so far.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Simulation.load_checkpoint">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_checkpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dev</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#boltzmann.boltzmann.Simulation.load_checkpoint" title="Link to this definition"></a></dt>
+<dd><p>Construct a <a class="reference internal" href="#boltzmann.boltzmann.Simulation" title="boltzmann.boltzmann.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> by loading from a previously saved checkpoint.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> – Where to load the checkpoint from.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Simulation.set_gravity">
+<span class="sig-name descname"><span class="pre">set_gravity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gravity</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#boltzmann.boltzmann.Simulation.set_gravity" title="Link to this definition"></a></dt>
+<dd><p>Set the body force that the fluid will feel.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>gravity</strong> – The body force vector in lattice units.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Simulation.size_bytes">
+<span class="sig-name descname"><span class="pre">size_bytes</span></span><a class="headerlink" href="#boltzmann.boltzmann.Simulation.size_bytes" title="Link to this definition"></a></dt>
+<dd><p>Get the total memory usage of the underlying <a class="reference internal" href="#boltzmann.boltzmann.Simulation" title="boltzmann.boltzmann.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object as seen on the GPU.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The total size in bytes.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Simulation.write_checkpoint">
+<span class="sig-name descname"><span class="pre">write_checkpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#boltzmann.boltzmann.Simulation.write_checkpoint" title="Link to this definition"></a></dt>
+<dd><p>Save a checkpoint in <a class="reference external" href="https://msgpack.org/index.html">MessagePack</a> format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> – Where to save the checkpoint.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Fluid">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.boltzmann.</span></span><span class="sig-name descname"><span class="pre">Fluid</span></span><a class="headerlink" href="#boltzmann.boltzmann.Fluid" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Stores the density and velocity fields, relaxation parameter and a velocity set.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Fluid.f">
+<span class="sig-name descname"><span class="pre">f</span></span><a class="headerlink" href="#boltzmann.boltzmann.Fluid.f" title="Link to this definition"></a></dt>
+<dd><p>The distribution function data.
+You probably do not need to access this directly.
+It is exposed for completeness.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Fluid.rho">
+<span class="sig-name descname"><span class="pre">rho</span></span><a class="headerlink" href="#boltzmann.boltzmann.Fluid.rho" title="Link to this definition"></a></dt>
+<dd><p>The fluid density data.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Fluid.size_bytes">
+<span class="sig-name descname"><span class="pre">size_bytes</span></span><a class="headerlink" href="#boltzmann.boltzmann.Fluid.size_bytes" title="Link to this definition"></a></dt>
+<dd><p>The memory usage of the <code class="xref py py-class docutils literal notranslate"><span class="pre">Fluid`</span></code> object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The total size in bytes.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Fluid.vel">
+<span class="sig-name descname"><span class="pre">vel</span></span><a class="headerlink" href="#boltzmann.boltzmann.Fluid.vel" title="Link to this definition"></a></dt>
+<dd><p>The fluid velocity data.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Scalar">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.boltzmann.</span></span><span class="sig-name descname"><span class="pre">Scalar</span></span><a class="headerlink" href="#boltzmann.boltzmann.Scalar" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Stores the scalar field data, relaxation parameter and a velocity set.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Scalar.g">
+<span class="sig-name descname"><span class="pre">g</span></span><a class="headerlink" href="#boltzmann.boltzmann.Scalar.g" title="Link to this definition"></a></dt>
+<dd><p>The distribution function data.
+You probably do not need to access this directly.
+It is exposed for completeness.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Scalar.size_bytes">
+<span class="sig-name descname"><span class="pre">size_bytes</span></span><a class="headerlink" href="#boltzmann.boltzmann.Scalar.size_bytes" title="Link to this definition"></a></dt>
+<dd><p>The memory usage of the <code class="xref py py-class docutils literal notranslate"><span class="pre">Scalar`</span></code> object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The total size in bytes.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Scalar.val">
+<span class="sig-name descname"><span class="pre">val</span></span><a class="headerlink" href="#boltzmann.boltzmann.Scalar.val" title="Link to this definition"></a></dt>
+<dd><p>The scalar field data.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Cells">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.boltzmann.</span></span><span class="sig-name descname"><span class="pre">Cells</span></span><a class="headerlink" href="#boltzmann.boltzmann.Cells" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Stores the grid data, e.g. what flags are set for each cell and the size in each dimension.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Cells.count">
+<span class="sig-name descname"><span class="pre">count</span></span><a class="headerlink" href="#boltzmann.boltzmann.Cells.count" title="Link to this definition"></a></dt>
+<dd><p>The total number of grid cells.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The product of the count in each dimension.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Cells.flags">
+<span class="sig-name descname"><span class="pre">flags</span></span><a class="headerlink" href="#boltzmann.boltzmann.Cells.flags" title="Link to this definition"></a></dt>
+<dd><p>The cell flag data.</p>
+<p>See <code class="xref py py-class docutils literal notranslate"><span class="pre">CellType</span></code> for the possible values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>An array containing the flag value for each cell.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.boltzmann.Cells.size_bytes">
+<span class="sig-name descname"><span class="pre">size_bytes</span></span><a class="headerlink" href="#boltzmann.boltzmann.Cells.size_bytes" title="Link to this definition"></a></dt>
+<dd><p>The memory usage of the <code class="xref py py-class docutils literal notranslate"><span class="pre">Cells`</span></code> object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The total size in bytes.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barker.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

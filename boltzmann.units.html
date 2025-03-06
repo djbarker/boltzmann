@@ -1,0 +1,354 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>boltzmann.units &mdash; Boltzmann 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="boltzmann.simulation" href="boltzmann.simulation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Boltzmann
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="guides/basic.html">Basic Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/script.html">Simulation Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="boltzmann.html">boltzmann</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.utils.html">boltzmann.utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.core.html">boltzmann.core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.simulation.html">boltzmann.simulation</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">boltzmann.units</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Boltzmann</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="boltzmann.html">boltzmann</a></li>
+      <li class="breadcrumb-item active">boltzmann.units</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/boltzmann.units.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-boltzmann.units">
+<span id="boltzmann-units"></span><h1>boltzmann.units<a class="headerlink" href="#module-boltzmann.units" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.units.Domain">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.units.</span></span><span class="sig-name descname"><span class="pre">Domain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lower</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dims</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/boltzmann/units.html#Domain"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.units.Domain" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Describes the domain grid.</p>
+<p>The semantics are that each cell has a size of <code class="docutils literal notranslate"><span class="pre">dx</span></code>, the <code class="docutils literal notranslate"><span class="pre">lower</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">upper</span></code> arrays are the lower
+and upper <em>edges</em> of the cells respectively.
+This means <code class="code highlight python docutils literal highlight-python"><span class="n">N</span> <span class="o">=</span> <span class="p">(</span><span class="n">upper</span> <span class="o">-</span> <span class="n">lower</span><span class="p">)</span> <span class="o">/</span> <span class="n">dx</span></code>, and if <code class="code highlight python docutils literal highlight-python"><span class="n">lower</span> <span class="o">==</span> <span class="n">upper</span></code> then we have no cells.
+The centre of the cells are thus offset by <code class="docutils literal notranslate"><span class="pre">dx/2</span></code>, so the centre of the cell with index <code class="docutils literal notranslate"><span class="pre">(i,</span> <span class="pre">j)</span></code> is located at</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">=</span> <span class="p">((</span><span class="n">i</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span><span class="p">,</span> <span class="p">(</span><span class="n">j</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For the simple two-array implementation it’s quite efficient to pad the arrays by one at the end
+of each dimension. Then we can stream into/from these with simple offsets (not worrying about
+periodicity), then copy the data across as needed. This does not work for in-place updates,
+where we would need to update the padded values too, but only for the directions that stream
+back into domain, necessitating a check of whether we’re in the periodic copy or not.
+Ultimately it’s probably worth doing this but that’s a <strong>TODO</strong>.</p>
+</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.lower">
+<span class="sig-name descname"><span class="pre">lower</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#boltzmann.units.Domain.lower" title="Link to this definition"></a></dt>
+<dd><p>Lower bound of the domain in each dimension.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.upper">
+<span class="sig-name descname"><span class="pre">upper</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#boltzmann.units.Domain.upper" title="Link to this definition"></a></dt>
+<dd><p>Upper bound of the domain in each dimension.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.counts">
+<span class="sig-name descname"><span class="pre">counts</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#boltzmann.units.Domain.counts" title="Link to this definition"></a></dt>
+<dd><p>Number of cells in each dimension.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.dx">
+<span class="sig-name descname"><span class="pre">dx</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#boltzmann.units.Domain.dx" title="Link to this definition"></a></dt>
+<dd><p>Physical extent of each cell.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.dims">
+<span class="sig-name descname"><span class="pre">dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#boltzmann.units.Domain.dims" title="Link to this definition"></a></dt>
+<dd><p>Number of dimensions. (<code class="code highlight python docutils literal highlight-python"><span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">counts</span><span class="p">)</span></code>)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.make">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">make</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lower</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="boltzmann.utils.option.html#boltzmann.utils.option.Some" title="boltzmann.utils.option.Some"><span class="pre">Some</span></a><span class="p"><span class="pre">[</span></span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="boltzmann.utils.option.html#boltzmann.utils.option.Some" title="boltzmann.utils.option.Some"><span class="pre">Some</span></a><span class="p"><span class="pre">[</span></span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="boltzmann.utils.option.html#boltzmann.utils.option.Some" title="boltzmann.utils.option.Some"><span class="pre">Some</span></a><span class="p"><span class="pre">[</span></span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="boltzmann.utils.option.html#boltzmann.utils.option.Some" title="boltzmann.utils.option.Some"><span class="pre">Some</span></a><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#boltzmann.units.Domain" title="boltzmann.units.Domain"><span class="pre">Domain</span></a></span></span><a class="reference internal" href="_modules/boltzmann/units.html#Domain.make"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.units.Domain.make" title="Link to this definition"></a></dt>
+<dd><p>Construct a <a class="reference internal" href="#boltzmann.units.Domain" title="boltzmann.units.Domain"><code class="xref py py-class docutils literal notranslate"><span class="pre">Domain</span></code></a> object from a valid combination of the parameters.
+Valid combinations are those that are sufficient to infer the others.</p>
+<p>Specific valid combinations are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lower</span></code>, <code class="docutils literal notranslate"><span class="pre">upper</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">counts</span></code> - <code class="docutils literal notranslate"><span class="pre">dx</span></code> is inferred as <code class="docutils literal notranslate"><span class="pre">(upper</span> <span class="pre">-</span> <span class="pre">lower)</span> <span class="pre">/</span> <span class="pre">counts</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lower</span></code>, <code class="docutils literal notranslate"><span class="pre">upper</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">dx</span></code> - <code class="docutils literal notranslate"><span class="pre">counts</span></code> is inferred as <code class="docutils literal notranslate"><span class="pre">(upper</span> <span class="pre">-</span> <span class="pre">lower)</span> <span class="pre">/</span> <span class="pre">dx</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lower</span></code>, <code class="docutils literal notranslate"><span class="pre">counts</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">dx</span></code> - <code class="docutils literal notranslate"><span class="pre">upper</span></code> is inferred as <code class="docutils literal notranslate"><span class="pre">lower</span> <span class="pre">+</span> <span class="pre">counts</span> <span class="pre">*</span> <span class="pre">dx</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">upper</span></code>, <code class="docutils literal notranslate"><span class="pre">counts</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">dx</span></code> - <code class="docutils literal notranslate"><span class="pre">lower</span></code> is inferred as <code class="docutils literal notranslate"><span class="pre">upper</span> <span class="pre">-</span> <span class="pre">counts</span> <span class="pre">*</span> <span class="pre">dx</span></code>.</p></li>
+</ul>
+<p>In the above <code class="docutils literal notranslate"><span class="pre">lower</span></code> can be omitted and it will be inferred as zero(s).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The cell size <code class="docutils literal notranslate"><span class="pre">dx</span></code> must be equal in all dimensions.
+This means that the aspect ratio(s) of <code class="docutils literal notranslate"><span class="pre">counts</span></code> must match the aspect ratio(s) of the extent.
+This method will throw a <code class="xref py py-exc docutils literal notranslate"><span class="pre">ValueError</span></code> if this is not the case.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.get_dim">
+<span class="sig-name descname"><span class="pre">get_dim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/boltzmann/units.html#Domain.get_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.units.Domain.get_dim" title="Link to this definition"></a></dt>
+<dd><p>Positions of the cell centres along the specified dimension.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>dim</strong> – The dimension to return the cell positions for.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.x">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">x</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#boltzmann.units.Domain.x" title="Link to this definition"></a></dt>
+<dd><p>Positions of cell centers along the x-axis.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.y">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">y</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#boltzmann.units.Domain.y" title="Link to this definition"></a></dt>
+<dd><p>Positions of cell centers along the y-axis.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.z">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">z</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#boltzmann.units.Domain.z" title="Link to this definition"></a></dt>
+<dd><p>Positions of cell centers along the z-axis.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.get_extent">
+<span class="sig-name descname"><span class="pre">get_extent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/boltzmann/units.html#Domain.get_extent"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.units.Domain.get_extent" title="Link to this definition"></a></dt>
+<dd><p>Size of the domain in the specified dimension.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.width">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">width</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#boltzmann.units.Domain.width" title="Link to this definition"></a></dt>
+<dd><p>Size of the domain along the x-axis.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.height">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">height</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#boltzmann.units.Domain.height" title="Link to this definition"></a></dt>
+<dd><p>Size of the domain along the y-axis.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.depth">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">depth</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#boltzmann.units.Domain.depth" title="Link to this definition"></a></dt>
+<dd><p>Size of the domain along the z-axis.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.meshgrid">
+<span class="sig-name descname"><span class="pre">meshgrid</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/boltzmann/units.html#Domain.meshgrid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.units.Domain.meshgrid" title="Link to this definition"></a></dt>
+<dd><p>Return a meshgrid of the domain.
+Useful for setting initial conditions based on physical parameters.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.units.UnitConverter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.units.</span></span><span class="sig-name descname"><span class="pre">UnitConverter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">_to_physical</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/boltzmann/units.html#UnitConverter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.units.UnitConverter" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Convert a specific dimensional quantity between physical &amp; lattice units.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.units.UnitConverter.to_lattice_units">
+<span class="sig-name descname"><span class="pre">to_lattice_units</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/boltzmann/units.html#UnitConverter.to_lattice_units"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.units.UnitConverter.to_lattice_units" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">to_lattice_units</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span></dt>
+<dd><p>Convert the given dimensional value(s) into lattice-units using the correct conversion factor.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Be careful if assigning the result of this since it creates a copy.
+You probably want to assign the elements rather than the whole array, e.g</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">vel_</span> <span class="o">=</span> <span class="n">converter</span><span class="o">.</span><span class="n">to_lattice_units</span><span class="p">(</span><span class="n">vel_</span><span class="p">)</span>     <span class="c1"># Wrong! vel_ will have a new buffer.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">vel_</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">converter</span><span class="o">.</span><span class="n">to_lattice_units</span><span class="p">(</span><span class="n">vel_</span><span class="p">)</span>  <span class="c1"># Right! Write to the vel_ buffer.</span>
+</pre></div>
+</div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.units.UnitConverter.to_physical_units">
+<span class="sig-name descname"><span class="pre">to_physical_units</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/boltzmann/units.html#UnitConverter.to_physical_units"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.units.UnitConverter.to_physical_units" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">to_physical_units</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span></dt>
+<dd><p>Convert the given dimensional value(s) into physical-units using the correct conversion factor.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Be careful if assigning the result of this since it creates a copy.
+You probably want to assign the elements rather than the whole array, e.g</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">vel_</span> <span class="o">=</span> <span class="n">converter</span><span class="o">.</span><span class="n">to_physical_units</span><span class="p">(</span><span class="n">vel_</span><span class="p">)</span>     <span class="c1"># Wrong! vel_ will have a new buffer.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">vel_</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">converter</span><span class="o">.</span><span class="n">to_physical_units</span><span class="p">(</span><span class="n">vel_</span><span class="p">)</span>  <span class="c1"># Right! Write to the vel_ buffer.</span>
+</pre></div>
+</div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.units.Scales">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.units.</span></span><span class="sig-name descname"><span class="pre">Scales</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/boltzmann/units.html#Scales"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.units.Scales" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Characteristic scales of fundamental units.
+Used to convert between physical units (SI) and simulation (lattice) units.</p>
+<p>To convert you must use this to construct a <a class="reference internal" href="#boltzmann.units.UnitConverter" title="boltzmann.units.UnitConverter"><code class="xref py py-class docutils literal notranslate"><span class="pre">UnitConverter</span></code></a> object for the given powers.
+Convenience properties exist for the three most common cases; distance, velocity &amp; acceleration.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">scales</span> <span class="o">=</span> <span class="n">Scales</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="n">dx</span><span class="o">=</span><span class="n">dx</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="n">dt</span><span class="p">)</span>
+<span class="n">vel_si</span> <span class="o">=</span> <span class="mf">1.0</span>  <span class="c1"># [m/s]</span>
+
+<span class="c1"># The statements below are equivalent:</span>
+<span class="n">vel_lu</span> <span class="o">=</span> <span class="n">scales</span><span class="o">.</span><span class="n">converter</span><span class="p">(</span><span class="n">L</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">T</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">to_lattice_units</span><span class="p">(</span><span class="n">vel_si</span><span class="p">)</span>
+<span class="n">vel_lu</span> <span class="o">=</span> <span class="n">scales</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">to_lattice_units</span><span class="p">(</span><span class="n">vel_si</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.units.Scales.dx">
+<span class="sig-name descname"><span class="pre">dx</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#boltzmann.units.Scales.dx" title="Link to this definition"></a></dt>
+<dd><p>Lattice spacing.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.units.Scales.dt">
+<span class="sig-name descname"><span class="pre">dt</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#boltzmann.units.Scales.dt" title="Link to this definition"></a></dt>
+<dd><p>Time step.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.units.Scales.dm">
+<span class="sig-name descname"><span class="pre">dm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#boltzmann.units.Scales.dm" title="Link to this definition"></a></dt>
+<dd><p>Mass scale (usually unneeded.)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.units.Scales.converter">
+<span class="sig-name descname"><span class="pre">converter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">L</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#boltzmann.units.UnitConverter" title="boltzmann.units.UnitConverter"><span class="pre">UnitConverter</span></a></span></span><a class="reference internal" href="_modules/boltzmann/units.html#Scales.converter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.units.Scales.converter" title="Link to this definition"></a></dt>
+<dd><p>Construct a <a class="reference internal" href="#boltzmann.units.UnitConverter" title="boltzmann.units.UnitConverter"><code class="xref py py-class docutils literal notranslate"><span class="pre">UnitConverter</span></code></a> object for the given dimensionality.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="boltzmann.units.Scales.distance">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">distance</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#boltzmann.units.UnitConverter" title="boltzmann.units.UnitConverter"><span class="pre">UnitConverter</span></a></em><a class="headerlink" href="#boltzmann.units.Scales.distance" title="Link to this definition"></a></dt>
+<dd><p>Convert distances between physical and lattice units.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="boltzmann.units.Scales.velocity">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">velocity</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#boltzmann.units.UnitConverter" title="boltzmann.units.UnitConverter"><span class="pre">UnitConverter</span></a></em><a class="headerlink" href="#boltzmann.units.Scales.velocity" title="Link to this definition"></a></dt>
+<dd><p>Convert speeds between physical and lattice units.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="boltzmann.units.Scales.acceleration">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">acceleration</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#boltzmann.units.UnitConverter" title="boltzmann.units.UnitConverter"><span class="pre">UnitConverter</span></a></em><a class="headerlink" href="#boltzmann.units.Scales.acceleration" title="Link to this definition"></a></dt>
+<dd><p>Convert accelerations between physical and lattice units.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="boltzmann.simulation.html" class="btn btn-neutral float-left" title="boltzmann.simulation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barker.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

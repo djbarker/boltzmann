@@ -1,0 +1,251 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulation Scripts &mdash; Boltzmann 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="boltzmann" href="../boltzmann.html" />
+    <link rel="prev" title="Basic Simulation Setup" href="basic.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Boltzmann
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="basic.html">Basic Simulation Setup</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Simulation Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../boltzmann.html">boltzmann</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Boltzmann</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Simulation Scripts</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/guides/script.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="simulation-scripts">
+<h1>Simulation Scripts<a class="headerlink" href="#simulation-scripts" title="Link to this heading"></a></h1>
+<p>The example shown in <a class="reference internal" href="basic.html"><span class="doc">guides/basic</span></a> shows the core of getting a simulation running,
+but it is lacking some common niceties that you would want for a real simulation.
+Specifically for a longer-running simulation you probably want it to:</p>
+<ul class="simple">
+<li><p>Produce outputs for multiple time-steps.</p></li>
+<li><p>Provide some logging to indicate progress.</p></li>
+<li><p>Save checkpoints at regular intervals.</p></li>
+<li><p>Resume from a checkpoint if it is interrupted.</p></li>
+</ul>
+<p>Rather than re-invent the wheel for every simulation the <a class="reference internal" href="../boltzmann.simulation.html#module-boltzmann.simulation" title="boltzmann.simulation"><code class="xref py py-mod docutils literal notranslate"><span class="pre">boltzmann.simulation</span></code></a>
+module provides us with utilities to achieve all of these quickly.</p>
+<p>There are two ways to use this module (and I’m not settled on which I prefer).</p>
+<section id="function-based">
+<h2>1. Function based<a class="headerlink" href="#function-based" title="Link to this heading"></a></h2>
+<p>We can wire up a script quickly using a few function calls which will</p>
+<ol class="arabic simple">
+<li><p>Parse the command line arguments</p></li>
+<li><p>Run the main simulation loop (including logging &amp; writing checkpoints).</p></li>
+</ol>
+<p>Here’s an example</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">Simulation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.simulation</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse_args</span><span class="p">,</span> <span class="n">run_sim</span><span class="p">,</span> <span class="n">IterInfo</span>
+
+<span class="c1"># Parse the standard command line arguments.</span>
+<span class="n">args</span> <span class="o">=</span> <span class="n">parse_args</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">resume</span><span class="p">:</span>
+    <span class="c1"># Load previously started simulation.</span>
+    <span class="n">sim</span> <span class="o">=</span> <span class="n">Simulation</span><span class="o">.</span><span class="n">load_checkpoint</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">out_dir</span> <span class="o">/</span> <span class="s2">&quot;checkpoint.mpk&quot;</span><span class="p">))</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="c1"># Create a new simulation &amp; set the initial conditions.</span>
+    <span class="n">sim</span> <span class="o">=</span> <span class="n">Simulation</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">100</span><span class="p">],</span> <span class="mi">1</span><span class="o">/</span><span class="mf">0.51</span><span class="p">)</span>
+
+    <span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[:,</span> <span class="mi">40</span><span class="p">:</span><span class="mi">60</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">rho</span><span class="p">[:]</span> <span class="o">+=</span> <span class="mf">0.1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">rho</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+<span class="c1"># Run the simulation loop</span>
+<span class="n">meta</span> <span class="o">=</span> <span class="n">IterInfo</span><span class="p">(</span><span class="mi">250</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">run_sim</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">out_dir</span><span class="p">):</span>
+    <span class="c1"># For each iteration generate an output</span>
+    <span class="n">dvydx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)[:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">dvxdy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="n">curl</span> <span class="o">=</span> <span class="n">dvydx</span> <span class="o">-</span> <span class="n">dvxdy</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">curl</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;RdBu&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.parse_args" title="boltzmann.simulation.parse_args"><code class="xref py py-meth docutils literal notranslate"><span class="pre">parse_args()</span></code></a> function loads the standard command line arguments
+for a simulation script and exposes them via a <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.SimulationArgs" title="boltzmann.simulation.SimulationArgs"><code class="xref py py-class docutils literal notranslate"><span class="pre">SimulationArgs</span></code></a> object.
+We can then use this to decide if we need to load the checkpoint or not create a fresh simulation.
+Once we’ve done that we run the main loop using the <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.run_sim" title="boltzmann.simulation.run_sim"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_sim()</span></code></a> method.
+This is a <code class="docutils literal notranslate"><span class="pre">Generator</span></code> which yields the current iteration number.
+On each iteration you can generate your output (or do anything else).
+Once you have written your output the <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.run_sim" title="boltzmann.simulation.run_sim"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_sim()</span></code></a> will log information about the progress &amp; performance,
+write the checkpoint (if requested) and then continue.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>We can control the frequency with which the checkpoints are written with the <code class="docutils literal notranslate"><span class="pre">checkpoints</span></code> argument to <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.run_sim" title="boltzmann.simulation.run_sim"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_sim()</span></code></a>.
+This is one of the fields of <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.SimulationArgs" title="boltzmann.simulation.SimulationArgs"><code class="xref py py-class docutils literal notranslate"><span class="pre">SimulationArgs</span></code></a>; if you want to use it you must wire it into the <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.run_sim" title="boltzmann.simulation.run_sim"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_sim()</span></code></a> call.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>With this approach we are responsible for loading from the checkpoint ourselves if requested by the user.
+The <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.run_sim" title="boltzmann.simulation.run_sim"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_sim()</span></code></a> function saves to a standard filename of <code class="docutils literal notranslate"><span class="pre">checkpoint.mpk</span></code> so we should load from there.</p>
+</div>
+<p>The <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.IterInfo" title="boltzmann.simulation.IterInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">IterInfo</span></code></a> class is used to tell <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.run_sim" title="boltzmann.simulation.run_sim"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_sim()</span></code></a> how often and how many times to yield.
+That is, how many lattice Boltzmann iterations will it run per output, and how many outputs will be generated in total.
+The number of LBM iterations per output will depend on the physical system you are simulating and the temporal resolution you need.
+For more info on this see <span class="xref std std-doc">guides/units</span>.</p>
+</section>
+<section id="class-based">
+<h2>2. Class based<a class="headerlink" href="#class-based" title="Link to this heading"></a></h2>
+<p>The second way to write such a script is to use the <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.SimulationScript" title="boltzmann.simulation.SimulationScript"><code class="xref py py-class docutils literal notranslate"><span class="pre">SimulationScript</span></code></a> class.
+Under the hood it does the same thing as the function based approach, but it automatically handles wiring all command line arguments into the <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.run_sim" title="boltzmann.simulation.run_sim"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_sim()</span></code></a> call and loading the checkpoint (if requested).
+This can be slightly cleaner but it can make things appear a bit more magical in certain situations.</p>
+<p>Here’s an example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.simulation</span><span class="w"> </span><span class="kn">import</span> <span class="n">IterInfo</span><span class="p">,</span> <span class="n">SimulationScript</span>
+
+<span class="c1"># Simulation loop will run when the with-statement exists</span>
+<span class="n">meta</span> <span class="o">=</span> <span class="n">IterInfo</span><span class="p">(</span><span class="mi">250</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+<span class="k">with</span> <span class="p">(</span><span class="n">script</span> <span class="o">:=</span> <span class="n">SimulationScript</span><span class="p">([</span><span class="mi">200</span><span class="p">,</span> <span class="mi">100</span><span class="p">],</span> <span class="mi">1</span><span class="o">/</span><span class="mf">0.51</span><span class="p">,</span> <span class="n">meta</span><span class="p">))</span> <span class="k">as</span> <span class="n">sim</span><span class="p">:</span>
+
+    <span class="nd">@script</span><span class="o">.</span><span class="n">init</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">init</span><span class="p">():</span>
+        <span class="c1"># Set the initial conditions, if needed.</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[:,</span> <span class="mi">40</span><span class="p">:</span><span class="mi">60</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.1</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">rho</span><span class="p">[:]</span> <span class="o">+=</span> <span class="mf">0.1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">rho</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="nd">@script</span><span class="o">.</span><span class="n">out</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">out</span><span class="p">(</span><span class="n">out_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">iter</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="c1"># For each iteration generate an output</span>
+        <span class="n">dvydx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)[:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">dvxdy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">curl</span> <span class="o">=</span> <span class="n">dvydx</span> <span class="o">-</span> <span class="n">dvxdy</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">curl</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;RdBu&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Note the use of decorators on functions which capture the surrounding scope.
+These functions are called only when needed; for example if we are resuming the <cite>init</cite> function will not get called.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The slightly magical use of the <a class="reference external" href="https://docs.python.org/3/whatsnew/3.8.html">walrus operator</a>
+is because <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.SimulationScript" title="boltzmann.simulation.SimulationScript"><code class="xref py py-class docutils literal notranslate"><span class="pre">SimulationScript</span></code></a>’s <code class="docutils literal notranslate"><span class="pre">__enter__</span></code> method returns a
+<a class="reference internal" href="../boltzmann.core.html#boltzmann.core.Simulation" title="boltzmann.core.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object directly for you to work with, but we still need
+the <a class="reference internal" href="../boltzmann.simulation.html#boltzmann.simulation.SimulationScript" title="boltzmann.simulation.SimulationScript"><code class="xref py py-class docutils literal notranslate"><span class="pre">SimulationScript</span></code></a> to use the decorators which mark the
+initialization and output methods.</p>
+</div>
+</section>
+<section id="running">
+<h2>Running<a class="headerlink" href="#running" title="Link to this heading"></a></h2>
+<p>Whichever approach we take we can run the above scripts from the command line</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>python<span class="w"> </span>my_sim.py<span class="w"> </span>--help
+usage:<span class="w"> </span>script.py<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>--device<span class="w"> </span><span class="o">{</span>gpu,cpu<span class="o">}]</span><span class="w"> </span><span class="o">[</span>--resume<span class="o">]</span><span class="w"> </span><span class="o">[</span>--out-dir<span class="w"> </span>OUT_DIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>--checkpoints<span class="w"> </span>CHECKPOINTS<span class="o">]</span>
+
+options:
+-h,<span class="w"> </span>--help<span class="w">            </span>show<span class="w"> </span>this<span class="w"> </span><span class="nb">help</span><span class="w"> </span>message<span class="w"> </span>and<span class="w"> </span><span class="nb">exit</span>
+--device<span class="w"> </span><span class="o">{</span>gpu,cpu<span class="o">}</span><span class="w">    </span>The<span class="w"> </span>OpenCL<span class="w"> </span>device<span class="w"> </span>to<span class="w"> </span>run<span class="w"> </span>on
+--resume<span class="w">              </span>Resume<span class="w"> </span>from<span class="w"> </span>the<span class="w"> </span>checkpoint.
+--out-dir<span class="w"> </span>OUT_DIR<span class="w">     </span>Path<span class="w"> </span>to<span class="w"> </span>the<span class="w"> </span>directory<span class="w"> </span>where<span class="w"> </span>the<span class="w"> </span>checkpoint<span class="w"> </span>is<span class="w"> </span>stored.
+--checkpoints<span class="w"> </span>CHECKPOINTS
+<span class="w">                        </span>How<span class="w"> </span>often<span class="w"> </span>to<span class="w"> </span>write<span class="w"> </span>checkpoints.
+
+$<span class="w"> </span>python<span class="w"> </span>my_sim.py<span class="w"> </span>--out-dir<span class="o">=</span>./cool_results
+
+<span class="m">2025</span>-03-06<span class="w"> </span><span class="m">13</span>:07:52,325<span class="w"> </span>-<span class="w"> </span>INFO<span class="w">  </span>-<span class="w"> </span><span class="o">[</span>logger<span class="o">]</span><span class="w"> </span>Output<span class="w"> </span>directory<span class="w"> </span>........<span class="w"> </span>./cool_results
+<span class="m">2025</span>-03-06<span class="w"> </span><span class="m">13</span>:07:52,325<span class="w"> </span>-<span class="w"> </span>INFO<span class="w">  </span>-<span class="w"> </span><span class="o">[</span>logger<span class="o">]</span><span class="w"> </span>Memory<span class="w"> </span>usage<span class="w"> </span>.......................<span class="w"> </span><span class="m">104</span><span class="w"> </span>MB
+<span class="m">2025</span>-03-06<span class="w"> </span><span class="m">13</span>:07:52,325<span class="w"> </span>-<span class="w"> </span>INFO<span class="w">  </span>-<span class="w"> </span><span class="o">[</span>logger<span class="o">]</span><span class="w"> </span>Iters<span class="w"> </span>/<span class="w"> </span>output<span class="w"> </span>....................<span class="w"> </span><span class="m">1000</span>
+<span class="m">2025</span>-03-06<span class="w"> </span><span class="m">13</span>:07:52,325<span class="w"> </span>-<span class="w"> </span>INFO<span class="w">  </span>-<span class="w"> </span><span class="o">[</span>logger<span class="o">]</span><span class="w"> </span>Cells<span class="w"> </span>.............................<span class="w"> </span><span class="m">2</span>.0M
+<span class="m">2025</span>-03-06<span class="w"> </span><span class="m">13</span>:07:56,408<span class="w"> </span>-<span class="w"> </span>INFO<span class="w">  </span>-<span class="w"> </span><span class="o">[</span>simulation<span class="o">]</span><span class="w"> </span>Batch<span class="w"> </span><span class="m">1</span>:<span class="w"> </span><span class="m">0</span>:00:02<span class="w"> </span><span class="m">1</span>,311<span class="w"> </span>MLUP/s,<span class="w"> </span>sim<span class="w"> </span><span class="m">1</span>.5s,<span class="w"> </span>out<span class="w"> </span><span class="m">0</span>.9s,<span class="w"> </span>eta<span class="w"> </span><span class="m">13</span>:11:51
+<span class="m">2025</span>-03-06<span class="w"> </span><span class="m">13</span>:07:58,722<span class="w"> </span>-<span class="w"> </span>INFO<span class="w">  </span>-<span class="w"> </span><span class="o">[</span>simulation<span class="o">]</span><span class="w"> </span>Batch<span class="w"> </span><span class="m">2</span>:<span class="w"> </span><span class="m">0</span>:00:04<span class="w"> </span><span class="m">1</span>,633<span class="w"> </span>MLUP/s,<span class="w"> </span>sim<span class="w"> </span><span class="m">1</span>.2s,<span class="w"> </span>out<span class="w"> </span><span class="m">1</span>.1s,<span class="w"> </span>eta<span class="w"> </span><span class="m">13</span>:11:48
+<span class="m">2025</span>-03-06<span class="w"> </span><span class="m">13</span>:08:00,566<span class="w"> </span>-<span class="w"> </span>INFO<span class="w">  </span>-<span class="w"> </span><span class="o">[</span>simulation<span class="o">]</span><span class="w"> </span>Batch<span class="w"> </span><span class="m">3</span>:<span class="w"> </span><span class="m">0</span>:00:06<span class="w"> </span><span class="m">1</span>,599<span class="w"> </span>MLUP/s,<span class="w"> </span>sim<span class="w"> </span><span class="m">1</span>.3s,<span class="w"> </span>out<span class="w"> </span><span class="m">0</span>.6s,<span class="w"> </span>eta<span class="w"> </span><span class="m">13</span>:11:31
+<span class="m">2025</span>-03-06<span class="w"> </span><span class="m">13</span>:08:02,368<span class="w"> </span>-<span class="w"> </span>INFO<span class="w">  </span>-<span class="w"> </span><span class="o">[</span>simulation<span class="o">]</span><span class="w"> </span>Batch<span class="w"> </span><span class="m">4</span>:<span class="w"> </span><span class="m">0</span>:00:08<span class="w"> </span><span class="m">1</span>,628<span class="w"> </span>MLUP/s,<span class="w"> </span>sim<span class="w"> </span><span class="m">1</span>.2s,<span class="w"> </span>out<span class="w"> </span><span class="m">0</span>.6s,<span class="w"> </span>eta<span class="w"> </span><span class="m">13</span>:11:22
+<span class="m">2025</span>-03-06<span class="w"> </span><span class="m">13</span>:08:04,349<span class="w"> </span>-<span class="w"> </span>INFO<span class="w">  </span>-<span class="w"> </span><span class="o">[</span>simulation<span class="o">]</span><span class="w"> </span>Batch<span class="w"> </span><span class="m">5</span>:<span class="w"> </span><span class="m">0</span>:00:10<span class="w"> </span><span class="m">1</span>,627<span class="w"> </span>MLUP/s,<span class="w"> </span>sim<span class="w"> </span><span class="m">1</span>.2s,<span class="w"> </span>out<span class="w"> </span><span class="m">0</span>.8s,<span class="w"> </span>eta<span class="w"> </span><span class="m">13</span>:11:20
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="basic.html" class="btn btn-neutral float-left" title="Basic Simulation Setup" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../boltzmann.html" class="btn btn-neutral float-right" title="boltzmann" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barker.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

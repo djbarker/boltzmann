@@ -1,0 +1,518 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>boltzmann.kernel_gen &mdash; Boltzmann 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Boltzmann
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/basic.html">Basic Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/script.html">Simulation Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../boltzmann.html">boltzmann</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Boltzmann</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">boltzmann.kernel_gen</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for boltzmann.kernel_gen</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This script auto-generates the kernels for the OpenCL updates.</span>
+<span class="sd">It&#39;s not actually needed to run the module since the OpenCL kernels get compiled into the Rust extension module.</span>
+<span class="sd">For this reason its dependencies do not form part of the package dependencies (e.g. sympy).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">sympy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sp</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">fractions</span><span class="w"> </span><span class="kn">import</span> <span class="n">Fraction</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">textwrap</span><span class="w"> </span><span class="kn">import</span> <span class="n">dedent</span><span class="p">,</span> <span class="n">indent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sympy.printing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ccode</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">CellFlags</span>
+
+
+<div class="viewcode-block" id="VelocitySet">
+<a class="viewcode-back" href="../../boltzmann.kernel_gen.html#boltzmann.kernel_gen.VelocitySet">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">VelocitySet</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Information about the velocity set, used in kernel generation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ws</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Fraction</span><span class="p">],</span> <span class="n">qs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">ws</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">qs</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">key</span><span class="p">(</span><span class="n">q</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Sort the velocites in the order we would write them manually.</span>
+<span class="sd">            Not necessary but makes debugging the auto-generated kernels easier.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+
+            <span class="n">s</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">q</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">q</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="o">*</span> <span class="n">qq</span> <span class="k">for</span> <span class="n">qq</span> <span class="ow">in</span> <span class="n">q</span><span class="p">]</span>
+
+            <span class="n">k</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">qq</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">q</span><span class="p">):</span>
+                <span class="n">k</span> <span class="o">+=</span> <span class="p">(</span><span class="n">qq</span> <span class="o">%</span> <span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">3</span><span class="o">**</span><span class="n">i</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span>
+
+            <span class="c1"># extra term to sort by number of components</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">qq</span> <span class="o">!=</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">qq</span> <span class="ow">in</span> <span class="n">q</span><span class="p">)</span>
+            <span class="n">k</span> <span class="o">+=</span> <span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="mi">3</span> <span class="o">**</span> <span class="nb">len</span><span class="p">(</span><span class="n">q</span><span class="p">))</span> <span class="o">*</span> <span class="mi">2</span>
+
+            <span class="c1"># extra term to put opposite pairs together</span>
+            <span class="k">if</span> <span class="n">s</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">k</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="k">return</span> <span class="n">k</span>
+
+        <span class="c1"># sort together</span>
+        <span class="n">wq</span> <span class="o">=</span> <span class="p">[(</span><span class="n">w</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span> <span class="k">for</span> <span class="n">w</span><span class="p">,</span> <span class="n">q</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">ws</span><span class="p">,</span> <span class="n">qs</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">key</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]))]</span>
+
+        <span class="c1"># pull out ws &amp; qs</span>
+        <span class="n">ws</span> <span class="o">=</span> <span class="p">[</span><span class="n">w</span> <span class="k">for</span> <span class="n">w</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">wq</span><span class="p">]</span>
+        <span class="n">qs</span> <span class="o">=</span> <span class="p">[</span><span class="n">q</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">wq</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">_neg</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="o">-</span><span class="n">xx</span> <span class="k">for</span> <span class="n">xx</span> <span class="ow">in</span> <span class="n">x</span><span class="p">]</span>
+
+        <span class="c1"># index of opposite velocity</span>
+        <span class="n">js</span> <span class="o">=</span> <span class="p">[</span><span class="n">qs</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">_neg</span><span class="p">(</span><span class="n">q</span><span class="p">))</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">qs</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ws</span> <span class="o">=</span> <span class="n">ws</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qs</span> <span class="o">=</span> <span class="n">qs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">js</span> <span class="o">=</span> <span class="n">js</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">Q</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">D</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="tensor_product">
+<a class="viewcode-back" href="../../boltzmann.kernel_gen.html#boltzmann.kernel_gen.tensor_product">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">tensor_product</span><span class="p">(</span><span class="n">m1</span><span class="p">:</span> <span class="n">VelocitySet</span><span class="p">,</span> <span class="n">m2</span><span class="p">:</span> <span class="n">VelocitySet</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">VelocitySet</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Take the tensor product of two velocity sets.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">ws</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m1</span><span class="o">.</span><span class="n">Q</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m2</span><span class="o">.</span><span class="n">Q</span><span class="p">):</span>
+            <span class="n">q</span> <span class="o">=</span> <span class="p">[</span><span class="n">qq</span> <span class="k">for</span> <span class="n">qq</span> <span class="ow">in</span> <span class="n">m1</span><span class="o">.</span><span class="n">qs</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+            <span class="n">q</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">m2</span><span class="o">.</span><span class="n">qs</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
+            <span class="n">qs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
+            <span class="n">ws</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m1</span><span class="o">.</span><span class="n">ws</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">m2</span><span class="o">.</span><span class="n">ws</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
+
+    <span class="n">ws</span> <span class="o">=</span> <span class="p">[</span><span class="n">w</span> <span class="o">/</span> <span class="nb">sum</span><span class="p">(</span><span class="n">ws</span><span class="p">)</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">ws</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">VelocitySet</span><span class="p">(</span><span class="n">ws</span><span class="p">,</span> <span class="n">qs</span><span class="p">)</span></div>
+
+
+
+<span class="n">D1Q3</span> <span class="o">=</span> <span class="n">VelocitySet</span><span class="p">(</span>
+    <span class="p">[</span><span class="n">Fraction</span><span class="p">(</span><span class="s2">&quot;4/6&quot;</span><span class="p">),</span> <span class="n">Fraction</span><span class="p">(</span><span class="s2">&quot;1/6&quot;</span><span class="p">),</span> <span class="n">Fraction</span><span class="p">(</span><span class="s2">&quot;1/6&quot;</span><span class="p">)],</span>
+    <span class="p">[</span>
+        <span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+
+<span class="n">D2Q9</span> <span class="o">=</span> <span class="n">tensor_product</span><span class="p">(</span><span class="n">D1Q3</span><span class="p">,</span> <span class="n">D1Q3</span><span class="p">)</span>
+<span class="n">D3Q27</span> <span class="o">=</span> <span class="n">tensor_product</span><span class="p">(</span><span class="n">D2Q9</span><span class="p">,</span> <span class="n">D1Q3</span><span class="p">)</span>
+
+<span class="n">D2Q5</span> <span class="o">=</span> <span class="n">VelocitySet</span><span class="p">(</span>
+    <span class="p">[</span>
+        <span class="n">Fraction</span><span class="p">(</span><span class="s2">&quot;1/3&quot;</span><span class="p">),</span>
+        <span class="n">Fraction</span><span class="p">(</span><span class="s2">&quot;1/6&quot;</span><span class="p">),</span>
+        <span class="n">Fraction</span><span class="p">(</span><span class="s2">&quot;1/6&quot;</span><span class="p">),</span>
+        <span class="n">Fraction</span><span class="p">(</span><span class="s2">&quot;1/6&quot;</span><span class="p">),</span>
+        <span class="n">Fraction</span><span class="p">(</span><span class="s2">&quot;1/6&quot;</span><span class="p">),</span>
+    <span class="p">],</span>
+    <span class="p">[</span>
+        <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+        <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+        <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+        <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+        <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="make_advdiff_isotropic">
+<a class="viewcode-back" href="../../boltzmann.kernel_gen.html#boltzmann.kernel_gen.make_advdiff_isotropic">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_advdiff_isotropic</span><span class="p">(</span><span class="n">d</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">VelocitySet</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Make an isotropic advection-diffusion velocity set.</span>
+<span class="sd">    See https://journals.aps.org/pre/pdf/10.1103/PhysRevE.105.025308.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">match</span> <span class="n">d</span><span class="p">:</span>
+        <span class="k">case</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">Fraction</span><span class="p">(</span><span class="s2">&quot;1/3&quot;</span><span class="p">)</span>
+        <span class="k">case</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">Fraction</span><span class="p">(</span><span class="s2">&quot;2/3&quot;</span><span class="p">)</span>
+        <span class="k">case</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">Fraction</span><span class="p">(</span><span class="s2">&quot;19/20&quot;</span><span class="p">)</span>
+        <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid dimension </span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">ws</span> <span class="o">=</span> <span class="p">[</span><span class="n">Fraction</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">f</span><span class="p">]</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">d</span><span class="p">]</span>
+
+    <span class="n">w</span> <span class="o">=</span> <span class="n">f</span> <span class="o">/</span> <span class="p">(</span><span class="n">d</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+        <span class="n">q1</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">d</span>
+        <span class="n">q2</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">d</span>
+        <span class="n">q1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">q2</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">qs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">q1</span><span class="p">,</span> <span class="n">q2</span><span class="p">])</span>
+        <span class="n">ws</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">w</span><span class="p">,</span> <span class="n">w</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">VelocitySet</span><span class="p">(</span><span class="n">ws</span><span class="p">,</span> <span class="n">qs</span><span class="p">)</span></div>
+
+
+
+<span class="n">D3Q7</span> <span class="o">=</span> <span class="n">make_advdiff_isotropic</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Axis</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :meta private:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">X</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="mi">2</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">idx</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">match</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="k">case</span> <span class="n">Axis</span><span class="o">.</span><span class="n">X</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s2">&quot;x&quot;</span>
+            <span class="k">case</span> <span class="n">Axis</span><span class="o">.</span><span class="n">Y</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s2">&quot;y&quot;</span>
+            <span class="k">case</span> <span class="n">Axis</span><span class="o">.</span><span class="n">Z</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s2">&quot;z&quot;</span>
+
+
+<div class="viewcode-block" id="Kernel">
+<a class="viewcode-back" href="../../boltzmann.kernel_gen.html#boltzmann.kernel_gen.Kernel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Kernel</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+<div class="viewcode-block" id="Kernel.no_format">
+<a class="viewcode-back" href="../../boltzmann.kernel_gen.html#boltzmann.kernel_gen.Kernel.no_format">[docs]</a>
+    <span class="nd">@contextmanager</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">no_format</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Disable clang-format for any statements added inside the block.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">+=</span> <span class="s2">&quot;// clang-format off</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">yield</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">+=</span> <span class="s2">&quot;// clang-format on</span><span class="se">\n</span><span class="s2">&quot;</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__iadd__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rhs</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Kernel&quot;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">+=</span> <span class="n">rhs</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_dot</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">sp</span><span class="o">.</span><span class="n">Expr</span><span class="p">],</span> <span class="n">f</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">sp</span><span class="o">.</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">sp</span><span class="o">.</span><span class="n">Expr</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Simplified dot product of sympy expressions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">sp</span><span class="o">.</span><span class="n">simplify</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">Add</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">sp</span><span class="o">.</span><span class="n">Mul</span><span class="p">(</span><span class="n">xx</span><span class="p">,</span> <span class="n">ff</span><span class="p">)</span> <span class="k">for</span> <span class="n">xx</span><span class="p">,</span> <span class="n">ff</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">f</span><span class="p">)]))</span>
+
+
+<div class="viewcode-block" id="gen_kernel_AA_v1">
+<a class="viewcode-back" href="../../boltzmann.kernel_gen.html#boltzmann.kernel_gen.gen_kernel_AA_v1">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">gen_kernel_AA_v1</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">VelocitySet</span><span class="p">,</span> <span class="n">kernel_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;fluid&quot;</span><span class="p">,</span> <span class="s2">&quot;scalar&quot;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is a pretty basic transcoding of my hand-written AA-pattern+BKG kernel for D2Q9 which is</span>
+<span class="sd">    generic over the velocity set.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># first get the shape of the velocity set</span>
+    <span class="n">nvel</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">Q</span>
+    <span class="n">ndim</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">D</span>
+    <span class="n">axes</span> <span class="o">=</span> <span class="p">[</span><span class="n">Axis</span><span class="o">.</span><span class="n">X</span><span class="p">,</span> <span class="n">Axis</span><span class="o">.</span><span class="n">Y</span><span class="p">,</span> <span class="n">Axis</span><span class="o">.</span><span class="n">Z</span><span class="p">][:</span><span class="n">ndim</span><span class="p">]</span>
+
+    <span class="c1"># sympy symbols useful for later</span>
+    <span class="n">v_</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">symbols</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;v</span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">])</span>
+    <span class="n">f_</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">symbols</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;f_[</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">]&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nvel</span><span class="p">)])</span>
+
+    <span class="n">kernel</span> <span class="o">=</span> <span class="n">Kernel</span><span class="p">()</span>
+
+    <span class="n">val_name</span> <span class="o">=</span> <span class="s2">&quot;rho&quot;</span> <span class="k">if</span> <span class="n">kernel_type</span> <span class="o">==</span> <span class="s2">&quot;fluid&quot;</span> <span class="k">else</span> <span class="s2">&quot;val&quot;</span>
+
+    <span class="c1"># get the velocity set</span>
+    <span class="n">qs</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">{{</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span><span class="w"> </span><span class="n">q</span><span class="p">)))</span><span class="si">}</span><span class="se">}}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">qs</span><span class="p">)</span>
+    <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;const int qs[</span><span class="si">{</span><span class="n">nvel</span><span class="si">}</span><span class="s2">][</span><span class="si">{</span><span class="n">ndim</span><span class="si">}</span><span class="s2">] = </span><span class="se">{{</span><span class="si">{</span><span class="n">qs</span><span class="si">}</span><span class="se">}}</span><span class="s2">;</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+
+    <span class="c1"># get the OpenCL indices</span>
+    <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">:</span>
+        <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;const size_t i</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> = get_global_id(</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">idx</span><span class="si">}</span><span class="s2">);</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="n">kernel</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+    <span class="c1"># check if we actually need to do any work</span>
+    <span class="n">cond</span> <span class="o">=</span> <span class="s2">&quot; || &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;i</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> &gt;= s[</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">idx</span><span class="si">}</span><span class="s2">]&quot;</span> <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">])</span>
+    <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;if (</span><span class="si">{</span><span class="n">cond</span><span class="si">}</span><span class="s2">) return;</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+
+    <span class="c1"># calculate the 1d index into the data</span>
+    <span class="n">stride</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">Mul</span><span class="p">(</span><span class="o">*</span><span class="n">stride</span><span class="p">)</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">Symbol</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;i</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="o">*</span> <span class="n">s</span>
+        <span class="n">stride</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">Symbol</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;s[</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">idx</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">))</span>
+        <span class="n">index</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+    <span class="n">ii</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">simplify</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">Add</span><span class="p">(</span><span class="o">*</span><span class="n">index</span><span class="p">))</span>
+    <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;const size_t ii = </span><span class="si">{</span><span class="n">ii</span><span class="si">}</span><span class="s2">;</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+
+    <span class="c1"># check the cell type</span>
+    <span class="n">fixed</span> <span class="o">=</span> <span class="n">CellFlags</span><span class="o">.</span><span class="n">FIXED_FLUID</span> <span class="k">if</span> <span class="n">kernel_type</span> <span class="o">==</span> <span class="s2">&quot;fluid&quot;</span> <span class="k">else</span> <span class="n">CellFlags</span><span class="o">.</span><span class="n">FIXED_SCALAR_VALUE</span>
+    <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    const int c = cell[ii];</span>
+<span class="s2">    const bool wall = (c &amp; </span><span class="si">{</span><span class="n">CellFlags</span><span class="o">.</span><span class="n">WALL</span><span class="si">}</span><span class="s2">);</span>
+<span class="s2">    const bool fixed = (c &amp; </span><span class="si">{</span><span class="n">fixed</span><span class="si">}</span><span class="s2">);</span>
+
+<span class="s2">    if (wall) </span><span class="se">{{</span>
+<span class="s2">        // wall =&gt; do nothing</span>
+<span class="s2">        return;</span>
+<span class="s2">    </span><span class="se">}}</span>
+<span class="s2">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># calculate offset indices</span>
+    <span class="n">inner1</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">inner2</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">:</span>
+        <span class="n">inner1</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;const int i</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">_ = (i</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> + qs[i][</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">] + s[</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">idx</span><span class="si">}</span><span class="s2">]) % s[</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">idx</span><span class="si">}</span><span class="s2">];</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">inner2</span> <span class="o">=</span> <span class="n">inner2</span> <span class="o">*</span> <span class="n">sp</span><span class="o">.</span><span class="n">Symbol</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;s[</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">idx</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="n">sp</span><span class="o">.</span><span class="n">Symbol</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;i</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">_&quot;</span><span class="p">)</span>
+
+    <span class="n">inner2</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">simplify</span><span class="p">(</span><span class="n">inner2</span><span class="p">)</span>
+
+    <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    int off[</span><span class="si">{</span><span class="n">nvel</span><span class="si">}</span><span class="s2">];</span>
+
+<span class="s2">    #pragma unroll</span>
+<span class="s2">    for (int i = 0; i &lt; </span><span class="si">{</span><span class="n">nvel</span><span class="si">}</span><span class="s2">; i++) </span><span class="se">{{</span>
+<span class="s2">        </span><span class="si">{</span><span class="n">inner1</span><span class="si">}</span>
+<span class="s2">        off[i] = (</span><span class="si">{</span><span class="n">inner2</span><span class="si">}</span><span class="s2">) * </span><span class="si">{</span><span class="n">nvel</span><span class="si">}</span><span class="s2">;</span>
+<span class="s2">    </span><span class="se">}}</span>
+<span class="s2">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># now the reads</span>
+    <span class="n">reads_even</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">reads_odd</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nvel</span><span class="p">):</span>
+        <span class="n">reads_even</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;f_[</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">] = f[off[</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">js</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="si">}</span><span class="s2">] + </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">];</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">reads_odd</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;f_[</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">] = f[off[0] + </span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">js</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="si">}</span><span class="s2">];</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+    <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    float f_[</span><span class="si">{</span><span class="n">nvel</span><span class="si">}</span><span class="s2">];</span>
+<span class="s2">    if (even) </span><span class="se">{{</span>
+<span class="s2">        </span><span class="si">{</span><span class="n">reads_even</span><span class="si">}</span>
+<span class="s2">    </span><span class="se">}}</span><span class="s2"> else </span><span class="se">{{</span>
+<span class="s2">        </span><span class="si">{</span><span class="n">reads_odd</span><span class="si">}</span>
+<span class="s2">    </span><span class="se">}}</span>
+
+<span class="s2">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># calculate the moments</span>
+    <span class="n">rho</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">vel</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nvel</span><span class="p">):</span>
+        <span class="n">rho</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;f_[</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">:</span>
+            <span class="n">vel</span><span class="p">[</span><span class="n">axis</span><span class="o">.</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">qs</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">axis</span><span class="o">.</span><span class="n">idx</span><span class="p">])</span>
+
+    <span class="n">rho</span> <span class="o">=</span> <span class="s2">&quot; + &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">rho</span><span class="p">)</span>
+    <span class="n">vel</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">_dot</span><span class="p">(</span><span class="n">f_</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">vel</span><span class="p">]</span>
+
+    <span class="k">with</span> <span class="n">kernel</span><span class="o">.</span><span class="n">no_format</span><span class="p">():</span>
+        <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;float r = </span><span class="si">{</span><span class="n">rho</span><span class="si">}</span><span class="s2">;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">kernel_type</span> <span class="o">==</span> <span class="s2">&quot;fluid&quot;</span><span class="p">:</span>
+                <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;float v</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> = (</span><span class="si">{</span><span class="n">vel</span><span class="p">[</span><span class="n">axis</span><span class="o">.</span><span class="n">idx</span><span class="p">]</span><span class="si">}</span><span class="s2">) / r;</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;float v</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> = vel[</span><span class="si">{</span><span class="n">ndim</span><span class="si">}</span><span class="s2"> * ii + </span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">idx</span><span class="si">}</span><span class="s2">];</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+    <span class="c1"># add gravity if needed</span>
+    <span class="k">if</span> <span class="n">kernel_type</span> <span class="o">==</span> <span class="s2">&quot;fluid&quot;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">:</span>
+            <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;v</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> += (g[</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">idx</span><span class="si">}</span><span class="s2">] / omega);</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+    <span class="c1"># update values if fixed</span>
+    <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    if (fixed) </span><span class="se">{{</span>
+<span class="s2">        omega = 1.0;</span>
+<span class="s2">        r = </span><span class="si">{</span><span class="n">val_name</span><span class="si">}</span><span class="s2">[ii];</span>
+<span class="s2">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">:</span>
+        <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;v</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> = vel[ii*</span><span class="si">{</span><span class="n">ndim</span><span class="si">}</span><span class="s2"> + </span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">idx</span><span class="si">}</span><span class="s2">];</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="n">kernel</span> <span class="o">+=</span> <span class="s2">&quot;}</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+
+    <span class="c1"># calculate equilibrium &amp; collide</span>
+    <span class="n">vv</span> <span class="o">=</span> <span class="s2">&quot; + &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;v</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> * v</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">])</span>
+    <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;const float vv = </span><span class="si">{</span><span class="n">vv</span><span class="si">}</span><span class="s2">;</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+    <span class="c1"># IDEA: we can use sympy to simply this!</span>
+    <span class="k">with</span> <span class="n">kernel</span><span class="o">.</span><span class="n">no_format</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nvel</span><span class="p">):</span>
+            <span class="n">uq</span> <span class="o">=</span> <span class="n">_dot</span><span class="p">(</span><span class="n">v_</span><span class="p">,</span> <span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">qs</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">a</span><span class="o">.</span><span class="n">idx</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">])</span>
+            <span class="n">feq</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">ws</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">uq</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="mi">9</span> <span class="o">*</span> <span class="p">(</span><span class="n">uq</span> <span class="o">*</span> <span class="n">uq</span><span class="p">)</span> <span class="o">-</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">sp</span><span class="o">.</span><span class="n">Symbol</span><span class="p">(</span><span class="s2">&quot;vv&quot;</span><span class="p">)))</span>
+            <span class="n">feq</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">simplify</span><span class="p">(</span><span class="n">feq</span><span class="p">,</span> <span class="n">rational</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">feq</span> <span class="o">=</span> <span class="n">ccode</span><span class="p">(</span><span class="n">feq</span><span class="p">)</span>
+            <span class="n">feq</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;r * (</span><span class="si">{</span><span class="n">feq</span><span class="si">}</span><span class="s2">)&quot;</span>
+            <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;f_[</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">] += omega * (</span><span class="si">{</span><span class="n">feq</span><span class="si">}</span><span class="s2"> - f_[</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">]);</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+    <span class="c1"># write back</span>
+    <span class="n">writes_even</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">writes_odd</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nvel</span><span class="p">):</span>
+        <span class="n">writes_even</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;f[off[</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">js</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="si">}</span><span class="s2">] + </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">] = f_[</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">js</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="si">}</span><span class="s2">];</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">writes_odd</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;f[off[0] + </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">] = f_[</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">];</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+    <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    if (even) </span><span class="se">{{</span>
+<span class="s2">        </span><span class="si">{</span><span class="n">writes_even</span><span class="si">}</span>
+<span class="s2">    </span><span class="se">}}</span><span class="s2"> else </span><span class="se">{{</span>
+<span class="s2">        </span><span class="si">{</span><span class="n">writes_odd</span><span class="si">}</span>
+<span class="s2">    </span><span class="se">}}</span>
+
+<span class="s2">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># update macroscopic variables</span>
+    <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">val_name</span><span class="si">}</span><span class="s2">[ii] = r;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="k">if</span> <span class="n">kernel_type</span> <span class="o">==</span> <span class="s2">&quot;fluid&quot;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">:</span>
+            <span class="n">kernel</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;vel[ii*</span><span class="si">{</span><span class="n">ndim</span><span class="si">}</span><span class="s2"> + </span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">idx</span><span class="si">}</span><span class="s2">] = v</span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">;</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+    <span class="c1"># now finally wrap it in the function call</span>
+    <span class="k">if</span> <span class="n">kernel_type</span> <span class="o">==</span> <span class="s2">&quot;fluid&quot;</span><span class="p">:</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="s2">&quot;__constant int *s, int even, float omega, __constant float *g, global float *f, global float *rho, global float *vel, global int *cell&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="s2">&quot;__constant int *s, int even, float omega, global float *f, global float *val, global float *vel, global int *cell&quot;</span>
+
+    <span class="n">kernel</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="n">dedent</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    kernel void update_d</span><span class="si">{</span><span class="n">ndim</span><span class="si">}</span><span class="s2">q</span><span class="si">{</span><span class="n">nvel</span><span class="si">}</span><span class="s2">_bgk(</span>
+<span class="s2">        </span><span class="si">{</span><span class="n">args</span><span class="si">}</span>
+<span class="s2">    ) </span><span class="se">{{</span>
+<span class="s2">        </span><span class="si">{</span><span class="n">indent</span><span class="p">(</span><span class="n">kernel</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;   &quot;</span><span class="p">)</span><span class="si">}</span>
+<span class="s2">    </span><span class="se">}}</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">kernel</span><span class="o">.</span><span class="n">kernel</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fout</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">model</span><span class="p">,</span> <span class="n">kernel</span> <span class="ow">in</span> <span class="p">[</span>
+            <span class="p">(</span><span class="n">D2Q5</span><span class="p">,</span> <span class="s2">&quot;tracer&quot;</span><span class="p">),</span>
+            <span class="p">(</span><span class="n">D2Q9</span><span class="p">,</span> <span class="s2">&quot;fluid&quot;</span><span class="p">),</span>
+            <span class="p">(</span><span class="n">D3Q7</span><span class="p">,</span> <span class="s2">&quot;tracer&quot;</span><span class="p">),</span>
+            <span class="p">(</span><span class="n">D3Q27</span><span class="p">,</span> <span class="s2">&quot;fluid&quot;</span><span class="p">),</span>
+        <span class="p">]:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">gen_kernel_AA_v1</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">kernel</span><span class="p">),</span> <span class="n">file</span><span class="o">=</span><span class="n">fout</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">fout</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barker.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
