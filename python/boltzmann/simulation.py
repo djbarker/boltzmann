@@ -316,7 +316,7 @@ class SimulationScript:
 
         # The simulation will run automatically when the with-block is exited.
         # `sim` is a Simulation object.
-        with SimulationScript(...) as sim:
+        with (script := SimulationScript(...)) as sim:
 
             @script.init
             def init():
@@ -386,11 +386,11 @@ class SimulationScript:
 
         # Initialize the simulation if needed.
         if self.sim.iteration == 0:
-            self.initf(self.sim)
+            self.initf()
 
         # Run it.
         for i in run_sim(self.sim, self.meta, self.args.out_dir, self.args.checkpoints):
-            self.outf(self.sim, self.args.out_dir, i)
+            self.outf(self.args.out_dir, i)
 
     def __enter__(self) -> "Simulation":
         return self.sim
