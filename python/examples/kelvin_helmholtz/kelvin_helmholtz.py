@@ -87,10 +87,10 @@ cnt = domain.counts
 args = parse_args(out)
 
 if args.resume:
-    sim = Simulation.load_checkpoint(str(args.out_dir / "checkpoint.mpk"))
+    sim = Simulation.load_checkpoint(args.device, str(args.out_dir / "checkpoint.mpk"))
     tracer = sim.get_tracer("tracer")
 else:
-    sim = Simulation(cnt, omega_ns)
+    sim = Simulation(args.device, cnt, omega_ns)
     tracer = sim.add_tracer("tracer", omega_ad)
 
     # fixed velocity in- & out-flow

@@ -283,7 +283,7 @@ class Initializer(Protocol):
     Implementations of this are responsible for setting the initial conditions of the simulation.
     """
 
-    def __call__(self, sim: Simulation): ...
+    def __call__(self): ...
 
 
 class Outputter(Protocol):
@@ -294,7 +294,7 @@ class Outputter(Protocol):
     Note, this is distinct from checkpointing which is the responsiblity of the `SimulationRunner`.
     """
 
-    def __call__(self, sim: Simulation, output_dir: Path, iter: int): ...
+    def __call__(self, output_dir: Path, iter: int): ...
 
 
 class SimulationScript:
@@ -315,10 +315,11 @@ class SimulationScript:
         from boltzmann.simulation import SimulationScript
 
         # The simulation will run automatically when the with-block is exited.
-        with SimulationScript(...) as script:
+        # `sim` is a Simulation object.
+        with SimulationScript(...) as sim:
 
             @script.init
-            def init(sim: Simulation):
+            def init():
                 # Set some initial conditions.
                 pass
 
@@ -391,8 +392,8 @@ class SimulationScript:
         for i in run_sim(self.sim, self.meta, self.args.out_dir, self.args.checkpoints):
             self.outf(self.sim, self.args.out_dir, i)
 
-    def __enter__(self) -> "SimulationScript":
-        return self
+    def __enter__(self) -> "Simulation":
+        return self.sim
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is not None:
