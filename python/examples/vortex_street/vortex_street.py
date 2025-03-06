@@ -17,7 +17,7 @@ from boltzmann.core import (
 )
 from boltzmann.core import calc_curl_2d, Simulation  # type: ignore
 from boltzmann.utils.mpl import PngWriter, OrangeBlue
-from boltzmann.simulation import TimeMeta, parse_cli, run_sim
+from boltzmann.simulation import IterInfo, parse_cli, run_sim
 
 basic_config()
 logger = logging.getLogger(__name__)
@@ -59,10 +59,10 @@ n = out_dx_si / sim_dx_si
 n = int(n + 1e-8)
 out_dt_si = dt * n
 
-time_meta = TimeMeta.make(
-    dt_step=dt,
+time_meta = IterInfo.make(
+    dt=dt,
     dt_output=out_dt_si,
-    output_count=800,
+    count=800,
 )
 
 

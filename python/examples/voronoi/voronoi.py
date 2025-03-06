@@ -18,7 +18,7 @@ from boltzmann.core import (
     CellFlags,
     calc_lbm_params_lu,
 )
-from boltzmann.simulation import TimeMeta, parse_cli, run_sim
+from boltzmann.simulation import IterInfo, parse_cli, run_sim
 
 np.random.seed(42)
 
@@ -119,10 +119,10 @@ n = int(n + 1e-8)
 out_dt_si = dt * n
 out_n = int(4 * x_si / out_dx_si)
 
-time_meta = TimeMeta.make(
-    dt_step=dt,
+time_meta = IterInfo.make(
+    dt=dt,
     dt_output=out_dt_si,
-    output_count=out_n,
+    count=out_n,
 )
 
 dotted(logger, "outputs", out_n)

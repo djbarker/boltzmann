@@ -6,9 +6,9 @@ import numpy as np
 from typing import Literal
 from PIL import ImageDraw, ImageFont
 
-from boltzmann.core import CellFlags, calc_lbm_params_si
+from boltzmann.core import CellFlags, calc_lbm_params_si, Simulation
 from boltzmann.core import calc_curl_2d  # type: ignore
-from boltzmann.simulation import TimeMeta, make_sim, run_sim
+from boltzmann.simulation import IterInfo, SimulationScript, parse_args, run_sim
 from boltzmann.units import Domain, Scales
 from boltzmann.utils.logger import basic_config, timed, dotted
 from boltzmann.utils.mpl import PngWriter
@@ -47,7 +47,7 @@ dotted(logger, "L", L)
 dotted(logger, "dx", dx, "m")
 dotted(logger, "dt", dt, "s")
 
-scales = Scales.make(dx=dx, dt=dt)
+scales = Scales(dx, dt)
 
 # dimensionless time does not depend on viscosity, purely on distances
 out_dx_si = x_si / 250  # want to output when flow has moved this far
@@ -56,10 +56,10 @@ n = out_dx_si / sim_dx_si
 n = int(n + 1e-8)
 out_dt_si = dt * n
 
-time_meta = TimeMeta.make(
-    dt_step=dt,
+time_meta = IterInfo.make(
+    dt=dt,
     dt_output=out_dt_si,
-    output_count=1200,
+    count=1200,
 )
 
 dotted(logger, "Batch size", f"{out_dt_si / dt:,.0f}")
@@ -84,11 +84,15 @@ omega_ad = 1 / min(0.51, tau)
 
 out = "out"
 cnt = domain.counts
-sim = make_sim(cnt, omega_ns, out)
+args = parse_args(out)
 
-tracer = sim.add_tracer("tracer", omega_ad)
+if args.resume:
+    sim = Simulation.load_checkpoint(str(args.out_dir / "checkpoint.mpk"))
+    tracer = sim.get_tracer("tracer")
+else:
+    sim = Simulation(cnt, omega_ns)
+    tracer = sim.add_tracer("tracer", omega_ad)
 
-if sim.iteration == 0:
     # fixed velocity in- & out-flow
     sim.cells.flags[:, +0] = CellFlags.FIXED_FLUID | CellFlags.FIXED_SCALAR_VALUE  # bottom
     sim.cells.flags[:, -1] = CellFlags.FIXED_FLUID | CellFlags.FIXED_SCALAR_VALUE  # top
@@ -99,8 +103,8 @@ if sim.iteration == 0:
     # perturb velocity
     vy_si = np.zeros_like(domain.x)
     vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 1) * 0.000001
-    # vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 2) * 0.00001
-    # vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 4) * 0.0001
+    vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 2) * 0.00001
+    vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 4) * 0.0001
     vy_si += u_si * np.sin(2 * np.pi * (domain.x / x_si) * 8) * 0.001
     sim.fluid.vel[:, 1:-1, 1] = vy_si[:, None]
 
@@ -144,7 +148,7 @@ curl_ = np.zeros_like(sim.fluid.rho)
 qcrit_ = np.zeros_like(sim.fluid.rho)
 
 
-for iter in run_sim(sim, time_meta, out):
+for iter in run_sim(sim, time_meta, args.out_dir, args.checkpoints):
     with timed(logger, "calc curl"):
         calc_curl_2d(sim.fluid.vel, sim.cells.flags, cnt, curl_, qcrit_)  # in LU
         curl_[:] = curl_ * ((dx / dt) / dx)  # in SI

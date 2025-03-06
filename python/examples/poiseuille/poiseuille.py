@@ -15,7 +15,7 @@ from boltzmann.core import (
     SimulationMeta,
     check_lbm_params,
 )
-from boltzmann.simulation import TimeMeta, run_sim_cli
+from boltzmann.simulation import IterInfo, run_sim_cli
 from boltzmann.utils.vtkio import VtiWriter
 from boltzmann_rs import Simulation
 
@@ -89,8 +89,8 @@ check_lbm_params(L, u, tau, M_max=0.3)
 
 domain = Domain.make(upper=[L_si, L_si / 4], dx=dx)
 scales = Scales.make(dx=dx, dt=dt)
-time = TimeMeta.make(
-    dt_step=dt,
+time = IterInfo.make(
+    dt=dt,
     dt_output=T_si,
     t_max=T_si * 25,
 )
