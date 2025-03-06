@@ -1,5 +1,9 @@
 # Boltzmann
 
+<p align="center">
+    - <a href="https://djbarker.github.io/boltzmann/"><b>Documentation</b></a> - <a href="/gallery/"><b>Gallery</b></a> - <a href="/python/examples/"><b>Examples</b></a> -
+</p>
+
 A GPU accelerated Python package for running [Lattice-Boltzmann](https://en.wikipedia.org/wiki/Lattice_Boltzmann_methods) simulations.
 
 <p align="center">
@@ -93,6 +97,8 @@ This should produce the plot below
 </p>
 
 The code for this example is at [`examples/basic.py`](/python/examples/basic.py).
+
+For further explanation and more functionality check out [the full docs](https://djbarker.github.io/boltzmann/).
 
 ## Examples
 
