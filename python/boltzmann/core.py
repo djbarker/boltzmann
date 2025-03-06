@@ -1,6 +1,9 @@
 """
 The core lattice Boltzmann simulation classes.
 
+The Rust extension module is re-exported here for convenience & clarity.
+If you wish to import from that directly you can import ``boltzmann.boltzmann``.
+
 See :doc:`guides/basic <guides/basic>` for more information on how to use this module.
 """
 
