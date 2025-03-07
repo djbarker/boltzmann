@@ -4,7 +4,7 @@ make clean
 
 # Note: the paths following ../python/boltzmann are excludes.
 sphinx-apidoc -ef \
-    -o source \
+    -o source/api \
     --templatedir=source/_templates \
     ../python/boltzmann \
     ../python/boltzmann/kernel_gen.py \

@@ -30,7 +30,8 @@ When constructing a :py:class:`~boltzmann.core.Simulation` we need to tell it a 
 - A collision rate for the BGK collision operator (``omega`` in the example above).
 
 The dimensionality of the simulation is inferred from the length of the passed grid size.
-So ``[200, 100]``, for example, would imply a 2D simulation.
+So ``[200, 100]``, for example, would imply a 2D simulation with 200 cells in the *x*-direction and 100 in the *y*-direction.
+
 In order to construct the distribution function data we need also to know the number of velocities in the velocity set.
 By default the most common values in use are inferred from the dimensionality;
 
@@ -38,15 +39,15 @@ By default the most common values in use are inferred from the dimensionality;
 - For 3D ``q=27`` so we get the D3Q27 velocity set.
 
 If you want to use a different velocity set you can specify ``q`` manually.
-If you specify an unknown combination of D and Q, this will raise an error.
+However, if you specify an unknown combination of D and Q, this will raise an error.
 
 The collision rate ``omega == 1/tau`` is the relaxation parameter of the BGK collision operator used to update the fluid after streaming.
 
 Initial Conditions
 ------------------
 
-We could run this simulation now but it would not do anything exciting since the fluid is at rest by default.
-So let's go ahead and set some simple initial conditions so we can actually simulation something happening.
+We could run this simulation now but it would not do anything exciting; the fluid is initially at rest.
+So let's go ahead and set some simple initial conditions in order to actually simulate something happening.
 
 The fluid data is housed in a :py:class:`boltzmann.core.Fluid` object which is exposed via the simulation's :py:attr:`~boltzmann.core.Simulation.fluid` attribute.
 This in turn exposes the density and velocity data as Numpy arrays via the :py:attr:`~boltzmann.core.Fluid.rho` and :py:attr:`~boltzmann.core.Fluid.vel` attributes respectively.
@@ -55,8 +56,8 @@ We can set the initial conditions by setting values in these arrays.
 The arrays' indices are ordered as *x*, *y*, *z* so the first index ("axis 0" in Numpy) corresponds to the *x*-axis, etc.
 For example, in 2D the velocity array will have shape ``(nx, ny, 2)`` where in the last index position 0 corresponds to the *x* component of velocity, and position 1 to the *y* component.
 
-Bearing this in mind, lets set an initial condition where a horizontal band of the fluid is moving in the *x*-direction, 
-and while we're at it lets slightly perturb the initial density so that the simulation is not perfectly symmetrical.
+Bearing this in mind, lets set an initial condition where a horizontal band of the fluid is moving in the positive *x*-direction.
+While we're at it lets slightly perturb the initial density so that the simulation is not perfectly symmetrical.
 
 .. code-block:: Python
     
@@ -70,7 +71,7 @@ Running
 -------
 
 Now we're ready to run the simulation.
-This is achieved a single call to the :py:meth:`~boltzmann.core.Simulation.iterate` method, which takes a single parameter: the number of iterations to run.
+This is achieved simply by a call to the :py:meth:`~boltzmann.core.Simulation.iterate` method, which takes a single parameter: the number of iterations to run.
 
 .. code-block:: Python
 
@@ -81,7 +82,7 @@ Visualizing
 -----------
 
 At this point we are ready to visualize the output.
-Because we our data is just exposed as Numpy arrays we can use any Python packages we like to plot or otherwise visualize our simulation results.
+Because our data is conveniently exposed as Numpy arrays we can use any Python packages we like to plot or otherwise visualize our simulation results.
 
 .. note::
 
