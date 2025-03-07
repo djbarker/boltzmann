@@ -97,7 +97,7 @@ class CheckpointGater(ABC):
 @dataclass
 class EveryN(CheckpointGater):
     """
-    Allow a checkpoint to be written every N times the :py:meth:``CheckpointGater.allow`` method is called.
+    Allow a checkpoint to be written every N times the :py:meth:`CheckpointGater.allow` method is called.
     """
 
     interval: int
@@ -165,9 +165,17 @@ def run_sim(
     .. code-block:: python
 
         for i in run_sim(sim, meta, output_dir):
-            plt.imshow(sim.fluid.T)
+            plt.imshow(sim.fluid.rho.T)
             plt.savefig(output_dir / f"output_{i:04d}.png")
 
+    Once the generator resumes it outputs the checkpoint file in the specified directory with the name ``checkpoint.mpk``.
+    It is first written to a temporary file then moved into place to avoid possible corruption.
+    The frequency of checkpointing is controlled by the ``checkpoints`` argument.
+
+    :param sim: The core Simulation object.
+    :param meta: The steps/output and output count info.
+    :param output_dir: The directory to write the checkpoint to.
+    :param checkpoints: The checkpointing frequency.
     """
 
     # Check or create the output directory.
@@ -177,7 +185,7 @@ def run_sim(
     else:
         output_dir.mkdir()
 
-    checkpoints = checkpoints or EveryN(0, 0, 0)
+    checkpoints = checkpoints or EveryN(5)
 
     # Iteration count must be even due to AA pattern.
     batch_iters = 2 * int(meta.interval / 2 + 0.5)

@@ -224,8 +224,7 @@ class UnitConverter:
     Convert a specific dimensional quantity between physical & lattice units.
     """
 
-    to_physical: float
-    to_lattice: float
+    _to_physical: float
 
     @overload
     def to_lattice_units(self, value: float) -> float: ...
@@ -244,7 +243,7 @@ class UnitConverter:
             >>> vel_ = converter.to_lattice_units(vel_)     # Wrong! vel_ will have a new buffer.
             >>> vel_[:] = converter.to_lattice_units(vel_)  # Right! Write to the vel_ buffer.
         """
-        return value * self.to_lattice
+        return value / self._to_physical
 
     @overload
     def to_physical_units(self, value: float) -> float: ...
@@ -263,7 +262,7 @@ class UnitConverter:
             >>> vel_ = converter.to_physical_units(vel_)     # Wrong! vel_ will have a new buffer.
             >>> vel_[:] = converter.to_physical_units(vel_)  # Right! Write to the vel_ buffer.
         """
-        return value * self.to_physical
+        return value * self._to_physical
 
 
 @dataclass
@@ -293,10 +292,8 @@ class Scales:
         """
         Construct a :py:class:`UnitConverter` object for the given dimensionality.
         """
-        factor = pow(self.dx, L) * pow(self.dt, T) * pow(self.dm, M)
         return UnitConverter(
-            to_physical=factor,
-            to_lattice=1.0 / factor,
+            _to_physical=pow(self.dx, L) * pow(self.dt, T) * pow(self.dm, M),
         )
 
     @property
