@@ -6,14 +6,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>boltzmann.utils.option &mdash; Boltzmann 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=92fd9be5" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="../../../_static/documentation_options.js?v=01f34227"></script>
-      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/doctools.js?v=9a2dae69"></script>
       <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -42,11 +42,14 @@
               <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/basic.html">Basic Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/units.html">Parameters and Units</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/units.html#the-domain-class">The Domain Class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/setup.html">Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/script.html">Simulation Scripts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../boltzmann.html">boltzmann</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/boltzmann.html">boltzmann package</a></li>
 </ul>
 
         </div>
@@ -74,17 +77,17 @@
            <div itemprop="articleBody">
              
   <h1>Source code for boltzmann.utils.option</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">TypeVar</span><span class="p">,</span> <span class="n">Generic</span>
+<span></span><span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">TypeVar</span><span class="p">,</span> <span class="n">Generic</span>
 
 <span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">)</span>
 <span class="n">S</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;S&quot;</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="Some">
-<a class="viewcode-back" href="../../../boltzmann.utils.option.html#boltzmann.utils.option.Some">[docs]</a>
+<a class="viewcode-back" href="../../../api/boltzmann.utils.option.html#boltzmann.utils.option.Some">[docs]</a>
 <span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">Some</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span>
+<span class="k">class</span> <span class="nc">Some</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A structural pattern matchable Option type for Python.</span>
 
@@ -127,8 +130,8 @@
 
 
 <div class="viewcode-block" id="to_opt">
-<a class="viewcode-back" href="../../../boltzmann.utils.option.html#boltzmann.utils.option.to_opt">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">to_opt</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="n">Option</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Some</span><span class="p">[</span><span class="n">T</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<a class="viewcode-back" href="../../../api/boltzmann.utils.option.html#boltzmann.utils.option.to_opt">[docs]</a>
+<span class="k">def</span> <span class="nf">to_opt</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="n">Option</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Some</span><span class="p">[</span><span class="n">T</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Maybe wrap a value in :py:class:`Some` so we can use it pattern matches nicely.</span>
 <span class="sd">    Idempotent, so calling on an instance of :py:class:`Some` will not nest.</span>
@@ -136,7 +139,7 @@
     <span class="k">match</span> <span class="n">val</span><span class="p">:</span>
         <span class="k">case</span> <span class="n">Some</span><span class="p">():</span>
             <span class="k">return</span> <span class="n">val</span>
-        <span class="k">case</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">case</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">Some</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></div>
@@ -144,8 +147,8 @@
 
 
 <div class="viewcode-block" id="map_opt">
-<a class="viewcode-back" href="../../../boltzmann.utils.option.html#boltzmann.utils.option.map_opt">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">map_opt</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="n">Option</span><span class="p">[</span><span class="n">T</span><span class="p">],</span> <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">T</span><span class="p">],</span> <span class="n">S</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Some</span><span class="p">[</span><span class="n">S</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<a class="viewcode-back" href="../../../api/boltzmann.utils.option.html#boltzmann.utils.option.map_opt">[docs]</a>
+<span class="k">def</span> <span class="nf">map_opt</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="n">Option</span><span class="p">[</span><span class="n">T</span><span class="p">],</span> <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">T</span><span class="p">],</span> <span class="n">S</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Some</span><span class="p">[</span><span class="n">S</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Maybe map the contents of a :py:class:`Some`.</span>
 <span class="sd">    If a raw :py:const:`T` is passed this will wrap it first.</span>
@@ -153,7 +156,7 @@
     <span class="k">match</span> <span class="n">to_opt</span><span class="p">(</span><span class="n">val</span><span class="p">):</span>
         <span class="k">case</span> <span class="n">Some</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">Some</span><span class="p">(</span><span class="n">func</span><span class="p">(</span><span class="n">t</span><span class="p">))</span>
-        <span class="k">case</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">case</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
             <span class="k">assert</span> <span class="kc">False</span></div>
@@ -161,8 +164,8 @@
 
 
 <div class="viewcode-block" id="unwrap">
-<a class="viewcode-back" href="../../../boltzmann.utils.option.html#boltzmann.utils.option.unwrap">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">unwrap</span><span class="p">(</span><span class="n">some</span><span class="p">:</span> <span class="n">T</span> <span class="o">|</span> <span class="n">Some</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+<a class="viewcode-back" href="../../../api/boltzmann.utils.option.html#boltzmann.utils.option.unwrap">[docs]</a>
+<span class="k">def</span> <span class="nf">unwrap</span><span class="p">(</span><span class="n">some</span><span class="p">:</span> <span class="n">T</span> <span class="o">|</span> <span class="n">Some</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get the value from inside a :py:class:`Some, or just the value if it&#39;s already `T`.</span>
 <span class="sd">    Throws a :py:class:`TypeError` if ``None`` is passed.</span>
@@ -170,7 +173,7 @@
     <span class="k">match</span> <span class="n">some</span><span class="p">:</span>
         <span class="k">case</span> <span class="n">Some</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">t</span>
-        <span class="k">case</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">case</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">()</span>
         <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">some</span></div>

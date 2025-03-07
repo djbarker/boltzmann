@@ -6,14 +6,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>boltzmann.simulation &mdash; Boltzmann 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=92fd9be5" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
 
   
       <script src="../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="../../_static/documentation_options.js?v=01f34227"></script>
-      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
       <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
@@ -42,11 +42,14 @@
               <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../guides/basic.html">Basic Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/units.html">Parameters and Units</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/units.html#the-domain-class">The Domain Class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/setup.html">Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../guides/script.html">Simulation Scripts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../boltzmann.html">boltzmann</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/boltzmann.html">boltzmann package</a></li>
 </ul>
 
         </div>
@@ -81,31 +84,31 @@
 <span class="sd">See :doc:`guides/script &lt;guides/script&gt;` for more information on how to use this module.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ap</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">import</span> <span class="nn">argparse</span> <span class="k">as</span> <span class="nn">ap</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Generator</span><span class="p">,</span> <span class="n">Protocol</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Generator</span><span class="p">,</span> <span class="n">Protocol</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">Device</span><span class="p">,</span> <span class="n">Simulation</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">Array1dT</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.utils.logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">dotted</span><span class="p">,</span> <span class="n">tick</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.utils.option</span><span class="w"> </span><span class="kn">import</span> <span class="n">Some</span><span class="p">,</span> <span class="n">to_opt</span>
+<span class="kn">from</span> <span class="nn">boltzmann.core</span> <span class="kn">import</span> <span class="n">Device</span><span class="p">,</span> <span class="n">Simulation</span>
+<span class="kn">from</span> <span class="nn">boltzmann.units</span> <span class="kn">import</span> <span class="n">Array1dT</span>
+<span class="kn">from</span> <span class="nn">boltzmann.utils.logger</span> <span class="kn">import</span> <span class="n">dotted</span><span class="p">,</span> <span class="n">tick</span>
+<span class="kn">from</span> <span class="nn">boltzmann.utils.option</span> <span class="kn">import</span> <span class="n">Some</span><span class="p">,</span> <span class="n">to_opt</span>
 
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="IterInfo">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.IterInfo">[docs]</a>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.IterInfo">[docs]</a>
 <span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">IterInfo</span><span class="p">:</span>
+<span class="k">class</span> <span class="nc">IterInfo</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Contains the simulation output interval and count.</span>
 
@@ -118,9 +121,9 @@
     <span class="n">count</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1">#: Total number of outputs.</span>
 
 <div class="viewcode-block" id="IterInfo.make">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.IterInfo.make">[docs]</a>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.IterInfo.make">[docs]</a>
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">make</span><span class="p">(</span>
+    <span class="k">def</span> <span class="nf">make</span><span class="p">(</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
         <span class="n">dt_output</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -164,16 +167,16 @@
 
 
 <div class="viewcode-block" id="CheckpointGater">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.CheckpointGater">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">CheckpointGater</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.CheckpointGater">[docs]</a>
+<span class="k">class</span> <span class="nc">CheckpointGater</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Tell :py:meth:`run_sim` when it should write a checkpoint.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="CheckpointGater.allow">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.CheckpointGater.allow">[docs]</a>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.CheckpointGater.allow">[docs]</a>
     <span class="nd">@abstractmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">allow</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">allow</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns true if the simulation should write a checkpoint.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -183,11 +186,11 @@
 
 
 <div class="viewcode-block" id="EveryN">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.EveryN">[docs]</a>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.EveryN">[docs]</a>
 <span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">EveryN</span><span class="p">(</span><span class="n">CheckpointGater</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">EveryN</span><span class="p">(</span><span class="n">CheckpointGater</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Allow a checkpoint to be written every N times the :py:meth:``CheckpointGater.allow`` method is called.</span>
+<span class="sd">    Allow a checkpoint to be written every N times the :py:meth:`CheckpointGater.allow` method is called.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">interval</span><span class="p">:</span> <span class="nb">int</span>
@@ -195,8 +198,8 @@
     <span class="n">_curr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
 <div class="viewcode-block" id="EveryN.allow">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.EveryN.allow">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">allow</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.EveryN.allow">[docs]</a>
+    <span class="k">def</span> <span class="nf">allow</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_curr</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_curr</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interval</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_last</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_curr</span>
@@ -207,9 +210,9 @@
 
 
 <div class="viewcode-block" id="EveryT">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.EveryT">[docs]</a>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.EveryT">[docs]</a>
 <span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">EveryT</span><span class="p">(</span><span class="n">CheckpointGater</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">EveryT</span><span class="p">(</span><span class="n">CheckpointGater</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Allow a checkpoint to be written at regular time intervals.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -218,8 +221,8 @@
     <span class="n">_last</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">1970</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
 
 <div class="viewcode-block" id="EveryT.allow">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.EveryT.allow">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">allow</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.EveryT.allow">[docs]</a>
+    <span class="k">def</span> <span class="nf">allow</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">now</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">interval</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_last</span> <span class="o">=</span> <span class="n">now</span>
@@ -230,8 +233,8 @@
 
 
 <div class="viewcode-block" id="parse_checkpoints">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.parse_checkpoints">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">parse_checkpoints</span><span class="p">(</span><span class="n">s</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CheckpointGater</span><span class="p">:</span>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.parse_checkpoints">[docs]</a>
+<span class="k">def</span> <span class="nf">parse_checkpoints</span><span class="p">(</span><span class="n">s</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CheckpointGater</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Parse a string into a :py:class:`CheckpointGater` object.</span>
 
@@ -254,8 +257,8 @@
 
 
 <div class="viewcode-block" id="run_sim">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.run_sim">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">run_sim</span><span class="p">(</span>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.run_sim">[docs]</a>
+<span class="k">def</span> <span class="nf">run_sim</span><span class="p">(</span>
     <span class="n">sim</span><span class="p">:</span> <span class="n">Simulation</span><span class="p">,</span>
     <span class="n">meta</span><span class="p">:</span> <span class="n">IterInfo</span><span class="p">,</span>
     <span class="n">output_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span>
@@ -270,9 +273,17 @@
 <span class="sd">    .. code-block:: python</span>
 
 <span class="sd">        for i in run_sim(sim, meta, output_dir):</span>
-<span class="sd">            plt.imshow(sim.fluid.T)</span>
+<span class="sd">            plt.imshow(sim.fluid.rho.T)</span>
 <span class="sd">            plt.savefig(output_dir / f&quot;output_{i:04d}.png&quot;)</span>
 
+<span class="sd">    Once the generator resumes it outputs the checkpoint file in the specified directory with the name ``checkpoint.mpk``.</span>
+<span class="sd">    It is first written to a temporary file then moved into place to avoid possible corruption.</span>
+<span class="sd">    The frequency of checkpointing is controlled by the ``checkpoints`` argument.</span>
+
+<span class="sd">    :param sim: The core Simulation object.</span>
+<span class="sd">    :param meta: The steps/output and output count info.</span>
+<span class="sd">    :param output_dir: The directory to write the checkpoint to.</span>
+<span class="sd">    :param checkpoints: The checkpointing frequency.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># Check or create the output directory.</span>
@@ -282,7 +293,7 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">output_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">()</span>
 
-    <span class="n">checkpoints</span> <span class="o">=</span> <span class="n">checkpoints</span> <span class="ow">or</span> <span class="n">EveryN</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">checkpoints</span> <span class="o">=</span> <span class="n">checkpoints</span> <span class="ow">or</span> <span class="n">EveryN</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
 
     <span class="c1"># Iteration count must be even due to AA pattern.</span>
     <span class="n">batch_iters</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="nb">int</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">interval</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span>
@@ -339,9 +350,9 @@
 
 
 <div class="viewcode-block" id="SimulationArgs">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.SimulationArgs">[docs]</a>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.SimulationArgs">[docs]</a>
 <span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">SimulationArgs</span><span class="p">:</span>
+<span class="k">class</span> <span class="nc">SimulationArgs</span><span class="p">:</span>
     <span class="n">out_dir</span><span class="p">:</span> <span class="n">Path</span>
     <span class="n">device</span><span class="p">:</span> <span class="n">Device</span>
     <span class="n">resume</span><span class="p">:</span> <span class="nb">bool</span>
@@ -350,8 +361,8 @@
 
 
 <div class="viewcode-block" id="parse_args">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.parse_args">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">parse_args</span><span class="p">(</span><span class="n">out_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="n">Device</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SimulationArgs</span><span class="p">:</span>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.parse_args">[docs]</a>
+<span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span><span class="n">out_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="n">Device</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SimulationArgs</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Parse the standard command line arguments for :py:class:`SimulationScript`.</span>
 
@@ -389,19 +400,19 @@
 
 
 <div class="viewcode-block" id="Initializer">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.Initializer">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">Initializer</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.Initializer">[docs]</a>
+<span class="k">class</span> <span class="nc">Initializer</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Implementations of this are responsible for setting the initial conditions of the simulation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span></div>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span></div>
 
 
 
 <div class="viewcode-block" id="Outputter">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.Outputter">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">Outputter</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.Outputter">[docs]</a>
+<span class="k">class</span> <span class="nc">Outputter</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Implementations of this are responsible for generating &amp; saving the simuation output,</span>
 <span class="sd">    i.e. any graphs or visualizations.</span>
@@ -409,13 +420,13 @@
 <span class="sd">    Note, this is distinct from checkpointing which is the responsiblity of the `SimulationRunner`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">iter</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span> <span class="o">...</span></div>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">iter</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span> <span class="o">...</span></div>
 
 
 
 <div class="viewcode-block" id="SimulationScript">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.SimulationScript">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">SimulationScript</span><span class="p">:</span>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.SimulationScript">[docs]</a>
+<span class="k">class</span> <span class="nc">SimulationScript</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Allows us to easily build scripts that handle the initialization, output, running &amp; checkpointing of the simulation.</span>
 
@@ -447,7 +458,7 @@
 <span class="sd">                pass</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">counts</span><span class="p">:</span> <span class="n">Array1dT</span><span class="p">,</span>
         <span class="n">omega_ns</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
@@ -470,8 +481,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">outf</span> <span class="o">=</span> <span class="kc">None</span>
 
 <div class="viewcode-block" id="SimulationScript.init">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.SimulationScript.init">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">init</span><span class="p">:</span> <span class="n">Initializer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SimulationScript&quot;</span><span class="p">:</span>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.SimulationScript.init">[docs]</a>
+    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">init</span><span class="p">:</span> <span class="n">Initializer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SimulationScript&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Set the :py:meth:`Initializer` for the simulation.</span>
 
@@ -484,8 +495,8 @@
 
 
 <div class="viewcode-block" id="SimulationScript.out">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.SimulationScript.out">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">out</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">Outputter</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SimulationScript&quot;</span><span class="p">:</span>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.SimulationScript.out">[docs]</a>
+    <span class="k">def</span> <span class="nf">out</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">Outputter</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SimulationScript&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Set the :py:meth:`Outputter` for the simulation.</span>
 
@@ -498,8 +509,8 @@
 
 
 <div class="viewcode-block" id="SimulationScript.run">
-<a class="viewcode-back" href="../../boltzmann.simulation.html#boltzmann.simulation.SimulationScript.run">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.SimulationScript.run">[docs]</a>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Run the pre-configured simulation.</span>
 <span class="sd">        See :py:meth:`run_sim` for more details.</span>
@@ -519,10 +530,10 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">outf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">out_dir</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span></div>
 
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Simulation&quot;</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Simulation&quot;</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">exc_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>

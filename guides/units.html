@@ -1,0 +1,241 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parameters and Units &mdash; Boltzmann 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Simulation Setup" href="setup.html" />
+    <link rel="prev" title="Basic Simulation Setup" href="basic.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Boltzmann
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="basic.html">Basic Simulation Setup</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Parameters and Units</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#the-domain-class">The Domain Class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="script.html">Simulation Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/boltzmann.html">boltzmann package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Boltzmann</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Parameters and Units</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="parameters-and-units">
+<h1>Parameters and Units<a class="headerlink" href="#parameters-and-units" title="Link to this heading"></a></h1>
+<p>The examples shown in previous sections have all used the raw ‘simulation’ (aka ‘lattice’) units.
+To actually be useful for us we need two related things</p>
+<ol class="arabic simple">
+<li><p>Simulation parameters which correspond to our physical system.</p></li>
+<li><p>A map between the simulation units and physical units.</p></li>
+</ol>
+<p>The <a class="reference internal" href="../api/boltzmann.core.html#module-boltzmann.core" title="boltzmann.core"><code class="xref py py-mod docutils literal notranslate"><span class="pre">boltzmann.core</span></code></a> and <a class="reference internal" href="../api/boltzmann.units.html#module-boltzmann.units" title="boltzmann.units"><code class="xref py py-mod docutils literal notranslate"><span class="pre">boltzmann.units</span></code></a> modules provide utilities to help us with respective steps.</p>
+<section id="parameter-choice">
+<h2>1. Parameter Choice<a class="headerlink" href="#parameter-choice" title="Link to this heading"></a></h2>
+<p>For a detailed write-up of how to choose the simulation parameters such that they correspond to our physical system and the simulation remains stable, see <a class="reference external" href="https://dbarker.uk/lbm_parameterization/">Lattice Boltzmann Parameterization</a>.
+In short, though, we need to choose the collision timescale in LBM steps (<code class="docutils literal notranslate"><span class="pre">tau</span></code>), the velocity in lattice units (<code class="docutils literal notranslate"><span class="pre">u</span></code>), and the cell counts (<code class="docutils literal notranslate"><span class="pre">L</span></code>) such that the Reynold’s number matches that of our physical system.</p>
+<p>Given a full parameterization you can use the function <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.check_lbm_params" title="boltzmann.core.check_lbm_params"><code class="xref py py-meth docutils literal notranslate"><span class="pre">check_lbm_params()</span></code></a> to check if they are likely to result in a stable simulation.
+If not it will raise a <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> telling you which parameter you should consider changing.
+This is not 100% foolproof; sometimes simulations it thinks are stable may still evolve into states that breach the stability limits,
+and those it thinks are likely to become unstable may remain stable for the duration of the simulation.
+This is mostly due to some freedom in choosing the characteristic length-scale of the system.</p>
+<p>Usually you know the Reynold’s number and the number of cells in the characteristic length, rather than <code class="docutils literal notranslate"><span class="pre">tau</span></code> and <code class="docutils literal notranslate"><span class="pre">u</span></code>.
+In which case the function <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.calc_lbm_params_lu" title="boltzmann.core.calc_lbm_params_lu"><code class="xref py py-meth docutils literal notranslate"><span class="pre">calc_lbm_params_lu()</span></code></a> will calculate suitable values for the collision timescale (<code class="docutils literal notranslate"><span class="pre">tau</span></code>) and the velocity (<code class="docutils literal notranslate"><span class="pre">u</span></code>) for you.
+These values are chosen to maximize the speed of the simulation (rather than accuracy).
+If you wish to prioritize accuracy at the cost of needing more time-steps you can manually pass a value of <code class="docutils literal notranslate"><span class="pre">tau</span></code> to override the default choice.</p>
+<p>Here is an example of calculating the LBM parameters for a physical system:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">boltzmann.core</span> <span class="kn">import</span> <span class="n">Simulation</span><span class="p">,</span> <span class="n">calc_lbm_params_lu</span><span class="p">,</span> <span class="n">calc_lbm_params_si</span>
+
+<span class="n">dx</span> <span class="o">=</span> <span class="mf">0.001</span> <span class="c1"># Grid spacing [m]</span>
+<span class="n">L_si</span> <span class="o">=</span> <span class="mf">1.0</span>  <span class="c1"># Characteristic length-scale [m]</span>
+<span class="n">u_si</span> <span class="o">=</span> <span class="mf">1.0</span>  <span class="c1"># Characteristic velocity [m/s]</span>
+<span class="n">nu_si</span> <span class="o">=</span> <span class="mf">1.0e-6</span>  <span class="c1"># Kinematic viscosity [m^2/s]</span>
+
+<span class="n">Re</span> <span class="o">=</span> <span class="n">u_si</span> <span class="o">*</span> <span class="n">L_si</span> <span class="o">/</span> <span class="n">nu_si</span>  <span class="c1"># =&gt; Reynold&#39;s number</span>
+<span class="n">L_lu</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">L_si</span> <span class="o">/</span> <span class="n">dx</span><span class="p">)</span>  <span class="c1"># Characteristic length-scale [cells]</span>
+
+<span class="c1"># Calculate collision timescale and characteristic velocity in lattice units:</span>
+<span class="p">(</span><span class="n">tau</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span> <span class="o">=</span> <span class="n">calc_lbm_params_lu</span><span class="p">(</span><span class="n">Re</span><span class="p">,</span> <span class="n">L_lu</span><span class="p">)</span>
+
+<span class="c1"># Now use these to create the simulation &amp; set the initial conditions.</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">Simulation</span><span class="p">(</span><span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">L_lu</span><span class="p">,</span> <span class="n">L_lu</span><span class="p">],</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">tau1</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">u1</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The length-scale used in the parameter calculations is not the whole system size but a characteristic length-scale.
+It should match the length-scale used in the Reynold’s number calculation.
+Therefore if you are only calculating <code class="docutils literal notranslate"><span class="pre">Re</span></code> to pass it into <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.calc_lbm_params_lu" title="boltzmann.core.calc_lbm_params_lu"><code class="xref py py-meth docutils literal notranslate"><span class="pre">calc_lbm_params_lu()</span></code></a>
+you can use the alternative function <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.calc_lbm_params_si" title="boltzmann.core.calc_lbm_params_si"><code class="xref py py-meth docutils literal notranslate"><span class="pre">calc_lbm_params_si()</span></code></a>.
+This performs the calculations for you which ensures the length-scales used are consistent.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">tau1</span><span class="p">,</span> <span class="n">u1</span><span class="p">)</span> <span class="o">=</span> <span class="n">calc_lbm_params_lu</span><span class="p">(</span><span class="n">Re</span><span class="p">,</span> <span class="n">L_lu</span><span class="p">)</span>
+<span class="p">(</span><span class="n">tau2</span><span class="p">,</span> <span class="n">u2</span><span class="p">)</span> <span class="o">=</span> <span class="n">calc_lbm_params_si</span><span class="p">(</span><span class="n">dx</span><span class="p">,</span> <span class="n">u_si</span><span class="p">,</span> <span class="n">L_si</span><span class="p">,</span> <span class="n">nu_si</span><span class="p">)</span>
+
+<span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">tau1</span> <span class="o">-</span> <span class="n">tau2</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-6</span>
+<span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">u1</span> <span class="o">-</span> <span class="n">u2</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-6</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="unit-conversion">
+<h2>2. Unit Conversion<a class="headerlink" href="#unit-conversion" title="Link to this heading"></a></h2>
+<p>In the above example we set our initial conditions in lattice units directly.
+It would be nicer if we could set them in our physical units then convert them to lattice units latter.
+Further, in order to plot the results we most likely want to convert back to physical units.
+This ability is what the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Scales" title="boltzmann.units.Scales"><code class="xref py py-class docutils literal notranslate"><span class="pre">Scales</span></code></a> class gives us.</p>
+<p>It simply contains the conversion factors between the lattice units and the physical units for time, length and mass (the last of which is usually not relevant).
+Using these it lets us convert dimensional quantities such as distances, velocities and accelerations between the two unit systems easily.</p>
+<p>Here is an example of using the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Scales" title="boltzmann.units.Scales"><code class="xref py py-class docutils literal notranslate"><span class="pre">Scales</span></code></a> class:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">boltzmann.units</span> <span class="kn">import</span> <span class="n">Scales</span>
+
+<span class="c1"># ...</span>
+
+<span class="n">scales</span> <span class="o">=</span> <span class="n">Scales</span><span class="p">(</span><span class="n">dx</span><span class="p">,</span> <span class="n">dt</span><span class="p">)</span>
+
+<span class="c1"># Set initial conditions in physical units.</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">u_si</span>
+
+<span class="c1"># Then convert to lattice units before running.</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">scales</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">to_lattice_units</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">)</span>
+
+<span class="c1"># ...</span>
+
+<span class="c1"># If needed convert back, to plot in physical units.</span>
+<span class="n">vel_mag_lu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">vel_mag_si</span> <span class="o">=</span> <span class="n">scales</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">to_physical_units</span><span class="p">(</span><span class="n">vel_mag_lu</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Behind the scenes the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Scales" title="boltzmann.units.Scales"><code class="xref py py-class docutils literal notranslate"><span class="pre">Scales</span></code></a> class is used to build <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.UnitConverter" title="boltzmann.units.UnitConverter"><code class="xref py py-class docutils literal notranslate"><span class="pre">UnitConverter</span></code></a> objects which are responsible for converting a specific dimensional quantity, e.g. distance, vorticity, density, etc.
+For the most common cases of distance, velocity and acceleration the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Scales" title="boltzmann.units.Scales"><code class="xref py py-class docutils literal notranslate"><span class="pre">Scales</span></code></a> class has convenience properties to get the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.UnitConverter" title="boltzmann.units.UnitConverter"><code class="xref py py-class docutils literal notranslate"><span class="pre">UnitConverter</span></code></a>, as seen in the example.
+For arbitrary dimensional quantities you can pass the relevant powers of <code class="docutils literal notranslate"><span class="pre">T</span></code>, <code class="docutils literal notranslate"><span class="pre">L</span></code> and <code class="docutils literal notranslate"><span class="pre">M</span></code> to the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Scales.converter" title="boltzmann.units.Scales.converter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">converter()</span></code></a> method to construct a suitable <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.UnitConverter" title="boltzmann.units.UnitConverter"><code class="xref py py-class docutils literal notranslate"><span class="pre">UnitConverter</span></code></a>.</p>
+</section>
+</section>
+<section id="the-domain-class">
+<h1>The Domain Class<a class="headerlink" href="#the-domain-class" title="Link to this heading"></a></h1>
+<p>To make setting initial- and boundary conditions easy we use the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Domain" title="boltzmann.units.Domain"><code class="xref py py-class docutils literal notranslate"><span class="pre">Domain</span></code></a> class.
+This exposes</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Domain.x" title="boltzmann.units.Domain.x"><code class="xref py py-attr docutils literal notranslate"><span class="pre">x</span></code></a>, <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Domain.y" title="boltzmann.units.Domain.y"><code class="xref py py-attr docutils literal notranslate"><span class="pre">y</span></code></a>, <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Domain.z" title="boltzmann.units.Domain.z"><code class="xref py py-attr docutils literal notranslate"><span class="pre">z</span></code></a> - 1d arrays of cell positions for each dimension.</p></li>
+<li><p><a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Domain.meshgrid" title="boltzmann.units.Domain.meshgrid"><code class="xref py py-meth docutils literal notranslate"><span class="pre">meshgrid()</span></code></a> - Tuple of multidimensional arrays of cell positions throughout the domain.</p></li>
+</ul>
+<p>The <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Domain.meshgrid" title="boltzmann.units.Domain.meshgrid"><code class="xref py py-meth docutils literal notranslate"><span class="pre">meshgrid()</span></code></a> method wraps a call to <code class="xref py py-func docutils literal notranslate"><span class="pre">numpy.meshgrid()</span></code>.
+If you are unfamiliar with this function I suggest reading the Numpy documentation.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The positions are are the cell centres, not the cell edges.
+They are measured in physical units, not lattice units.</p>
+</div>
+<p>Here is an example of using the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Domain" title="boltzmann.units.Domain"><code class="xref py py-class docutils literal notranslate"><span class="pre">Domain</span></code></a> class to set some initial conditions
+where velocity &amp; density depend on the position in the domain:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">boltzmann.units</span> <span class="kn">import</span> <span class="n">Domain</span>
+
+<span class="c1"># Construct the domain from the physical dimensions of the system.</span>
+<span class="n">domain</span> <span class="o">=</span> <span class="n">Domain</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">upper</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">dx</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+
+<span class="c1"># ...</span>
+
+<span class="c1"># Set the x-velocity to be sinusoidally varying along the x-axis.</span>
+<span class="c1"># NOTE: The extra axis is required for broadcasting to the 2D velocity array.</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">domain</span><span class="o">.</span><span class="n">x</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span>
+
+<span class="c1"># Set the density to be a Gaussian centred at the origin.</span>
+<span class="n">XX</span><span class="p">,</span> <span class="n">YY</span> <span class="o">=</span> <span class="n">domain</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">()</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">density</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">XX</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">YY</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>To construct a <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Domain" title="boltzmann.units.Domain"><code class="xref py py-class docutils literal notranslate"><span class="pre">Domain</span></code></a> we can pass various combinations of arguments.
+For full details refer to the class documentation.</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="basic.html" class="btn btn-neutral float-left" title="Basic Simulation Setup" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="setup.html" class="btn btn-neutral float-right" title="Simulation Setup" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barker.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

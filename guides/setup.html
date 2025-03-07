@@ -1,0 +1,178 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulation Setup &mdash; Boltzmann 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Simulation Scripts" href="script.html" />
+    <link rel="prev" title="Parameters and Units" href="units.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Boltzmann
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="basic.html">Basic Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="units.html">Parameters and Units</a></li>
+<li class="toctree-l1"><a class="reference internal" href="units.html#the-domain-class">The Domain Class</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="script.html">Simulation Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/boltzmann.html">boltzmann package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Boltzmann</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Simulation Setup</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="simulation-setup">
+<h1>Simulation Setup<a class="headerlink" href="#simulation-setup" title="Link to this heading"></a></h1>
+<p>This page is intended as a reference more than a guide but the sections are ordered in the way you would use them to set-up a simulation.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For a brief tutorial style introduction refer to the guides at <span class="xref std std-doc">guides/basic basic</span> and <span class="xref std std-doc">guides/units units</span>.</p>
+</div>
+<section id="array-indexing">
+<h2>Array Indexing<a class="headerlink" href="#array-indexing" title="Link to this heading"></a></h2>
+<p>All simulation data is exposed as multidimensional Numpy arrays.
+The indices are ordered as <em>x</em>, <em>y</em>, <em>z</em> and data is stored in row-major order.
+For the velocity array the index of the last component matches this order.</p>
+<section id="example">
+<h3>Example<a class="headerlink" href="#example" title="Link to this heading"></a></h3>
+<p>For a 2D simulation with grid size <code class="docutils literal notranslate"><span class="pre">(nx,</span> <span class="pre">ny)</span></code>,</p>
+<ul class="simple">
+<li><p>The velocity array (<code class="docutils literal notranslate"><span class="pre">sim.fluid.vel</span></code>) will have shape <code class="docutils literal notranslate"><span class="pre">(nx,</span> <span class="pre">ny,</span> <span class="pre">2)</span></code>.</p></li>
+<li><p>The density array (<code class="docutils literal notranslate"><span class="pre">sim.fluid.rho</span></code>) will have shape <code class="docutils literal notranslate"><span class="pre">(nx,</span> <span class="pre">ny)</span></code>.</p></li>
+<li><p>The flags array (<code class="docutils literal notranslate"><span class="pre">sim.cells.flags</span></code>) will have shape <code class="docutils literal notranslate"><span class="pre">(nx,</span> <span class="pre">ny)</span></code>.</p></li>
+</ul>
+</section>
+</section>
+<section id="boundary-conditions">
+<h2>Boundary Conditions<a class="headerlink" href="#boundary-conditions" title="Link to this heading"></a></h2>
+<p>Boundary conditions are configured by setting flags on the relevant cells.
+To do this we update the relevant values under <code class="xref py py-attr docutils literal notranslate"><span class="pre">Simulation.cells.flags</span></code>.
+Permissible values are defined in <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.CellFlags" title="boltzmann.core.CellFlags"><code class="xref py py-class docutils literal notranslate"><span class="pre">boltzmann.core.CellFlags</span></code></a>.
+Values can be combined. (Although not all combinations are very meaningful.)</p>
+<p>The allows us to do things such as</p>
+<ul class="simple">
+<li><p>Turn cells into no-slip walls.  <code class="xref py py-attr docutils literal notranslate"><span class="pre">CellFlags.WALL</span></code></p></li>
+<li><p>Fix the velocity to the initial value (e.g. for in- and out-flow.) <code class="xref py py-attr docutils literal notranslate"><span class="pre">CellFlags.FIXED_FLUID</span></code></p></li>
+<li><p>Fix a scalar field’s value (e.g. for a source of tracer.) <code class="xref py py-attr docutils literal notranslate"><span class="pre">CellFlags.FIXED_SCALAR</span></code></p></li>
+</ul>
+</section>
+<section id="initial-conditions">
+<h2>Initial Conditions<a class="headerlink" href="#initial-conditions" title="Link to this heading"></a></h2>
+<p>The initial conditions are set by updating the velocity and density arrays before running the simulation.
+To set the initial values we access the <code class="xref py py-attr docutils literal notranslate"><span class="pre">rho</span></code> and <code class="xref py py-attr docutils literal notranslate"><span class="pre">vel</span></code> arrays via the <code class="xref py py-attr docutils literal notranslate"><span class="pre">Simulation.fluid</span></code> member.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Before the first iteration the simulation will automatically use the macroscopic values to infer the equilibrium distributions for the microscopic velocities.</p>
+</div>
+</section>
+<section id="body-force-gravity">
+<h2>Body Force / Gravity<a class="headerlink" href="#body-force-gravity" title="Link to this heading"></a></h2>
+<p>A body force is a force which applies uniformly throughout the simulation domain.
+It is set via the <code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.set_gravity()</span></code> method, which accepts an acceleration <em>in lattice units</em>.</p>
+</section>
+<section id="tracers">
+<h2>Tracers<a class="headerlink" href="#tracers" title="Link to this heading"></a></h2>
+<p>Tracers are scalar fields that are advected by the fluid.
+We can add multiple tracers to a simulation.
+Add tracers by calling the <code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.add_tracer()</span></code> method with a name and the relevant parameters.
+The method returns a reference to the <code class="xref py py-class docutils literal notranslate"><span class="pre">Tracer</span></code>, which you can use to access the data.
+The scalar value array is accessible via the <code class="xref py py-attr docutils literal notranslate"><span class="pre">Tracer.val</span></code> attribute.</p>
+</section>
+<section id="checkpointing">
+<h2>Checkpointing<a class="headerlink" href="#checkpointing" title="Link to this heading"></a></h2>
+<p>To save the simulation state to disk call <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Simulation.write_checkpoint" title="boltzmann.core.Simulation.write_checkpoint"><code class="xref py py-meth docutils literal notranslate"><span class="pre">write_checkpoint()</span></code></a> on your <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Simulation" title="boltzmann.core.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object.
+This will write a <a class="reference external" href="https://msgpack.org/index.html">MessagePack</a> file to disk at the specified path.
+The saved state can then be loaded using the <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Simulation.load_checkpoint" title="boltzmann.core.Simulation.load_checkpoint"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_checkpoint()</span></code></a> static method.
+The deserialized simulation has everything exactly as it was when it was saved, so is good to go.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="units.html" class="btn btn-neutral float-left" title="Parameters and Units" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="script.html" class="btn btn-neutral float-right" title="Simulation Scripts" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barker.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

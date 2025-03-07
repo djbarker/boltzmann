@@ -1,0 +1,379 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>boltzmann.simulation module &mdash; Boltzmann 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="boltzmann.units module" href="boltzmann.units.html" />
+    <link rel="prev" title="boltzmann.core module" href="boltzmann.core.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Boltzmann
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../guides/basic.html">Basic Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/units.html">Parameters and Units</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/units.html#the-domain-class">The Domain Class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/setup.html">Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/script.html">Simulation Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="boltzmann.html">boltzmann package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.utils.html">boltzmann.utils package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.core.html">boltzmann.core module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">boltzmann.simulation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.units.html">boltzmann.units module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Boltzmann</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="boltzmann.html">boltzmann package</a></li>
+      <li class="breadcrumb-item active">boltzmann.simulation module</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-boltzmann.simulation">
+<span id="boltzmann-simulation-module"></span><h1>boltzmann.simulation module<a class="headerlink" href="#module-boltzmann.simulation" title="Link to this heading"></a></h1>
+<p>This module provides some “glue” for easily making scripts which run simulations.
+It provides automatic progress logging, checkpointing, and simulation resumption via the command line.</p>
+<p>See <span class="xref std std-doc">guides/script</span> for more information on how to use this module.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.simulation.IterInfo">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">IterInfo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#IterInfo"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.IterInfo" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Contains the simulation output interval and count.</p>
+<p>The output interval is the number of LBM iterations needed per output timestep.
+If one timestep of the LBM corresponds to <code class="docutils literal notranslate"><span class="pre">dt</span></code> and we wish to output every <code class="docutils literal notranslate"><span class="pre">dt_output</span></code>,
+then the number of LBM iterations per output is <code class="docutils literal notranslate"><span class="pre">dt_output</span> <span class="pre">/</span> <span class="pre">dt</span></code>.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.simulation.IterInfo.interval">
+<span class="sig-name descname"><span class="pre">interval</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#boltzmann.simulation.IterInfo.interval" title="Link to this definition"></a></dt>
+<dd><p>LBM iterations per output.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.simulation.IterInfo.count">
+<span class="sig-name descname"><span class="pre">count</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#boltzmann.simulation.IterInfo.count" title="Link to this definition"></a></dt>
+<dd><p>Total number of outputs.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.simulation.IterInfo.make">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">make</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt_output</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#boltzmann.simulation.IterInfo" title="boltzmann.simulation.IterInfo"><span class="pre">IterInfo</span></a></span></span><a class="reference internal" href="../_modules/boltzmann/simulation.html#IterInfo.make"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.IterInfo.make" title="Link to this definition"></a></dt>
+<dd><p>Construct a <a class="reference internal" href="#boltzmann.simulation.IterInfo" title="boltzmann.simulation.IterInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">IterInfo</span></code></a> object from a valid combination of the parameters.
+Valid combinations are those that are sufficient to infer the others.</p>
+<p>Specific valid combinations are</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">dt</span></code>, <code class="docutils literal notranslate"><span class="pre">dt_output</span></code>, <code class="docutils literal notranslate"><span class="pre">count</span></code> - <code class="docutils literal notranslate"><span class="pre">interval</span></code> is inferred as <code class="docutils literal notranslate"><span class="pre">dt_output</span> <span class="pre">/</span> <span class="pre">dt</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dt</span></code>, <code class="docutils literal notranslate"><span class="pre">dt_output</span></code>, <code class="docutils literal notranslate"><span class="pre">t_max</span></code> - <code class="docutils literal notranslate"><span class="pre">count</span></code> is inferred as <code class="docutils literal notranslate"><span class="pre">t_max</span> <span class="pre">/</span> <span class="pre">dt_output</span></code>, <code class="docutils literal notranslate"><span class="pre">interval</span></code> is inferred as above.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dt</span></code>, <code class="docutils literal notranslate"><span class="pre">t_max</span></code>, <code class="docutils literal notranslate"><span class="pre">count</span></code> - <code class="docutils literal notranslate"><span class="pre">interval</span></code> is inferred as <code class="docutils literal notranslate"><span class="pre">(t_max</span> <span class="pre">/</span> <span class="pre">count)</span> <span class="pre">/</span> <span class="pre">dt</span></code>.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dt</strong> – The physical time corresponding to each iteration of the LBM simulation.</p></li>
+<li><p><strong>dt_output</strong> – The elapsed physical time after which we wish to produce each output.</p></li>
+<li><p><strong>t_max</strong> – The total physical time to run the simulation for.</p></li>
+<li><p><strong>count</strong> – The total number of outputs to produce.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.simulation.CheckpointGater">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">CheckpointGater</span></span><a class="reference internal" href="../_modules/boltzmann/simulation.html#CheckpointGater"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.CheckpointGater" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Tell <a class="reference internal" href="#boltzmann.simulation.run_sim" title="boltzmann.simulation.run_sim"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_sim()</span></code></a> when it should write a checkpoint.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.simulation.CheckpointGater.allow">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">allow</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="../_modules/boltzmann/simulation.html#CheckpointGater.allow"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.CheckpointGater.allow" title="Link to this definition"></a></dt>
+<dd><p>Returns true if the simulation should write a checkpoint.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.simulation.EveryN">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">EveryN</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_last</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_curr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#EveryN"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.EveryN" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><code class="xref py py-class docutils literal notranslate"><span class="pre">CheckpointGater</span></code></a></p>
+<p>Allow a checkpoint to be written every N times the <a class="reference internal" href="#boltzmann.simulation.CheckpointGater.allow" title="boltzmann.simulation.CheckpointGater.allow"><code class="xref py py-meth docutils literal notranslate"><span class="pre">CheckpointGater.allow()</span></code></a> method is called.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.simulation.EveryN.interval">
+<span class="sig-name descname"><span class="pre">interval</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#boltzmann.simulation.EveryN.interval" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.simulation.EveryN.allow">
+<span class="sig-name descname"><span class="pre">allow</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="../_modules/boltzmann/simulation.html#EveryN.allow"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.EveryN.allow" title="Link to this definition"></a></dt>
+<dd><p>Returns true if the simulation should write a checkpoint.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.simulation.EveryT">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">EveryT</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">timedelta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_last</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">datetime.datetime(1970,</span> <span class="pre">1,</span> <span class="pre">1,</span> <span class="pre">0,</span> <span class="pre">0)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#EveryT"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.EveryT" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><code class="xref py py-class docutils literal notranslate"><span class="pre">CheckpointGater</span></code></a></p>
+<p>Allow a checkpoint to be written at regular time intervals.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.simulation.EveryT.interval">
+<span class="sig-name descname"><span class="pre">interval</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">timedelta</span></em><a class="headerlink" href="#boltzmann.simulation.EveryT.interval" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.simulation.EveryT.allow">
+<span class="sig-name descname"><span class="pre">allow</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="../_modules/boltzmann/simulation.html#EveryT.allow"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.EveryT.allow" title="Link to this definition"></a></dt>
+<dd><p>Returns true if the simulation should write a checkpoint.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="boltzmann.simulation.parse_checkpoints">
+<span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">parse_checkpoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><span class="pre">CheckpointGater</span></a></span></span><a class="reference internal" href="../_modules/boltzmann/simulation.html#parse_checkpoints"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.parse_checkpoints" title="Link to this definition"></a></dt>
+<dd><p>Parse a string into a <a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><code class="xref py py-class docutils literal notranslate"><span class="pre">CheckpointGater</span></code></a> object.</p>
+<p>There are only two valid formats:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;&lt;N&gt;&quot;</span></code> - which will checkpoint every <code class="docutils literal notranslate"><span class="pre">N</span></code> iterations.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;&lt;N&gt;m&quot;</span></code>- which will checkpoint every <code class="docutils literal notranslate"><span class="pre">N</span></code> minutes.</p></li>
+</ul>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>s</strong> – The string to parse.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A <a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><code class="xref py py-class docutils literal notranslate"><span class="pre">CheckpointGater</span></code></a>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="boltzmann.simulation.run_sim">
+<span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">run_sim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Simulation" title="boltzmann.core.Simulation"><span class="pre">Simulation</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#boltzmann.simulation.IterInfo" title="boltzmann.simulation.IterInfo"><span class="pre">IterInfo</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoints</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><span class="pre">CheckpointGater</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Generator</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/boltzmann/simulation.html#run_sim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.run_sim" title="Link to this definition"></a></dt>
+<dd><p>Run the simulation with the given batch configuration, write checkpoints, and provide logging.</p>
+<p>This returns a generator, which for each iteration runs the required number of LBM steps.
+It yields an integer which is the current iteration.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">run_sim</span><span class="p">(</span><span class="n">sim</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">):</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">rho</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">output_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;output_</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s2">04d</span><span class="si">}</span><span class="s2">.png&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Once the generator resumes it outputs the checkpoint file in the specified directory with the name <code class="docutils literal notranslate"><span class="pre">checkpoint.mpk</span></code>.
+It is first written to a temporary file then moved into place to avoid possible corruption.
+The frequency of checkpointing is controlled by the <code class="docutils literal notranslate"><span class="pre">checkpoints</span></code> argument.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> – The core Simulation object.</p></li>
+<li><p><strong>meta</strong> – The steps/output and output count info.</p></li>
+<li><p><strong>output_dir</strong> – The directory to write the checkpoint to.</p></li>
+<li><p><strong>checkpoints</strong> – The checkpointing frequency.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.simulation.SimulationArgs">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">SimulationArgs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">out_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pathlib.Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'cpu'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'gpu'</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resume</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoints</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><span class="pre">boltzmann.simulation.CheckpointGater</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#SimulationArgs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.SimulationArgs" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.simulation.SimulationArgs.out_dir">
+<span class="sig-name descname"><span class="pre">out_dir</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Path</span></em><a class="headerlink" href="#boltzmann.simulation.SimulationArgs.out_dir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.simulation.SimulationArgs.device">
+<span class="sig-name descname"><span class="pre">device</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'cpu'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'gpu'</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#boltzmann.simulation.SimulationArgs.device" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.simulation.SimulationArgs.resume">
+<span class="sig-name descname"><span class="pre">resume</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#boltzmann.simulation.SimulationArgs.resume" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.simulation.SimulationArgs.checkpoints">
+<span class="sig-name descname"><span class="pre">checkpoints</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><span class="pre">CheckpointGater</span></a></em><a class="headerlink" href="#boltzmann.simulation.SimulationArgs.checkpoints" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="boltzmann.simulation.parse_args">
+<span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">parse_args</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">out_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'cpu'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'gpu'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'gpu'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#boltzmann.simulation.SimulationArgs" title="boltzmann.simulation.SimulationArgs"><span class="pre">SimulationArgs</span></a></span></span><a class="reference internal" href="../_modules/boltzmann/simulation.html#parse_args"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.parse_args" title="Link to this definition"></a></dt>
+<dd><p>Parse the standard command line arguments for <a class="reference internal" href="#boltzmann.simulation.SimulationScript" title="boltzmann.simulation.SimulationScript"><code class="xref py py-class docutils literal notranslate"><span class="pre">SimulationScript</span></code></a>.</p>
+<p>The options from the command line are always given preference but you can specify the defaults via the function’s arguments.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.simulation.Initializer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">Initializer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#Initializer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.Initializer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Protocol</span></code></p>
+<p>Implementations of this are responsible for setting the initial conditions of the simulation.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.simulation.Outputter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">Outputter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#Outputter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.Outputter" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Protocol</span></code></p>
+<p>Implementations of this are responsible for generating &amp; saving the simuation output,
+i.e. any graphs or visualizations.</p>
+<p>Note, this is distinct from checkpointing which is the responsiblity of the <cite>SimulationRunner</cite>.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.simulation.SimulationScript">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">SimulationScript</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">counts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">omega_ns</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#boltzmann.simulation.IterInfo" title="boltzmann.simulation.IterInfo"><span class="pre">IterInfo</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#SimulationScript"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.SimulationScript" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Allows us to easily build scripts that handle the initialization, output, running &amp; checkpointing of the simulation.</p>
+<p>This either constructs a new <code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code> or loads one from the previously saved checkpoint,
+depending on the command line arguments passed.</p>
+<ul class="simple">
+<li><p>In the case of constructing, the passed <code class="docutils literal notranslate"><span class="pre">count</span></code> and <code class="docutils literal notranslate"><span class="pre">omega</span></code> values are used, then the <code class="docutils literal notranslate"><span class="pre">init</span></code> function will be called to set the initial conditions.</p></li>
+<li><p>In the case of loading, the passed arguments are ignored and the deserialized values are used. The <code class="docutils literal notranslate"><span class="pre">init</span></code> function is not called.</p></li>
+</ul>
+<p>Under the hood it calls <a class="reference internal" href="#boltzmann.simulation.run_sim" title="boltzmann.simulation.run_sim"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_sim()</span></code></a> so the behaviour is the same.
+However, this saves us worrying about manually loading checkpoints &amp; wiring the command line arguments into the function calls.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">boltzmann.simulation</span> <span class="kn">import</span> <span class="n">SimulationScript</span>
+
+<span class="c1"># The simulation will run automatically when the with-block is exited.</span>
+<span class="c1"># `sim` is a Simulation object.</span>
+<span class="k">with</span> <span class="p">(</span><span class="n">script</span> <span class="o">:=</span> <span class="n">SimulationScript</span><span class="p">(</span><span class="o">...</span><span class="p">))</span> <span class="k">as</span> <span class="n">sim</span><span class="p">:</span>
+
+    <span class="nd">@script</span><span class="o">.</span><span class="n">init</span>
+    <span class="k">def</span> <span class="nf">init</span><span class="p">():</span>
+        <span class="c1"># Set some initial conditions.</span>
+        <span class="k">pass</span>
+
+    <span class="nd">@script</span><span class="o">.</span><span class="n">out</span>
+    <span class="k">def</span> <span class="nf">out</span><span class="p">(</span><span class="n">output_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">iter</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="c1"># Save some output.</span>
+        <span class="k">pass</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.simulation.SimulationScript.init">
+<span class="sig-name descname"><span class="pre">init</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">init</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#boltzmann.simulation.Initializer" title="boltzmann.simulation.Initializer"><span class="pre">Initializer</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#boltzmann.simulation.SimulationScript" title="boltzmann.simulation.SimulationScript"><span class="pre">SimulationScript</span></a></span></span><a class="reference internal" href="../_modules/boltzmann/simulation.html#SimulationScript.init"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.SimulationScript.init" title="Link to this definition"></a></dt>
+<dd><p>Set the <a class="reference internal" href="#boltzmann.simulation.Initializer" title="boltzmann.simulation.Initializer"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Initializer()</span></code></a> for the simulation.</p>
+<p>Intended to be used as a decorator (see <a class="reference internal" href="#boltzmann.simulation.SimulationScript" title="boltzmann.simulation.SimulationScript"><code class="xref py py-class docutils literal notranslate"><span class="pre">SimulationScript</span></code></a>.)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>init</strong> – The <a class="reference internal" href="#boltzmann.simulation.Initializer" title="boltzmann.simulation.Initializer"><code class="xref py py-class docutils literal notranslate"><span class="pre">Initializer</span></code></a> function which will set the simulation inital conditions.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.simulation.SimulationScript.out">
+<span class="sig-name descname"><span class="pre">out</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#boltzmann.simulation.Outputter" title="boltzmann.simulation.Outputter"><span class="pre">Outputter</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#boltzmann.simulation.SimulationScript" title="boltzmann.simulation.SimulationScript"><span class="pre">SimulationScript</span></a></span></span><a class="reference internal" href="../_modules/boltzmann/simulation.html#SimulationScript.out"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.SimulationScript.out" title="Link to this definition"></a></dt>
+<dd><p>Set the <a class="reference internal" href="#boltzmann.simulation.Outputter" title="boltzmann.simulation.Outputter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Outputter()</span></code></a> for the simulation.</p>
+<p>Intended to be used as a decorator (see <a class="reference internal" href="#boltzmann.simulation.SimulationScript" title="boltzmann.simulation.SimulationScript"><code class="xref py py-class docutils literal notranslate"><span class="pre">SimulationScript</span></code></a>.)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>out</strong> – The <a class="reference internal" href="#boltzmann.simulation.Outputter" title="boltzmann.simulation.Outputter"><code class="xref py py-class docutils literal notranslate"><span class="pre">Outputter</span></code></a> function which will generate the simulation output.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.simulation.SimulationScript.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#SimulationScript.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.SimulationScript.run" title="Link to this definition"></a></dt>
+<dd><p>Run the pre-configured simulation.
+See <a class="reference internal" href="#boltzmann.simulation.run_sim" title="boltzmann.simulation.run_sim"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_sim()</span></code></a> for more details.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="boltzmann.core.html" class="btn btn-neutral float-left" title="boltzmann.core module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="boltzmann.units.html" class="btn btn-neutral float-right" title="boltzmann.units module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Daniel Barker.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

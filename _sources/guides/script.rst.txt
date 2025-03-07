@@ -15,15 +15,11 @@ module provides us with utilities to achieve all of these quickly.
 
 There are two ways to use this module (and I'm not settled on which I prefer).
 
-1. Function based
------------------
+1. Imperative
+-------------
 
-We can wire up a script quickly using a few function calls which will 
-
-1. Parse the command line arguments
-2. Run the main simulation loop (including logging & writing checkpoints).
-
-Here's an example
+We can wire up a script quickly using two useful functions :py:meth:`parse_args` and :py:meth:`run_sim`.
+The methods are explained just below but first, here's an example
 
 .. code-block:: python
 
@@ -56,32 +52,38 @@ Here's an example
 The :py:meth:`~boltzmann.simulation.parse_args` function loads the standard command line arguments 
 for a simulation script and exposes them via a :py:class:`~boltzmann.simulation.SimulationArgs` object.
 We can then use this to decide if we need to load the checkpoint or not create a fresh simulation.
-Once we've done that we run the main loop using the :py:meth:`~boltzmann.simulation.run_sim` method.
-This is a ``Generator`` which yields the current iteration number. 
-On each iteration you can generate your output (or do anything else).
-Once you have written your output the :py:meth:`~boltzmann.simulation.run_sim` will log information about the progress & performance, 
+If we are creating it afresh we will want to set some initial conditions.
+
+Once we have a :py:class:`Simulation` object, comes the main loop.
+To write this loop we use the :py:meth:`~boltzmann.simulation.run_sim` method,
+which returns a ``Generator`` that yields the current output number on each iteration.
+On each iteration of the ``for``-loop you generate your output (or do anything else you desire).
+Once you have written your output the :py:meth:`~boltzmann.simulation.run_sim` generator will log information about the progress & performance, 
 write the checkpoint (if requested) and then continue.
+
+To tell :py:meth:`~boltzmann.simulation.run_sim` how often, and how many times, to yield we pass it an :py:class:`~boltzmann.simulation.IterInfo`.
+This is a simple dataclass containing two pieces of information: the number of simulation time-steps per output, and how many outputs to generate.
+The number of LBM iterations per output will depend on the physical system you are simulating and the temporal resolution you need.
+For more info on this see :doc:`guides/units <units>`.
+
+This approach is explicit and easy to understand but comes with two downsides:
 
 .. note::
 
     We can control the frequency with which the checkpoints are written with the ``checkpoints`` argument to :py:meth:`~boltzmann.simulation.run_sim`.
     This is one of the fields of :py:class:`~boltzmann.simulation.SimulationArgs`; if you want to use it you must wire it into the :py:meth:`~boltzmann.simulation.run_sim` call.
+    This goes for any extra arguments to :py:meth:`~boltzmann.simulation.run_sim` that appear in future.
 
 .. note::
     
     With this approach we are responsible for loading from the checkpoint ourselves if requested by the user.
     The :py:meth:`~boltzmann.simulation.run_sim` function saves to a standard filename of ``checkpoint.mpk`` so we should load from there.
 
-The :py:class:`~boltzmann.simulation.IterInfo` class is used to tell :py:meth:`~boltzmann.simulation.run_sim` how often and how many times to yield.
-That is, how many lattice Boltzmann iterations will it run per output, and how many outputs will be generated in total.
-The number of LBM iterations per output will depend on the physical system you are simulating and the temporal resolution you need.
-For more info on this see :doc:`guides/units <units>`.
-
-2. Class based
---------------
+2. Callback based
+-----------------
 
 The second way to write such a script is to use the :py:class:`~boltzmann.simulation.SimulationScript` class.
-Under the hood it does the same thing as the function based approach, but it automatically handles wiring all command line arguments into the :py:meth:`~boltzmann.simulation.run_sim` call and loading the checkpoint (if requested).
+Under the hood it does the same thing as the imperative approach, but it automatically handles wiring all command line arguments into the :py:meth:`~boltzmann.simulation.run_sim` call and loading the checkpoint (if requested).
 This can be slightly cleaner but it can make things appear a bit more magical in certain situations.
 
 Here's an example:
@@ -120,6 +122,7 @@ These functions are called only when needed; for example if we are resuming the 
     :py:class:`~boltzmann.core.Simulation` object directly for you to work with, but we still need
     the :py:class:`~boltzmann.simulation.SimulationScript` to use the decorators which mark the 
     initialization and output methods. 
+
 
 Running
 -------

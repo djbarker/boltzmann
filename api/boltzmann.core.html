@@ -1,26 +1,26 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" data-content_root="./">
+<html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>boltzmann.core &mdash; Boltzmann 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+  <title>boltzmann.core module &mdash; Boltzmann 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
 
   
-      <script src="_static/jquery.js?v=5d32c60e"></script>
-      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=01f34227"></script>
-      <script src="_static/doctools.js?v=9bcbadda"></script>
-      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
-    <script src="_static/js/theme.js"></script>
-    <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="boltzmann.simulation" href="boltzmann.simulation.html" />
-    <link rel="prev" title="boltzmann.utils.vtkio" href="boltzmann.utils.vtkio.html" /> 
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="boltzmann.simulation module" href="boltzmann.simulation.html" />
+    <link rel="prev" title="boltzmann.utils.vtkio module" href="boltzmann.utils.vtkio.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -31,11 +31,11 @@
 
           
           
-          <a href="index.html" class="icon icon-home">
+          <a href="../index.html" class="icon icon-home">
             Boltzmann
           </a>
 <div role="search">
-  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
@@ -44,16 +44,19 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="guides/basic.html">Basic Simulation Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/script.html">Simulation Scripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/basic.html">Basic Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/units.html">Parameters and Units</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/units.html#the-domain-class">The Domain Class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/setup.html">Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/script.html">Simulation Scripts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="boltzmann.html">boltzmann</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="boltzmann.utils.html">boltzmann.utils</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">boltzmann.core</a></li>
-<li class="toctree-l2"><a class="reference internal" href="boltzmann.simulation.html">boltzmann.simulation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="boltzmann.units.html">boltzmann.units</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="boltzmann.html">boltzmann package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.utils.html">boltzmann.utils package</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">boltzmann.core module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.simulation.html">boltzmann.simulation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.units.html">boltzmann.units module</a></li>
 </ul>
 </li>
 </ul>
@@ -64,18 +67,17 @@
 
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="index.html">Boltzmann</a>
+          <a href="../index.html">Boltzmann</a>
       </nav>
 
       <div class="wy-nav-content">
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="boltzmann.html">boltzmann</a></li>
-      <li class="breadcrumb-item active">boltzmann.core</li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="boltzmann.html">boltzmann package</a></li>
+      <li class="breadcrumb-item active">boltzmann.core module</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="_sources/boltzmann.core.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -84,11 +86,11 @@
            <div itemprop="articleBody">
              
   <section id="module-boltzmann.core">
-<span id="boltzmann-core"></span><h1>boltzmann.core<a class="headerlink" href="#module-boltzmann.core" title="Link to this heading"></a></h1>
+<span id="boltzmann-core-module"></span><h1>boltzmann.core module<a class="headerlink" href="#module-boltzmann.core" title="Link to this heading"></a></h1>
 <p>The core lattice Boltzmann simulation classes.</p>
 <p>The Rust extension module is re-exported here for convenience &amp; clarity.
 If you wish to import from that directly you can import <code class="docutils literal notranslate"><span class="pre">boltzmann.boltzmann</span></code>.</p>
-<p>See <a class="reference internal" href="guides/basic.html"><span class="doc">guides/basic</span></a> for more information on how to use this module.</p>
+<p>See <span class="xref std std-doc">guides/basic</span> for more information on how to use this module.</p>
 <dl class="py data">
 <dt class="sig sig-object py" id="boltzmann.core.Device">
 <span class="sig-prename descclassname"><span class="pre">boltzmann.core.</span></span><span class="sig-name descname"><span class="pre">Device</span></span><a class="headerlink" href="#boltzmann.core.Device" title="Link to this definition"></a></dt>
@@ -98,7 +100,7 @@ If you wish to import from that directly you can import <code class="docutils li
 
 <dl class="py class">
 <dt class="sig sig-object py" id="boltzmann.core.CellFlags">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.core.</span></span><span class="sig-name descname"><span class="pre">CellFlags</span></span><a class="reference internal" href="_modules/boltzmann/core.html#CellFlags"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.core.CellFlags" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.core.</span></span><span class="sig-name descname"><span class="pre">CellFlags</span></span><a class="reference internal" href="../_modules/boltzmann/core.html#CellFlags"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.core.CellFlags" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Flags which control the simulations behaviour at a given cell.
 Multiple flags can be combined using the bitwise OR operator.</p>
@@ -142,7 +144,7 @@ Multiple flags can be combined using the bitwise OR operator.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="boltzmann.core.calc_lbm_params_lu">
-<span class="sig-prename descclassname"><span class="pre">boltzmann.core.</span></span><span class="sig-name descname"><span class="pre">calc_lbm_params_lu</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Re</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">L</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_min</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slack</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/boltzmann/core.html#calc_lbm_params_lu"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.core.calc_lbm_params_lu" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">boltzmann.core.</span></span><span class="sig-name descname"><span class="pre">calc_lbm_params_lu</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Re</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">L</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_min</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slack</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/boltzmann/core.html#calc_lbm_params_lu"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.core.calc_lbm_params_lu" title="Link to this definition"></a></dt>
 <dd><p>Choose the values of tau and u which maximize simulation speed &amp; verify stability.
 If you specify tau that value will be used instead.</p>
 <dl class="field-list simple">
@@ -162,7 +164,7 @@ If you specify tau that value will be used instead.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="boltzmann.core.calc_lbm_params_si">
-<span class="sig-prename descclassname"><span class="pre">boltzmann.core.</span></span><span class="sig-name descname"><span class="pre">calc_lbm_params_si</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u_si</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">L_si</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nu_si</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_min</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slack</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/boltzmann/core.html#calc_lbm_params_si"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.core.calc_lbm_params_si" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">boltzmann.core.</span></span><span class="sig-name descname"><span class="pre">calc_lbm_params_si</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u_si</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">L_si</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nu_si</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_min</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slack</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/boltzmann/core.html#calc_lbm_params_si"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.core.calc_lbm_params_si" title="Link to this definition"></a></dt>
 <dd><p>Choose the values of tau and u which maximize simulation speed &amp; verify stability.
 If you specify tau that value will be used instead.</p>
 <p>Sometimes it is more natural to specify the physical parameters directly rather than via
@@ -187,7 +189,7 @@ Under the hood, however, this function calls <a class="reference internal" href=
 
 <dl class="py function">
 <dt class="sig sig-object py" id="boltzmann.core.check_lbm_params">
-<span class="sig-prename descclassname"><span class="pre">boltzmann.core.</span></span><span class="sig-name descname"><span class="pre">check_lbm_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Re</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">L</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slack</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/boltzmann/core.html#check_lbm_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.core.check_lbm_params" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">boltzmann.core.</span></span><span class="sig-name descname"><span class="pre">check_lbm_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Re</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">L</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slack</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/core.html#check_lbm_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.core.check_lbm_params" title="Link to this definition"></a></dt>
 <dd><p>Check if the chosen parameters are likely to be stable or not with BGK collision operator.
 For more information see <a class="reference external" href="https://dbarker.uk/lbm_parameterization/">https://dbarker.uk/lbm_parameterization/</a>.</p>
 <dl class="field-list simple">
@@ -439,8 +441,8 @@ It is exposed for completeness.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="boltzmann.utils.vtkio.html" class="btn btn-neutral float-left" title="boltzmann.utils.vtkio" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="boltzmann.simulation.html" class="btn btn-neutral float-right" title="boltzmann.simulation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="boltzmann.utils.vtkio.html" class="btn btn-neutral float-left" title="boltzmann.utils.vtkio module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="boltzmann.simulation.html" class="btn btn-neutral float-right" title="boltzmann.simulation module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

@@ -3,23 +3,23 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Basic Simulation Setup &mdash; Boltzmann 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="../_static/documentation_options.js?v=01f34227"></script>
-      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Simulation Scripts" href="script.html" />
+    <link rel="next" title="Parameters and Units" href="units.html" />
     <link rel="prev" title="Boltzmann" href="../index.html" /> 
 </head>
 
@@ -45,11 +45,14 @@
               <p class="caption" role="heading"><span class="caption-text">User Guides</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Basic Simulation Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="units.html">Parameters and Units</a></li>
+<li class="toctree-l1"><a class="reference internal" href="units.html#the-domain-class">The Domain Class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setup.html">Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="script.html">Simulation Scripts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../boltzmann.html">boltzmann</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/boltzmann.html">boltzmann package</a></li>
 </ul>
 
         </div>
@@ -68,7 +71,6 @@
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Basic Simulation Setup</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/guides/basic.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -79,7 +81,7 @@
   <section id="basic-simulation-setup">
 <h1>Basic Simulation Setup<a class="headerlink" href="#basic-simulation-setup" title="Link to this heading"></a></h1>
 <p>Getting a basic simulation up and running is incredibly simple.
-The relevant class here is <a class="reference internal" href="../boltzmann.core.html#boltzmann.core.Simulation" title="boltzmann.core.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">boltzmann.core.Simulation</span></code></a>.
+The relevant class here is <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Simulation" title="boltzmann.core.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">boltzmann.core.Simulation</span></code></a>.
 This is <em>the</em> central class, it sets up all the data arrays for you, automatically handles shuffling data between
 the OpenCL host &amp; device, and runs the actual simulation kernels.
 It has a very simple API to construct, run, save and load the simulation.</p>
@@ -87,44 +89,48 @@ It has a very simple API to construct, run, save and load the simulation.</p>
 Let’s break down what each step of that example is doing.</p>
 <section id="construction">
 <h2>Construction<a class="headerlink" href="#construction" title="Link to this heading"></a></h2>
-<p>This part constructs the core <a class="reference internal" href="../boltzmann.core.html#boltzmann.core.Simulation" title="boltzmann.core.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">Simulation</span>
+<p>This part constructs the core <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Simulation" title="boltzmann.core.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">boltzmann.core</span> <span class="kn">import</span> <span class="n">Simulation</span>
 
 <span class="n">counts</span> <span class="o">=</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">100</span><span class="p">]</span>
 <span class="n">omega</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="mf">0.51</span>
 <span class="n">sim</span> <span class="o">=</span> <span class="n">Simulation</span><span class="p">(</span><span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="n">counts</span><span class="p">,</span> <span class="n">omega</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>When constructing a <a class="reference internal" href="../boltzmann.core.html#boltzmann.core.Simulation" title="boltzmann.core.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> we need to tell it a minimum of three things</p>
+<p>When constructing a <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Simulation" title="boltzmann.core.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> we need to tell it a minimum of three things</p>
 <ul class="simple">
 <li><p>The OpenCL device type to target (Can be either <code class="docutils literal notranslate"><span class="pre">&quot;cpu&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;gpu&quot;</span></code>).</p></li>
 <li><p>The size of the grid in each dimension (<code class="docutils literal notranslate"><span class="pre">counts</span></code> in the example above).</p></li>
 <li><p>A collision rate for the BGK collision operator (<code class="docutils literal notranslate"><span class="pre">omega</span></code> in the example above).</p></li>
 </ul>
 <p>The dimensionality of the simulation is inferred from the length of the passed grid size.
-So <code class="docutils literal notranslate"><span class="pre">[200,</span> <span class="pre">100]</span></code>, for example, would imply a 2D simulation.
-In order to construct the distribution function data we need also to know the number of velocities in the velocity set.
+So <code class="docutils literal notranslate"><span class="pre">[200,</span> <span class="pre">100]</span></code>, for example, would imply a 2D simulation with 200 cells in the <em>x</em>-direction and 100 in the <em>y</em>-direction.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The simulation domain is periodic in all directions.</p>
+</div>
+<p>In order to construct the distribution function data we need also to know the number of velocities in the velocity set.
 By default the most common values in use are inferred from the dimensionality;</p>
 <ul class="simple">
 <li><p>For 2D <code class="docutils literal notranslate"><span class="pre">q=9</span></code> so we get the D2Q9 velocity set</p></li>
 <li><p>For 3D <code class="docutils literal notranslate"><span class="pre">q=27</span></code> so we get the D3Q27 velocity set.</p></li>
 </ul>
 <p>If you want to use a different velocity set you can specify <code class="docutils literal notranslate"><span class="pre">q</span></code> manually.
-If you specify an unknown combination of D and Q, this will raise an error.</p>
+However, if you specify an unknown combination of D and Q, this will raise an error.</p>
 <p>The collision rate <code class="docutils literal notranslate"><span class="pre">omega</span> <span class="pre">==</span> <span class="pre">1/tau</span></code> is the relaxation parameter of the BGK collision operator used to update the fluid after streaming.</p>
 </section>
 <section id="initial-conditions">
 <h2>Initial Conditions<a class="headerlink" href="#initial-conditions" title="Link to this heading"></a></h2>
-<p>We could run this simulation now but it would not do anything exciting since the fluid is at rest by default.
-So let’s go ahead and set some simple initial conditions so we can actually simulation something happening.</p>
-<p>The fluid data is housed in a <a class="reference internal" href="../boltzmann.core.html#boltzmann.core.Fluid" title="boltzmann.core.Fluid"><code class="xref py py-class docutils literal notranslate"><span class="pre">boltzmann.core.Fluid</span></code></a> object which is exposed via the simulation’s <a class="reference internal" href="../boltzmann.core.html#boltzmann.core.Simulation.fluid" title="boltzmann.core.Simulation.fluid"><code class="xref py py-attr docutils literal notranslate"><span class="pre">fluid</span></code></a> attribute.
-This in turn exposes the density and velocity data as Numpy arrays via the <a class="reference internal" href="../boltzmann.core.html#boltzmann.core.Fluid.rho" title="boltzmann.core.Fluid.rho"><code class="xref py py-attr docutils literal notranslate"><span class="pre">rho</span></code></a> and <a class="reference internal" href="../boltzmann.core.html#boltzmann.core.Fluid.vel" title="boltzmann.core.Fluid.vel"><code class="xref py py-attr docutils literal notranslate"><span class="pre">vel</span></code></a> attributes respectively.
+<p>We could run this simulation now but it would not do anything exciting; the fluid is initially at rest.
+So let’s go ahead and set some simple initial conditions in order to actually simulate something happening.</p>
+<p>The fluid data is housed in a <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Fluid" title="boltzmann.core.Fluid"><code class="xref py py-class docutils literal notranslate"><span class="pre">boltzmann.core.Fluid</span></code></a> object which is exposed via the simulation’s <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Simulation.fluid" title="boltzmann.core.Simulation.fluid"><code class="xref py py-attr docutils literal notranslate"><span class="pre">fluid</span></code></a> attribute.
+This in turn exposes the density and velocity data as Numpy arrays via the <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Fluid.rho" title="boltzmann.core.Fluid.rho"><code class="xref py py-attr docutils literal notranslate"><span class="pre">rho</span></code></a> and <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Fluid.vel" title="boltzmann.core.Fluid.vel"><code class="xref py py-attr docutils literal notranslate"><span class="pre">vel</span></code></a> attributes respectively.
 We can set the initial conditions by setting values in these arrays.</p>
 <p>The arrays’ indices are ordered as <em>x</em>, <em>y</em>, <em>z</em> so the first index (“axis 0” in Numpy) corresponds to the <em>x</em>-axis, etc.
 For example, in 2D the velocity array will have shape <code class="docutils literal notranslate"><span class="pre">(nx,</span> <span class="pre">ny,</span> <span class="pre">2)</span></code> where in the last index position 0 corresponds to the <em>x</em> component of velocity, and position 1 to the <em>y</em> component.</p>
-<p>Bearing this in mind, lets set an initial condition where a horizontal band of the fluid is moving in the <em>x</em>-direction,
-and while we’re at it lets slightly perturb the initial density so that the simulation is not perfectly symmetrical.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<p>Bearing this in mind, lets set an initial condition where a horizontal band of the fluid is moving in the positive <em>x</em>-direction.
+While we’re at it lets slightly perturb the initial density so that the simulation is not perfectly symmetrical.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[:,</span> <span class="mi">40</span><span class="p">:</span><span class="mi">60</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.1</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">rho</span><span class="p">[:]</span> <span class="o">+=</span> <span class="mf">0.1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">rho</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
@@ -134,7 +140,7 @@ and while we’re at it lets slightly perturb the initial density so that the si
 <section id="running">
 <h2>Running<a class="headerlink" href="#running" title="Link to this heading"></a></h2>
 <p>Now we’re ready to run the simulation.
-This is achieved a single call to the <a class="reference internal" href="../boltzmann.core.html#boltzmann.core.Simulation.iterate" title="boltzmann.core.Simulation.iterate"><code class="xref py py-meth docutils literal notranslate"><span class="pre">iterate()</span></code></a> method, which takes a single parameter: the number of iterations to run.</p>
+This is achieved simply by a call to the <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Simulation.iterate" title="boltzmann.core.Simulation.iterate"><code class="xref py py-meth docutils literal notranslate"><span class="pre">iterate()</span></code></a> method, which takes a single parameter: the number of iterations to run.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span><span class="o">.</span><span class="n">iterate</span><span class="p">(</span><span class="mi">3000</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -142,7 +148,7 @@ This is achieved a single call to the <a class="reference internal" href="../bol
 <section id="visualizing">
 <h2>Visualizing<a class="headerlink" href="#visualizing" title="Link to this heading"></a></h2>
 <p>At this point we are ready to visualize the output.
-Because we our data is just exposed as Numpy arrays we can use any Python packages we like to plot or otherwise visualize our simulation results.</p>
+Because our data is conveniently exposed as Numpy arrays we can use any Python packages we like to plot or otherwise visualize our simulation results.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The array index/axis ordering intuitively matches our mathematical notation, which makes it nice to work with.
@@ -151,7 +157,7 @@ To use these we just need to transpose any arrays we wish to visualize.</p>
 </div>
 <p>Let’s show the results of the simulation above.
 To produce a nice plot we will calculate the <a class="reference external" href="https://en.wikipedia.org/wiki/Vorticity">vorticity</a> (curl) of the velocity field and show that.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 
 <span class="n">dvydx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)[:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 <span class="n">dvxdy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
@@ -161,15 +167,7 @@ To produce a nice plot we will calculate the <a class="reference external" href=
 </pre></div>
 </div>
 <p>This should produce the following plot:</p>
-<a class="reference internal image-reference" href="../_images/example_basic.png"><img alt="../_images/example_basic.png" class="align-center" src="../_images/example_basic.png" style="height: 300px;" />
-</a>
-</section>
-<section id="checkpointing">
-<h2>Checkpointing<a class="headerlink" href="#checkpointing" title="Link to this heading"></a></h2>
-<p>To save the simulation state to disk call <a class="reference internal" href="../boltzmann.core.html#boltzmann.core.Simulation.write_checkpoint" title="boltzmann.core.Simulation.write_checkpoint"><code class="xref py py-meth docutils literal notranslate"><span class="pre">write_checkpoint()</span></code></a> on your <a class="reference internal" href="../boltzmann.core.html#boltzmann.core.Simulation" title="boltzmann.core.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object.
-This will write a <a class="reference external" href="https://msgpack.org/index.html">MessagePack</a> file to disk at the specified path.
-The saved state can then be loaded using the <a class="reference internal" href="../boltzmann.core.html#boltzmann.core.Simulation.load_checkpoint" title="boltzmann.core.Simulation.load_checkpoint"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_checkpoint()</span></code></a> static method.
-The deserialized simulation has everything exactly as it was when it was saved, so is good to go.</p>
+<a class="reference internal image-reference" href="../_images/example_basic.png"><img alt="../_images/example_basic.png" class="align-center" src="../_images/example_basic.png" style="height: 300px;" /></a>
 </section>
 </section>
 
@@ -178,7 +176,7 @@ The deserialized simulation has everything exactly as it was when it was saved, 
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="../index.html" class="btn btn-neutral float-left" title="Boltzmann" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="script.html" class="btn btn-neutral float-right" title="Simulation Scripts" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="units.html" class="btn btn-neutral float-right" title="Parameters and Units" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

@@ -11,6 +11,8 @@ A GPU accelerated Python module for running lattice Boltzmann simulations.
    :caption: User Guides
 
    guides/basic
+   guides/units
+   guides/setup
    guides/script
 
 .. toctree::
@@ -18,4 +20,4 @@ A GPU accelerated Python module for running lattice Boltzmann simulations.
    :titlesonly:
    :caption: Modules
 
-   boltzmann
+   api/boltzmann
