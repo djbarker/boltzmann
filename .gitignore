@@ -60,7 +60,8 @@ coverage.xml
 .DS_Store
 
 # Sphinx documentation
-docs/_build/
+docs/build/
+docs/source/_build/
 
 # PyCharm
 .idea/
@@ -85,6 +86,3 @@ docs/_build/
 # TODO list(s)
 TODO.md
 todo.md
-
-# WIP => exclude for now
-docs/
