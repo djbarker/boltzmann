@@ -32,6 +32,10 @@ When constructing a :py:class:`~boltzmann.core.Simulation` we need to tell it a 
 The dimensionality of the simulation is inferred from the length of the passed grid size.
 So ``[200, 100]``, for example, would imply a 2D simulation with 200 cells in the *x*-direction and 100 in the *y*-direction.
 
+.. note::
+
+    The simulation domain is periodic in all directions.
+
 In order to construct the distribution function data we need also to know the number of velocities in the velocity set.
 By default the most common values in use are inferred from the dimensionality;
 
@@ -65,7 +69,6 @@ While we're at it lets slightly perturb the initial density so that the simulati
 
     sim.fluid.vel[:, 40:60, 0] = 0.1
     sim.fluid.rho[:] += 0.1 * np.random.uniform(-1, 1, sim.fluid.rho.shape)
-
 
 Running
 -------
@@ -109,11 +112,3 @@ This should produce the following plot:
 .. image:: ../../../gallery/example_basic.png  
     :height: 300px
     :align: center
-
-Checkpointing
--------------
-
-To save the simulation state to disk call :py:meth:`~boltzmann.core.Simulation.write_checkpoint` on your :py:class:`~boltzmann.core.Simulation` object.
-This will write a `MessagePack <https://msgpack.org/index.html>`_ file to disk at the specified path.
-The saved state can then be loaded using the :py:meth:`~boltzmann.core.Simulation.load_checkpoint` static method.
-The deserialized simulation has everything exactly as it was when it was saved, so is good to go.
