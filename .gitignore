@@ -63,6 +63,7 @@ coverage.xml
 docs/build/
 docs/source/_build/
 docs/source/api
+*.rst.txt
 
 # PyCharm
 .idea/
