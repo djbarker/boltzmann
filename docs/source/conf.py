@@ -24,6 +24,8 @@ extensions = [
 
 autodoc_member_order = "bysource"
 
+html_show_sourcelink = False
+
 # see: https://github.com/sphinx-contrib/apidoc
 # apidoc_force = True
 # # apidoc_module_first = True
