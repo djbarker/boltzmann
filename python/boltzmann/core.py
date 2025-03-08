@@ -34,7 +34,9 @@ if hasattr(boltzmann.boltzmann, "__all__"):
 
 # ------------------------------------
 
-Device = Literal["cpu", "gpu"]  #: OpenCL device type on which type to run the simulations.
+Device = Literal[
+    "cpu", "gpu"
+]  #: OpenCL device type on which type to run the simulations.
 
 
 class CellFlags:
@@ -53,7 +55,9 @@ class CellFlags:
     # fmt: on
 
 
-def check_lbm_params(Re: float, L: float, tau: float, M_max: float = 0.1, slack: float = 0.0):
+def check_lbm_params(
+    Re: float, L: float, tau: float, M_max: float = 0.1, slack: float = 0.0
+):
     """
     Check if the chosen parameters are likely to be stable or not with BGK collision operator.
     For more information see https://dbarker.uk/lbm_parameterization/.
@@ -154,8 +158,9 @@ def calc_lbm_params_si(
     )
 
     # sanity check:
-    tau_ = np.sqrt(3) * nu_si * M_max / (dx * u_si) + 0.5
-    tau_ = min(tau_, tau_max)
-    assert abs(tau - tau_) < 1e-8, f"tau mismatch: {tau=} vs {tau_=}"
+    if tau is None:
+        tau_ = np.sqrt(3) * nu_si * M_max / (dx * u_si) + 0.5
+        tau_ = min(tau_, tau_max)
+        assert abs(tau - tau_) < 1e-8, f"tau mismatch: {tau=} vs {tau_=}"
 
     return (tau, u)

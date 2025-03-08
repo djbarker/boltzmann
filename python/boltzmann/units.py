@@ -297,6 +297,10 @@ class Scales:
         )
 
     @property
+    def time(self) -> UnitConverter:
+        return self.converter(L=0, T=1)
+
+    @property
     def distance(self) -> UnitConverter:
         """
         Convert distances between physical and lattice units.
