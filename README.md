@@ -1,7 +1,7 @@
-![](https://github.com/djbarker/boltzmann/actions/workflows/python-app.yml/badge.svg)
-![](https://img.shields.io/badge/documentation-782bc8)
-![](https://img.shields.io/badge/gallery-1a9988)
-![](https://img.shields.io/badge/examples-95991a)
+[![test status](https://github.com/djbarker/boltzmann/actions/workflows/python-app.yml/badge.svg)](https://github.com/djbarker/boltzmann/actions/workflows/python-app.yml)
+[![docs](https://img.shields.io/badge/documentation-782bc8)](https://djbarker.github.io/boltzmann/)
+[![gallery](https://img.shields.io/badge/gallery-1a9988)](gallery)
+[![examples](https://img.shields.io/badge/examples-95991a)](examples)
 
 # Boltzmann
 
