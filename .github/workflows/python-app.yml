@@ -30,6 +30,7 @@ jobs:
         source test_env/bin/activate
     - name: Install dependencies
       run: |
+        source test_env/bin/activate
         python -m pip install --upgrade pip
         pip install flake8 pytest numpy maturin
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
@@ -41,9 +42,11 @@ jobs:
     #     flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
     #     # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
     #     flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Install Self
+    - name: Editable install boltzmann package
       run: |
+        source test_env/bin/activate
         maturin develop -r
     - name: Test with pytest
       run: |
-        pytest
+        source test_env/bin/activate
+        pytest python/tests
