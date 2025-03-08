@@ -1,8 +1,9 @@
-# Boltzmann
+![](https://github.com/djbarker/boltzmann/actions/workflows/python-app.yml/badge.svg)
+![](https://img.shields.io/badge/documentation-782bc8)
+![](https://img.shields.io/badge/gallery-1a9988)
+![](https://img.shields.io/badge/examples-95991a)
 
-<p align="center">
-    - <a href="https://djbarker.github.io/boltzmann/"><b>Documentation</b></a> - <a href="/gallery/"><b>Gallery</b></a> - <a href="/python/examples/"><b>Examples</b></a> -
-</p>
+# Boltzmann
 
 A GPU accelerated Python package for running [Lattice-Boltzmann](https://en.wikipedia.org/wiki/Lattice_Boltzmann_methods) simulations.
 
