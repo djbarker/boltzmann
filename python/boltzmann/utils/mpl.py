@@ -9,6 +9,7 @@ from pathlib import Path
 __all__ = [
     "make_cmap",
     "OrangeBlue",
+    "OrangeBlue_r",
     "PngWriter",
 ]
 
@@ -36,6 +37,7 @@ _colors = [
 _nodes = [0.0, 0.16666667, 0.33333333, 0.49, 0.5, 0.51, 0.66666667, 0.83333333, 1.0]
 
 OrangeBlue = LinearSegmentedColormap.from_list("OrangeBlue", list(zip(_nodes, _colors)))
+OrangeBlue_r = LinearSegmentedColormap.from_list("OrangeBlue_r", list(zip(_nodes, _colors[::-1])))
 
 
 class PngWriter(object):

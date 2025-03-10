@@ -1,35 +1,95 @@
-# %%
-import matplotlib as mpl
-
-mpl.use("Agg")
-
-
-import matplotlib.pyplot as plt
 import numpy as np
 
-from boltzmann.core import Simulation, CellFlags
+from PIL import ImageFont, ImageDraw
+from pathlib import Path
 
-sim = Simulation("cpu", [100, 100], 1 / 0.51)
-temp = sim.add_tracer("temp", 1 / 0.51)
-grav = np.array([0.1, 1], np.float32)
-sim.add_boussinesq_coupling(temp, 1, 1, grav)
-# sim.set_gravity(grav)
 
-temp.val[:] = 1.0
-temp.val[50, 50] = 2.0
-sim.cells.flags[50, 50] = CellFlags.FIXED_SCALAR_VALUE
+from boltzmann.core import CellFlags
+from boltzmann.simulation import SimulationScript, IterInfo
+from boltzmann.utils.logger import basic_config
+from boltzmann.utils.mpl import PngWriter, OrangeBlue_r
 
-sim.iterate(100)
+basic_config()
 
-plt.imshow(temp.val.T)
-plt.savefig("out/temp.png")
-plt.close()
+n = 1000  # Cell count.
 
-vmag = np.sqrt(np.sum(sim.fluid.vel**2, -1))
-plt.imshow(vmag.T)
-plt.savefig("out/vmag.png")
-plt.close()
+T0 = 0.0  # Reference temperature
+dT = 0.01  # Pertruabtion magnitude
+alpha = -0.001  # Thermal coupling constant
 
-print(vmag.min(), vmag.max())
 
-# %%
+# font
+fsz = n // 25
+fox = n // 60
+foy = 0
+f = ImageFont.truetype("NotoSans-BoldItalic", fsz)
+_WHITE = (255, 255, 255)
+_BLACK = (0, 0, 0)
+
+dT_ = dT * 0.25
+iter = IterInfo(500, 1000)
+with (script := SimulationScript([n, n], 1 / 0.51, iter, "out")) as sim:
+
+    @script.init
+    def init():
+        temp = sim.add_tracer("temp", 1 / 0.55)
+        grav = np.array([0, -1], np.float32)
+        sim.add_boussinesq_coupling(temp, alpha, T0, grav)
+
+        # set value to 1 everywhere initially
+        temp.val[:] = T0
+
+        # heat source
+        temp.val[n // 4, n // 4] = T0 + dT
+        sim.cells.flags[n // 4, n // 4] = CellFlags.FIXED_SCALAR_VALUE
+
+        # cold source
+        temp.val[3 * n // 4, 3 * n // 4] = T0 - dT
+        sim.cells.flags[3 * n // 4, 3 * n // 4] = CellFlags.FIXED_SCALAR_VALUE
+
+        # walls at top & bottom
+        sim.cells.flags[:, +0] = CellFlags.WALL | CellFlags.FIXED_SCALAR_VALUE
+        sim.cells.flags[:, -1] = CellFlags.WALL | CellFlags.FIXED_SCALAR_VALUE
+
+    @script.out
+    def output(output_dir: Path, iter: int):
+        temp = sim.get_tracer("temp")
+
+        with PngWriter(
+            output_dir / f"temp_{iter:06d}.png",
+            1000,
+            sim.cells.flags,
+            temp.val,
+            "RdBu_r",
+            vmin=T0 - dT_,
+            vmax=T0 + dT_,
+        ) as img:
+            draw = ImageDraw.Draw(img)
+            draw.text(
+                (fox, foy),
+                "Temperature",
+                _WHITE,
+                font=f,
+                stroke_width=fsz // 15,
+                stroke_fill=_BLACK,
+            )
+
+        vmag = np.sqrt(np.sum(sim.fluid.vel**2, -1))
+        with PngWriter(
+            output_dir / f"vmag_{iter:06d}.png",
+            1000,
+            sim.cells.flags,
+            vmag,
+            "viridis",
+            vmin=0,
+            vmax=0.035,
+        ) as img:
+            draw = ImageDraw.Draw(img)
+            draw.text(
+                (fox, foy),
+                "Velocity",
+                _WHITE,
+                font=f,
+                stroke_width=fsz // 15,
+                stroke_fill=_BLACK,
+            )
