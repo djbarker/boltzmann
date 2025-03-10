@@ -317,23 +317,22 @@ impl Simulation {
 
         // Things which are constant in the kernel call, but still need to be copied over
         // TODO: only do this once
-        // TODO: make read-only and use __constant specifier in the kernel args
         let mut s = Data1d::from_host_ro(&self.opencl, self.cells.counts.mapv(|c| c as i32));
         s.enqueue_write(&queue, "s");
 
         if let Some(gravity) = &self.gravity {
             let acc = self.fluid.acc.as_mut().expect("no acceleration buffer");
 
-            // unsafe {
-            //     ExecuteKernel::new(&self.opencl.set_grav_2d)
-            //         .set_arg(&s.dev)
-            //         .set_arg(&mut acc.dev)
-            //         .set_arg(&gravity.dev)
-            //         .set_local_work_sizes(&wsize)
-            //         .set_global_work_sizes(count_s)
-            //         .enqueue_nd_range(&queue)
-            //         .expect("ExecuteKernel::new failed.")
-            // };
+            unsafe {
+                ExecuteKernel::new(&self.opencl.set_grav_2d)
+                    .set_arg(&s.dev)
+                    .set_arg(&mut acc.dev)
+                    .set_arg(&gravity.dev)
+                    .set_local_work_sizes(&wsize)
+                    .set_global_work_sizes(count_s)
+                    .enqueue_nd_range(&queue)
+                    .expect("ExecuteKernel::new failed.")
+            };
         };
 
         // See comment below about passing a null ptr.
@@ -353,7 +352,7 @@ impl Simulation {
                     ExecuteKernel::new(&self.opencl.set_bous_2d)
                         .set_arg(&s.dev)
                         .set_arg(&mut acc.dev)
-                        // .set_arg(&tracer.C.dev)
+                        .set_arg(&tracer.C.dev)
                         .set_arg(&coupling.alpha)
                         .set_arg(&coupling.c0)
                         .set_arg(&coupling.gravity.dev)

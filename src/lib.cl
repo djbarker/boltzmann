@@ -203,8 +203,9 @@ kernel void update_d2q5_bgk_handrolled(__constant int *s, int even, float omega,
   val[ii] = C;
 }
 
-kernel void set_constant_acc_2d(__constant int *s, global float *acc, global float *g) {
-  
+kernel void set_constant_acc_2d(__constant int *s, global float *acc,
+                                global float *g) {
+
   const size_t ix = get_global_id(0);
   const size_t iy = get_global_id(1);
 
@@ -217,15 +218,9 @@ kernel void set_constant_acc_2d(__constant int *s, global float *acc, global flo
   acc[ii * 2 + 1] = g[1];
 }
 
-kernel void set_boussinesq_acc_2d(
-  __constant int *s, 
-  global float *acc, 
-  // global float *conc, 
-  float alpha, 
-  float c0, 
-  global float *g
-  ) 
-{  
+kernel void set_boussinesq_acc_2d(__constant int *s, global float *acc,
+                                  global float *conc, float alpha, float c0,
+                                  global float *g) {
   const size_t ix = get_global_id(0);
   const size_t iy = get_global_id(1);
 
@@ -234,9 +229,9 @@ kernel void set_boussinesq_acc_2d(
 
   const size_t ii = ix * s[1] + iy;
 
-  // const float buoyancy = alpha * (conc[ii] - c0);
-  acc[ii * 2 + 0] = g[0] ;
-  acc[ii * 2 + 1] = g[1] ;
+  const float buoyancy = alpha * (conc[ii] - c0);
+  acc[ii * 2 + 0] = g[0] * buoyancy;
+  acc[ii * 2 + 1] = g[1] * buoyancy;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -337,11 +332,9 @@ kernel void update_d2q5_bgk(__constant int *s, int even, float omega,
 }
 
 kernel void update_d2q9_bgk(__constant int *s, int even, float omega,
-                            global float *f,
-                            global float *rho, global float *vel,
-                            global float *acc, int use_acc,
-                            global int *cell 
-                            ) {
+                            global float *f, global float *rho,
+                            global float *vel, global float *acc, int use_acc,
+                            global int *cell) {
   const int qs[9][2] = {{0, 0}, {1, 0},   {-1, 0}, {0, 1}, {0, -1},
                         {1, 1}, {-1, -1}, {1, -1}, {-1, 1}};
 
@@ -403,8 +396,8 @@ kernel void update_d2q9_bgk(__constant int *s, int even, float omega,
   // clang-format on
 
   if (use_acc) {
-    vx += acc[0] / omega;
-    vy += acc[1] / omega;
+    vx += acc[ii * 2 + 0] / omega;
+    vy += acc[ii * 2 + 1] / omega;
   }
 
   if (fixed) {
