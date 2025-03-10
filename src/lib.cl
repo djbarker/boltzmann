@@ -203,6 +203,42 @@ kernel void update_d2q5_bgk_handrolled(__constant int *s, int even, float omega,
   val[ii] = C;
 }
 
+kernel void set_constant_acc_2d(__constant int *s, global float *acc, global float *g) {
+  
+  const size_t ix = get_global_id(0);
+  const size_t iy = get_global_id(1);
+
+  if (ix >= s[0] || iy >= s[1])
+    return;
+
+  const size_t ii = ix * s[1] + iy;
+
+  acc[ii * 2 + 0] = g[0];
+  acc[ii * 2 + 1] = g[1];
+}
+
+kernel void set_boussinesq_acc_2d(
+  __constant int *s, 
+  global float *acc, 
+  // global float *conc, 
+  float alpha, 
+  float c0, 
+  global float *g
+  ) 
+{  
+  const size_t ix = get_global_id(0);
+  const size_t iy = get_global_id(1);
+
+  if (ix >= s[0] || iy >= s[1])
+    return;
+
+  const size_t ii = ix * s[1] + iy;
+
+  // const float buoyancy = alpha * (conc[ii] - c0);
+  acc[ii * 2 + 0] = g[0] ;
+  acc[ii * 2 + 1] = g[1] ;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -301,9 +337,11 @@ kernel void update_d2q5_bgk(__constant int *s, int even, float omega,
 }
 
 kernel void update_d2q9_bgk(__constant int *s, int even, float omega,
-                            __constant float *g, global float *f,
+                            global float *f,
                             global float *rho, global float *vel,
-                            global int *cell) {
+                            global float *acc, int use_acc,
+                            global int *cell 
+                            ) {
   const int qs[9][2] = {{0, 0}, {1, 0},   {-1, 0}, {0, 1}, {0, -1},
                         {1, 1}, {-1, -1}, {1, -1}, {-1, 1}};
 
@@ -363,8 +401,11 @@ kernel void update_d2q9_bgk(__constant int *s, int even, float omega,
    float vx = (f_[1] - f_[2] + f_[5] - f_[6] + f_[7] - f_[8]) / r;
    float vy = (f_[3] - f_[4] + f_[5] - f_[6] - f_[7] + f_[8]) / r;
   // clang-format on
-  vx += (g[0] / omega);
-  vy += (g[1] / omega);
+
+  if (use_acc) {
+    vx += acc[0] / omega;
+    vy += acc[1] / omega;
+  }
 
   if (fixed) {
     omega = 1.0;

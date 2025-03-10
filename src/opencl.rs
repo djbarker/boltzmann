@@ -50,6 +50,8 @@ pub struct OpenCLCtx {
     pub context: Context,
     pub queue: CommandQueue,
     pub kernels: HashMap<KernelKey, Kernel>,
+    pub set_grav_2d: Kernel,
+    pub set_bous_2d: Kernel,
 }
 
 impl OpenCLCtx {
@@ -86,11 +88,19 @@ impl OpenCLCtx {
             kernels.insert(m, k);
         }
 
+        let set_grav_2d = Kernel::create(&program, "set_constant_acc_2d")
+            .expect("Kernel::create failed set_constant_acc_2d");
+
+        let set_bous_2d = Kernel::create(&program, "set_boussinesq_acc_2d")
+            .expect("Kernel::create failed set_boussinesq_acc_2d");
+
         Self {
             _device: device,
             context: context,
             queue: queue,
             kernels: kernels,
+            set_grav_2d: set_grav_2d,
+            set_bous_2d: set_bous_2d,
         }
     }
 }

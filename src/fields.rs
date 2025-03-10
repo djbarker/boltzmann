@@ -35,6 +35,10 @@ pub struct Fluid {
     pub f: DataNd<f32>,
     pub rho: DataNd<f32>,
     pub vel: DataNd<f32>,
+    /// Optional because we pay for what we use.
+    /// If we have neither gravity nor a Boussinesq coupling we have no acceleration,
+    /// therefore we don't allocate the buffers.
+    pub acc: Option<DataNd<f32>>,
     pub model: VelocitySet,
     pub omega: f32,
 }
@@ -49,7 +53,8 @@ impl Fluid {
         Self {
             f: Data::from_val_rw(opencl, counts_q, 0.0),
             rho: Data::from_val_rw(opencl, counts, 1.0),
-            vel: Data::from_val_rw(opencl, counts_d, 0.0),
+            vel: Data::from_val_rw(opencl, counts_d.clone(), 0.0),
+            acc: None,
             model: VelocitySet::make(d, q),
             omega: omega,
         }
@@ -184,6 +189,7 @@ pub(crate) struct FluidDeserializer {
     f: DataNdDeserializer<f32>,
     rho: DataNdDeserializer<f32>,
     vel: DataNdDeserializer<f32>,
+    acc: Option<DataNdDeserializer<f32>>,
     model: VelocitySet,
     omega: f32,
 }
@@ -196,6 +202,7 @@ impl CtxDeserializer for FluidDeserializer {
             f: self.f.with_context(opencl),
             rho: self.rho.with_context(opencl),
             vel: self.vel.with_context(opencl),
+            acc: self.acc.map(|a| a.with_context(opencl)),
             model: self.model,
             omega: self.omega,
         }
