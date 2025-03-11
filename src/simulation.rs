@@ -106,7 +106,7 @@ pub struct BoussinesqCouplingDeserializer {
     tracer: String,
     alpha: f32,
     c0: f32,
-    gravity: Array1<f32>,
+    gravity: Data1dDeserializer<f32>,
 }
 
 impl CtxDeserializer for BoussinesqCouplingDeserializer {
@@ -117,7 +117,7 @@ impl CtxDeserializer for BoussinesqCouplingDeserializer {
             tracer: self.tracer,
             alpha: self.alpha,
             c0: self.c0,
-            gravity: Data1d::from_host_ro(opencl, self.gravity),
+            gravity: self.gravity.with_context(opencl),
         }
     }
 }
@@ -426,7 +426,7 @@ impl Simulation {
         let file = std::fs::File::create(path)?;
         let mut buff = BufWriter::with_capacity(1024 * 1024, file); // 1 mebibyte buffer
         let mut serializer = Serializer::new(&mut buff);
-        self.serialize(&mut serializer).unwrap();
+        self.serialize(&mut serializer).expect("error serializing");
 
         Ok(())
     }
@@ -438,7 +438,7 @@ impl Simulation {
         let file = std::fs::File::open(path)?;
         let buff = BufReader::with_capacity(1024 * 1024, file);
         let mut de = Deserializer::new(buff);
-        let sim = SimulationDeserializer::deserialize(&mut de).unwrap();
+        let sim = SimulationDeserializer::deserialize(&mut de).expect("error deserializing");
         let mut sim = sim.to_simulation(opencl);
 
         // In general iteration is not zero, so finalize here to ensure the data is copied to the device.
