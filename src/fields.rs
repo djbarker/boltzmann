@@ -103,7 +103,9 @@ impl Field for Fluid {
 
 impl MemUsage for Fluid {
     fn size_bytes(&self) -> usize {
-        std::mem::size_of::<f32>() * (self.f.host.len() + self.rho.host.len() + self.vel.host.len())
+        let acc_len = self.acc.as_ref().map(|a| a.host.len()).unwrap_or(0);
+        std::mem::size_of::<f32>()
+            * (self.f.host.len() + self.rho.host.len() + self.vel.host.len() + acc_len)
     }
 }
 
