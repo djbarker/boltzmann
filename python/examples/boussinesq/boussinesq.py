@@ -11,7 +11,7 @@ from boltzmann.utils.mpl import PngWriter, OrangeBlue_r
 
 basic_config()
 
-n = 1000  # Cell count.
+n = 2000  # Cell count.
 
 T0 = 0.0  # Reference temperature
 dT = 0.01  # Pertruabtion magnitude
@@ -27,12 +27,12 @@ _WHITE = (255, 255, 255)
 _BLACK = (0, 0, 0)
 
 dT_ = dT * 0.25
-iter = IterInfo(500, 1000)
+iter = IterInfo(500, 1500)
 with (script := SimulationScript([n, n], 1 / 0.51, iter, "out")) as sim:
 
     @script.init
     def init():
-        temp = sim.add_tracer("temp", 1 / 0.55)
+        temp = sim.add_tracer("temp", 1 / 0.52)
         grav = np.array([0, -1], np.float32)
         sim.add_boussinesq_coupling(temp, alpha, T0, grav)
 
@@ -40,12 +40,15 @@ with (script := SimulationScript([n, n], 1 / 0.51, iter, "out")) as sim:
         temp.val[:] = T0
 
         # heat source
-        temp.val[n // 4, n // 4] = T0 + dT
-        sim.cells.flags[n // 4, n // 4] = CellFlags.FIXED_SCALAR_VALUE
+        n_ = n // 4
+        w = 4
+        temp.val[n_ - w : n_ + w, n_] = T0 + dT
+        sim.cells.flags[n_ - w : n_ + w, n_] = CellFlags.FIXED_SCALAR_VALUE
 
         # cold source
-        temp.val[3 * n // 4, 3 * n // 4] = T0 - dT
-        sim.cells.flags[3 * n // 4, 3 * n // 4] = CellFlags.FIXED_SCALAR_VALUE
+        n_ = 3 * n // 4
+        temp.val[n_ - w : n_ + w, n_] = T0 - dT
+        sim.cells.flags[n_ - w : n_ + w, n_] = CellFlags.FIXED_SCALAR_VALUE
 
         # walls at top & bottom
         sim.cells.flags[:, +0] = CellFlags.WALL | CellFlags.FIXED_SCALAR_VALUE
@@ -82,7 +85,7 @@ with (script := SimulationScript([n, n], 1 / 0.51, iter, "out")) as sim:
             vmag,
             "viridis",
             vmin=0,
-            vmax=0.035,
+            vmax=0.03,
         ) as img:
             draw = ImageDraw.Draw(img)
             draw.text(
