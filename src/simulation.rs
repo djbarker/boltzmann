@@ -11,7 +11,10 @@ use serde::{Deserialize, Serialize};
 use crate::fields::{
     make_kernel_key, Field, Fluid, FluidDeserializer, MemUsage, Scalar, ScalarDeserializer,
 };
-use crate::opencl::{CtxDeserializer, Data1d, Data1dDeserializer, DataNd, DataNdDeserializer};
+use crate::opencl::{
+    AccType, CtxDeserializer, Data1d, Data1dDeserializer, DataNd, DataNdDeserializer,
+    SourceKernelKey,
+};
 use crate::opencl::{Data, OpenCLCtx};
 
 /// Contains information about the cells.
@@ -283,11 +286,11 @@ impl Simulation {
         }
 
         // Allocate the acceleration buffer if it's needed and not already allocated.
+        let ndims = self.cells.counts.len();
+        let ncells = self.cells.counts.product();
         if self.gravity.is_some() || !self.couplings.is_empty() {
             if self.fluid.acc.is_none() {
-                let n = self.cells.counts.product();
-                let d = self.cells.counts.len();
-                self.fluid.acc = Some(DataNd::from_val_rw(&self.opencl, vec![n, d], 0.0));
+                self.fluid.acc = Some(DataNd::from_val_rw(&self.opencl, vec![ncells, ndims], 0.0));
             }
         }
 
@@ -312,7 +315,7 @@ impl Simulation {
         fn get_kernel<'a>(opencl: &'a OpenCLCtx, f: &impl Field) -> &'a Kernel {
             let key = make_kernel_key(f);
             let msg = format!("Kernel not found: {:?}", key);
-            opencl.kernels.get(&key).expect(msg.as_str())
+            opencl.update_kernels.get(&key).expect(msg.as_str())
         }
 
         // Things which are constant in the kernel call, but still need to be copied over
@@ -322,9 +325,12 @@ impl Simulation {
 
         if let Some(gravity) = &self.gravity {
             let acc = self.fluid.acc.as_mut().expect("no acceleration buffer");
+            let key = SourceKernelKey::new(ndims, AccType::Constant);
+            let msg = format!("Kernel not found: {:?}", key);
+            let kernel = self.opencl.source_kernels.get(&key).expect(msg.as_str());
 
             unsafe {
-                ExecuteKernel::new(&self.opencl.set_grav_2d)
+                ExecuteKernel::new(&kernel)
                     .set_arg(&s.dev)
                     .set_arg(&mut acc.dev)
                     .set_arg(&gravity.dev)
@@ -346,10 +352,13 @@ impl Simulation {
             // Set source terms for the acceleration for Boussinesq approximation.
             for coupling in self.couplings.iter() {
                 let acc = self.fluid.acc.as_mut().expect("no acceleration buffer");
+                let key = SourceKernelKey::new(ndims, AccType::Boussinesq);
+                let msg = format!("Kernel not found: {:?}", key);
+                let kernel = self.opencl.source_kernels.get(&key).expect(msg.as_str());
 
                 let tracer = self.tracers.get(&coupling.tracer).unwrap();
                 unsafe {
-                    ExecuteKernel::new(&self.opencl.set_bous_2d)
+                    ExecuteKernel::new(&kernel)
                         .set_arg(&s.dev)
                         .set_arg(&mut acc.dev)
                         .set_arg(&tracer.C.dev)

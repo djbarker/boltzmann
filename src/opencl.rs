@@ -30,17 +30,37 @@ pub enum EqnType {
     AdvectionDiffusion,
 }
 
-/// Unique identifier for each kernel.
+/// Unique identifier for each _update_ kernel.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct KernelKey {
+pub struct UpdateKernelKey {
     pub d: usize,
     pub q: usize,
     pub eqn: EqnType,
 }
 
-impl KernelKey {
+impl UpdateKernelKey {
     pub fn new(d: usize, q: usize, eqn: EqnType) -> Self {
         Self { d, q, eqn }
+    }
+}
+
+/// The implemented OpenCL kernels differ in how they set the acceleration source terms.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum AccType {
+    Constant,
+    Boussinesq,
+}
+
+// Unique identifier for each acceleration source kernel.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub struct SourceKernelKey {
+    pub d: usize,
+    pub acc: AccType,
+}
+
+impl SourceKernelKey {
+    pub fn new(d: usize, acc: AccType) -> Self {
+        Self { d, acc }
     }
 }
 
@@ -49,9 +69,8 @@ pub struct OpenCLCtx {
     _device: Device,
     pub context: Context,
     pub queue: CommandQueue,
-    pub kernels: HashMap<KernelKey, Kernel>,
-    pub set_grav_2d: Kernel,
-    pub set_bous_2d: Kernel,
+    pub update_kernels: HashMap<UpdateKernelKey, Kernel>,
+    pub source_kernels: HashMap<SourceKernelKey, Kernel>,
 }
 
 impl OpenCLCtx {
@@ -61,6 +80,7 @@ impl OpenCLCtx {
             DeviceType::GPU => CL_DEVICE_TYPE_GPU,
         };
 
+        // Get the device, queue, etc.
         let device_id = *get_all_devices(device_type)
             .expect("error getting platform")
             .first()
@@ -70,9 +90,11 @@ impl OpenCLCtx {
         let queue = CommandQueue::create_default(&context, CL_QUEUE_PROFILING_ENABLE)
             .expect("CommandQueue::create_default failed");
 
+        // Build the program.
         let program = Program::create_and_build_from_source(&context, OPENCL_SRC, "")
             .expect("Program::create_and_build_from_source failed");
 
+        // Get the available update kernels
         let keys = [
             (2, 9, EqnType::NavierStokes),
             (3, 27, EqnType::NavierStokes),
@@ -80,27 +102,41 @@ impl OpenCLCtx {
             (3, 7, EqnType::AdvectionDiffusion),
         ];
 
-        let mut kernels = HashMap::new();
+        let mut ukernels = HashMap::new();
         for (d, q, e) in keys {
-            let m = KernelKey::new(d, q, e);
+            let m = UpdateKernelKey::new(d, q, e);
             let k = Kernel::create(&program, format!("update_d{}q{}_bgk", d, q).as_str())
                 .expect(format!("Kernel::create failed D{}Q{}", d, q).as_str());
-            kernels.insert(m, k);
+            ukernels.insert(m, k);
         }
 
-        let set_grav_2d = Kernel::create(&program, "set_constant_acc_2d")
-            .expect("Kernel::create failed set_constant_acc_2d");
+        // Get the available source kernels
+        let keys = [
+            (2, AccType::Constant),
+            (2, AccType::Boussinesq),
+            (3, AccType::Constant),
+            (3, AccType::Boussinesq),
+        ];
 
-        let set_bous_2d = Kernel::create(&program, "set_boussinesq_acc_2d")
-            .expect("Kernel::create failed set_boussinesq_acc_2d");
+        let mut skernels = HashMap::new();
+        for (d, a) in keys {
+            let m = SourceKernelKey::new(d, a);
+            let s = match a {
+                AccType::Constant => "constant",
+                AccType::Boussinesq => "boussinesq",
+            };
+            let k = Kernel::create(&program, format!("set_{}_acc_{}d", s, d).as_str())
+                .expect(format!("Kernel::create failed {} {}d", s, d).as_str());
+            skernels.insert(m, k);
+        }
 
+        // Put it all together
         Self {
             _device: device,
             context: context,
             queue: queue,
-            kernels: kernels,
-            set_grav_2d: set_grav_2d,
-            set_bous_2d: set_bous_2d,
+            update_kernels: ukernels,
+            source_kernels: skernels,
         }
     }
 }

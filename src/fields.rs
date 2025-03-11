@@ -2,7 +2,9 @@ use ndarray::{ArrayViewD, Zip};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    opencl::{CtxDeserializer, Data, DataNd, DataNdDeserializer, EqnType, KernelKey, OpenCLCtx},
+    opencl::{
+        CtxDeserializer, Data, DataNd, DataNdDeserializer, EqnType, OpenCLCtx, UpdateKernelKey,
+    },
     velocities::VelocitySet,
 };
 
@@ -17,11 +19,11 @@ pub trait Field {
 }
 
 /// Get the OpenCL kernel lookup key for the given [`Field`].
-pub(crate) fn make_kernel_key<T>(field: &T) -> KernelKey
+pub(crate) fn make_kernel_key<T>(field: &T) -> UpdateKernelKey
 where
     T: Field,
 {
-    KernelKey {
+    UpdateKernelKey {
         d: field.velocities().D(),
         q: field.velocities().Q(),
         eqn: field.eqn_type(),

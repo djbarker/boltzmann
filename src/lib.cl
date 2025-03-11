@@ -1,206 +1,14 @@
-kernel void update_d2q9_bgk_handrolled(__constant int *s, int even, float omega,
-                                       __constant float *g, global float *f,
-                                       global float *rho, global float *vel,
-                                       global int *cell) {
-
-  const int qs[9][2] = {{0, 0}, {1, 0},   {-1, 0}, {0, 1}, {0, -1},
-                        {1, 1}, {-1, -1}, {-1, 1}, {1, -1}};
+kernel void set_constant_acc_1d(__constant int *s, global float *acc,
+                                global float *g) {
 
   const size_t ix = get_global_id(0);
-  const size_t iy = get_global_id(1);
 
-  if (ix >= s[0] || iy >= s[1])
+  if (ix >= s[0])
     return;
 
-  const size_t ii = ix * s[1] + iy; // 1d idx for arrays
+  const size_t ii = ix;
 
-  const int c = cell[ii];
-  const bool wall = (c & 1);
-  const bool fixed = (c & 6);
-
-  if (wall) {
-    // wall => do nothing
-    return;
-  }
-
-  int off[9];
-
-#pragma unroll
-  for (int i = 0; i < 9; i++) {
-    int ix_ = (ix + qs[i][0] + s[0]) % s[0];
-    int iy_ = (iy + qs[i][1] + s[1]) % s[1];
-    off[i] = (ix_ * s[1] + iy_) * 9;
-  }
-
-  float f_[9];
-  if (even) {
-    f_[0] = f[off[0] + 0];
-    f_[1] = f[off[2] + 1];
-    f_[2] = f[off[1] + 2];
-    f_[3] = f[off[4] + 3];
-    f_[4] = f[off[3] + 4];
-    f_[5] = f[off[6] + 5];
-    f_[6] = f[off[5] + 6];
-    f_[7] = f[off[8] + 7];
-    f_[8] = f[off[7] + 8];
-  } else {
-    f_[0] = f[off[0] + 0];
-    f_[1] = f[off[0] + 2];
-    f_[2] = f[off[0] + 1];
-    f_[3] = f[off[0] + 4];
-    f_[4] = f[off[0] + 3];
-    f_[5] = f[off[0] + 6];
-    f_[6] = f[off[0] + 5];
-    f_[7] = f[off[0] + 8];
-    f_[8] = f[off[0] + 7];
-  }
-
-  // calc moments
-  float r =
-      f_[0] + f_[1] + f_[2] + f_[3] + f_[4] + f_[5] + f_[6] + f_[7] + f_[8];
-  float vx = (f_[1] - f_[2] + f_[5] - f_[6] - f_[7] + f_[8]) / r;
-  float vy = (f_[3] - f_[4] + f_[5] - f_[6] + f_[7] - f_[8]) / r;
-
-  vx += (g[0] / omega);
-  vy += (g[1] / omega);
-
-  if (fixed) {
-    omega = 1.0;
-    r = rho[ii];
-    vx = vel[ii * 2 + 0];
-    vy = vel[ii * 2 + 1];
-  }
-
-  const float vv = vx * vx + vy * vy;
-  const float vxx = vx * vx;
-  const float vyy = vy * vy;
-  const float vxy = vx * vy;
-
-  // calc equilibrium & collide
-  // clang-format off
-  f_[0] += omega * (r * (2.0 / 9.0) * (2.0 - 3.0 * vv) - f_[0]);
-  f_[1] += omega * (r * (1.0 / 18.0) * (2.0 + 6.0 * vx + 9.0 * vxx - 3.0 * vv) - f_[1]);
-  f_[2] += omega * (r * (1.0 / 18.0) * (2.0 - 6.0 * vx + 9.0 * vxx - 3.0 * vv) - f_[2]);
-  f_[3] += omega * (r * (1.0 / 18.0) * (2.0 + 6.0 * vy + 9.0 * vyy - 3.0 * vv) - f_[3]);
-  f_[4] += omega * (r * (1.0 / 18.0) * (2.0 - 6.0 * vy + 9.0 * vyy - 3.0 * vv) - f_[4]);
-  f_[5] += omega * (r * (1.0 / 36.0) * (1.0 + 3.0 * (vx + vy) + 9.0 * vxy + 3.0 * vv) - f_[5]);
-  f_[6] += omega * (r * (1.0 / 36.0) * (1.0 - 3.0 * (vx + vy) + 9.0 * vxy + 3.0 * vv) - f_[6]);
-  f_[7] += omega * (r * (1.0 / 36.0) * (1.0 + 3.0 * (vy - vx) - 9.0 * vxy + 3.0 * vv) - f_[7]);
-  f_[8] += omega * (r * (1.0 / 36.0) * (1.0 - 3.0 * (vy - vx) - 9.0 * vxy + 3.0 * vv) - f_[8]);
-  // clang-format on
-
-  // write back to same locations
-  if (even) {
-    f[off[0] + 0] = f_[0];
-    f[off[2] + 1] = f_[2];
-    f[off[1] + 2] = f_[1];
-    f[off[4] + 3] = f_[4];
-    f[off[3] + 4] = f_[3];
-    f[off[6] + 5] = f_[6];
-    f[off[5] + 6] = f_[5];
-    f[off[8] + 7] = f_[8];
-    f[off[7] + 8] = f_[7];
-  } else {
-#pragma unroll
-    for (int i = 0; i < 9; i++) {
-      f[off[0] + i] = f_[i];
-    }
-  }
-
-  rho[ii] = r;
-  vel[ii * 2 + 0] = vx;
-  vel[ii * 2 + 1] = vy;
-}
-
-kernel void update_d2q5_bgk_handrolled(__constant int *s, int even, float omega,
-                                       global float *f, global float *val,
-                                       global float *vel, global int *cell) {
-  const int qs[5][2] = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-
-  const size_t ix = get_global_id(0);
-  const size_t iy = get_global_id(1);
-  // const size_t sx = get_global_size(0);
-  // const size_t sy = get_global_size(1);
-
-  if (ix >= s[0] || iy >= s[1])
-    return;
-
-  const size_t ii = ix * s[1] + iy; // 1d idx for arrays
-
-  const size_t iv = ii * 2; // offset for vel
-
-  const int c = cell[ii];
-  const bool wall = (c & 1);
-  const bool fixed = (c & 8);
-
-  if (wall) {
-    // wall => do nothing
-    return;
-  }
-
-  int off[5];
-
-#pragma unroll
-  for (int i = 0; i < 5; i++) {
-    int ix_ = (ix + qs[i][0] + s[0]) % s[0];
-    int iy_ = (iy + qs[i][1] + s[1]) % s[1];
-    off[i] = (ix_ * s[1] + iy_) * 5;
-  }
-
-  float f_[5];
-  if (even) {
-    f_[0] = f[off[0] + 0];
-    f_[1] = f[off[2] + 1];
-    f_[2] = f[off[1] + 2];
-    f_[3] = f[off[4] + 3];
-    f_[4] = f[off[3] + 4];
-  } else {
-    f_[0] = f[off[0] + 0];
-    f_[1] = f[off[0] + 2];
-    f_[2] = f[off[0] + 1];
-    f_[3] = f[off[0] + 4];
-    f_[4] = f[off[0] + 3];
-  }
-
-  // calc moments
-  float C = f_[0] + f_[1] + f_[2] + f_[3] + f_[4];
-  float vx = vel[iv + 0];
-  float vy = vel[iv + 1];
-
-  if (fixed) {
-    omega = 1.0;
-    C = val[ii];
-  }
-
-  const float vv = vx * vx + vy * vy;
-  const float vxx = vx * vx;
-  const float vyy = vy * vy;
-  const float vxy = vx * vy;
-
-  // calc equilibrium & collide
-  // clang-format off
-  f_[0] += omega * (C * (1.0 / 6.0) * (2.0 - 3.0 * vv) - f_[0]);
-  f_[1] += omega * (C * (1.0 / 12.0) * (2.0 + 6.0 * vx + 9.0 * vxx - 3.0 * vv) - f_[1]);
-  f_[2] += omega * (C * (1.0 / 12.0) * (2.0 - 6.0 * vx + 9.0 * vxx - 3.0 * vv) - f_[2]);
-  f_[3] += omega * (C * (1.0 / 12.0) * (2.0 + 6.0 * vy + 9.0 * vyy - 3.0 * vv) - f_[3]);
-  f_[4] += omega * (C * (1.0 / 12.0) * (2.0 - 6.0 * vy + 9.0 * vyy - 3.0 * vv) - f_[4]);
-  // clang-format on
-
-  // write back to same locations
-  if (even) {
-    f[off[0] + 0] = f_[0];
-    f[off[2] + 1] = f_[2];
-    f[off[1] + 2] = f_[1];
-    f[off[4] + 3] = f_[4];
-    f[off[3] + 4] = f_[3];
-  } else {
-#pragma unroll
-    for (int i = 0; i < 5; i++) {
-      f[off[0] + i] = f_[i];
-    }
-  }
-
-  val[ii] = C;
+  acc[ii * 1 + 0] = g[0];
 }
 
 kernel void set_constant_acc_2d(__constant int *s, global float *acc,
@@ -218,6 +26,37 @@ kernel void set_constant_acc_2d(__constant int *s, global float *acc,
   acc[ii * 2 + 1] = g[1];
 }
 
+kernel void set_constant_acc_3d(__constant int *s, global float *acc,
+                                global float *g) {
+
+  const size_t ix = get_global_id(0);
+  const size_t iy = get_global_id(1);
+  const size_t iz = get_global_id(2);
+
+  if (ix >= s[0] || iy >= s[1] || iy >= s[2])
+    return;
+
+  const size_t ii = ix * s[1] * s[2] + iy * s[2] + iz;
+
+  acc[ii * 3 + 0] = g[0];
+  acc[ii * 3 + 1] = g[1];
+  acc[ii * 3 + 2] = g[2];
+}
+
+kernel void set_boussinesq_acc_1d(__constant int *s, global float *acc,
+                                  global float *conc, float alpha, float c0,
+                                  global float *g) {
+  const size_t ix = get_global_id(0);
+
+  if (ix >= s[0])
+    return;
+
+  const size_t ii = ix;
+
+  const float buoyancy = alpha * (conc[ii] - c0);
+  acc[ii * 1 + 0] = g[0] * buoyancy;
+}
+
 kernel void set_boussinesq_acc_2d(__constant int *s, global float *acc,
                                   global float *conc, float alpha, float c0,
                                   global float *g) {
@@ -232,6 +71,24 @@ kernel void set_boussinesq_acc_2d(__constant int *s, global float *acc,
   const float buoyancy = alpha * (conc[ii] - c0);
   acc[ii * 2 + 0] = g[0] * buoyancy;
   acc[ii * 2 + 1] = g[1] * buoyancy;
+}
+
+kernel void set_boussinesq_acc_3d(__constant int *s, global float *acc,
+                                  global float *conc, float alpha, float c0,
+                                  global float *g) {
+  const size_t ix = get_global_id(0);
+  const size_t iy = get_global_id(1);
+  const size_t iz = get_global_id(2);
+
+  if (ix >= s[0] || iy >= s[1] || iy >= s[2])
+    return;
+
+  const size_t ii = ix * s[1] * s[2] + iy * s[2] + iz;
+
+  const float buoyancy = alpha * (conc[ii] - c0);
+  acc[ii * 3 + 0] = g[0] * buoyancy;
+  acc[ii * 3 + 1] = g[1] * buoyancy;
+  acc[ii * 3 + 2] = g[2] * buoyancy;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
