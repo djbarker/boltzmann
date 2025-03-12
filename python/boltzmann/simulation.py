@@ -141,9 +141,9 @@ def parse_checkpoints(s: str) -> CheckpointGater:
     :returns: A :py:class:`CheckpointGater`.
     """
 
-    if (m := re.match(r"(\d+)", s)) is not None:
+    if (m := re.match(r"^(\d+)$", s)) is not None:
         return EveryN(int(m.group(1)))
-    elif (m := re.match(r"(\d+)m", s)) is not None:
+    elif (m := re.match(r"^(\d+)m$", s)) is not None:
         return EveryT(datetime.timedelta(minutes=int(m.group(1))))
     else:
         raise ValueError(f"Unable to parse checkpoint interval! [{s!r}]")
