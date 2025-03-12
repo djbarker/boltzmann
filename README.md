@@ -1,8 +1,9 @@
-# Boltzmann
+[![test status](https://github.com/djbarker/boltzmann/actions/workflows/python-app.yml/badge.svg)](https://github.com/djbarker/boltzmann/actions/workflows/python-app.yml)
+[![docs](https://img.shields.io/badge/documentation-782bc8)](https://djbarker.github.io/boltzmann/)
+[![gallery](https://img.shields.io/badge/gallery-1a9988)](gallery)
+[![examples](https://img.shields.io/badge/examples-9a9400)](python/examples)
 
-<p align="center">
-    - <a href="https://djbarker.github.io/boltzmann/"><b>Documentation</b></a> - <a href="/gallery/"><b>Gallery</b></a> - <a href="/python/examples/"><b>Examples</b></a> -
-</p>
+# Boltzmann
 
 A GPU accelerated Python package for running [Lattice-Boltzmann](https://en.wikipedia.org/wiki/Lattice_Boltzmann_methods) simulations.
 
@@ -20,13 +21,14 @@ A GPU accelerated Python package for running [Lattice-Boltzmann](https://en.wiki
 
 ## Highlights 
 
+- 📚 [Fully documented.](https://djbarker.github.io/boltzmann/)
+- 🔢 Simple interface; simulation data is exposed to Python as [`numpy`](https://numpy.org/) arrays.
 - 🚀 Accelerated with [OpenCL](https://en.wikipedia.org/wiki/OpenCL).
-- ⏩ Uses the efficient AA-pattern for in-place streaming & collision.
-- 🎨 [Advection-diffusion](https://en.wikipedia.org/wiki/Convection%E2%80%93diffusion_equation) kernels for tracers.
 - 📦 Support for 2D and 3D simulations.
 - 💾 Save & re-load your simulations (checkpointing).
-- 🔢 Simple interface; simluation data is exposed to Python as [`numpy`](https://numpy.org/) arrays.
 - 📏 Utilities to map from physical to simulation units.
+- 🎨 [Advection-diffusion](https://en.wikipedia.org/wiki/Convection%E2%80%93diffusion_equation) kernels for tracers.
+- 🔥 Coupling of tracers to fluid via the [Boussinesq approximation](https://en.wikipedia.org/wiki/Boussinesq_approximation_(buoyancy)).
 - 🔎 Utilities to output `.vti` files for analysis in [ParaView](https://www.paraview.org/)
 
 ## Get Started
@@ -77,9 +79,8 @@ sim.fluid.rho[:] += 0.1 * np.random.uniform(-1, 1, sim.fluid.rho.shape)
 sim.iterate(3000)
 
 # Plot it
-dvydx = np.diff(sim.fluid.vel[..., 1], axis=0)[:, :-1]
-dvxdy = np.diff(sim.fluid.vel[..., 0], axis=1)[:-1, :]
-curl = dvydx - dvxdy
+grad = np.gradient(sim.fluid.vel)
+curl = grad[1][..., 0] - grad[0][..., 1]
 plt.imshow(curl.T, cmap="RdBu")
 plt.show()
 ```

@@ -77,8 +77,11 @@ def map_opt(val: Option[T], func: Callable[[T], S]) -> Some[S] | None:
 
 def unwrap(some: T | Some[T]) -> T:
     """
-    Get the value from inside a :py:class:`Some, or just the value if it's already `T`.
-    Throws a :py:class:`TypeError` if ``None`` is passed.
+    Get the value from inside a :py:class:`Some`.
+
+    This function is idempotent so if a value is just the raw type, that will be returned.
+
+    :raises: a :py:class:`TypeError` if ``None`` is passed.
     """
     match some:
         case Some(t):

@@ -11,7 +11,10 @@ use serde::{Deserialize, Serialize};
 use crate::fields::{
     make_kernel_key, Field, Fluid, FluidDeserializer, MemUsage, Scalar, ScalarDeserializer,
 };
-use crate::opencl::{CtxDeserializer, Data1d, DataNd, DataNdDeserializer};
+use crate::opencl::{
+    AccType, CtxDeserializer, Data1d, Data1dDeserializer, DataNd, DataNdDeserializer,
+    SourceKernelKey,
+};
 use crate::opencl::{Data, OpenCLCtx};
 
 /// Contains information about the cells.
@@ -85,6 +88,43 @@ pub enum CellType {
     FixedScalarValue = 8,
 }
 
+/// Couple a tracer to the fluid via the Boussinesq approximation.
+#[derive(Serialize)]
+pub struct BoussinesqCoupling {
+    /// Tracer field to couple the fluid to.
+    pub tracer: String,
+
+    /// Coupling strength.
+    pub alpha: f32,
+
+    /// Value of the tracer field which corresponds to zero buoyancy.
+    pub c0: f32,
+
+    /// Gravity vector.
+    pub gravity: Data1d<f32>,
+}
+
+#[derive(Deserialize)]
+pub struct BoussinesqCouplingDeserializer {
+    tracer: String,
+    alpha: f32,
+    c0: f32,
+    gravity: Data1dDeserializer<f32>,
+}
+
+impl CtxDeserializer for BoussinesqCouplingDeserializer {
+    type Target = BoussinesqCoupling;
+
+    fn with_context(self, opencl: &OpenCLCtx) -> Self::Target {
+        Self::Target {
+            tracer: self.tracer,
+            alpha: self.alpha,
+            c0: self.c0,
+            gravity: self.gravity.with_context(opencl),
+        }
+    }
+}
+
 /// Stores the [`Fluid`] and any associated [`Scalar`] fields.
 /// Stores the [`OpenCLCtx`] and Calls the OpenCL kernels.
 #[derive(Serialize)]
@@ -94,8 +134,9 @@ pub struct Simulation {
     pub cells: Cells,
     pub fluid: Fluid,
     pub tracers: HashMap<String, Scalar>,
-    pub gravity: Array1<f32>,
+    pub gravity: Option<Data1d<f32>>,
     pub iteration: u64,
+    pub couplings: Vec<BoussinesqCoupling>,
 }
 
 #[derive(Deserialize)]
@@ -103,8 +144,9 @@ struct SimulationDeserializer {
     cells: CellsDeserializer,
     fluid: FluidDeserializer,
     tracers: HashMap<String, ScalarDeserializer>,
-    gravity: Array1<f32>,
+    gravity: Option<Data1dDeserializer<f32>>,
     iteration: u64,
+    couplings: Vec<BoussinesqCouplingDeserializer>,
 }
 
 impl SimulationDeserializer {
@@ -121,8 +163,13 @@ impl SimulationDeserializer {
                 .into_iter()
                 .map(|(n, t)| (n, t.with_context(&opencl)))
                 .collect(),
-            gravity: self.gravity,
+            gravity: self.gravity.map(|g| g.with_context(&opencl)),
             iteration: self.iteration,
+            couplings: self
+                .couplings
+                .into_iter()
+                .map(|c| c.with_context(&opencl))
+                .collect(),
             opencl: opencl,
         }
     }
@@ -138,13 +185,34 @@ impl Simulation {
             cells: cells,
             fluid: fluid,
             tracers: HashMap::new(),
-            gravity: Array1::zeros([counts.len()]),
+            gravity: None,
             iteration: 0,
+            couplings: Vec::new(),
         }
     }
 
     pub fn set_gravity(&mut self, gravity: Array1<f32>) {
-        self.gravity = gravity;
+        self.gravity = Some(Data1d::from_host_ro(&self.opencl, gravity));
+    }
+
+    /// Add a coupling to the named [`Scalar`] field.
+    ///
+    /// Panics if the name is unknown.
+    pub fn add_boussinesq_coupling(
+        &mut self,
+        tracer: impl AsRef<str>,
+        alpha: f32,
+        c0: f32,
+        gravity: Array1<f32>,
+    ) {
+        assert!(self.tracers.contains_key(tracer.as_ref()));
+
+        self.couplings.push(BoussinesqCoupling {
+            tracer: tracer.as_ref().to_owned(),
+            alpha: alpha,
+            c0: c0,
+            gravity: Data1d::from_host_ro(&self.opencl, gravity),
+        });
     }
 
     /// Add a [`Scalar`] field with the given name.
@@ -189,17 +257,41 @@ impl Simulation {
         for (_, tracer) in self.tracers.iter_mut() {
             tracer.write_to_dev(&self.opencl);
         }
+
+        if let Some(gravity) = &mut self.gravity {
+            gravity.enqueue_write(&self.opencl.queue, "gravity");
+        }
+
+        for coupling in self.couplings.iter_mut() {
+            coupling
+                .gravity
+                .enqueue_write(&self.opencl.queue, "coupling.gravity");
+        }
+
+        self.opencl
+            .queue
+            .finish()
+            .expect("queue.finish() failed [Simulation::finalize]");
     }
 
     /// See: opencl3 example [`basic.rs`](https://github.com/kenba/opencl3/blob/main/examples/basic.rs)
     pub fn iterate(&mut self, iters: usize) {
+        if iters % 2 != 0 {
+            panic!("iters must be even")
+        }
+
         if self.iteration == 0 {
             self.equilibrate();
             self.finalize();
         }
 
-        if iters % 2 != 0 {
-            panic!("iters must be even")
+        // Allocate the acceleration buffer if it's needed and not already allocated.
+        let ndims = self.cells.counts.len();
+        let ncells = self.cells.counts.product();
+        if self.gravity.is_some() || !self.couplings.is_empty() {
+            if self.fluid.acc.is_none() {
+                self.fluid.acc = Some(DataNd::from_val_rw(&self.opencl, vec![ncells, ndims], 0.0));
+            }
         }
 
         let queue: &CommandQueue = &self.opencl.queue;
@@ -223,31 +315,84 @@ impl Simulation {
         fn get_kernel<'a>(opencl: &'a OpenCLCtx, f: &impl Field) -> &'a Kernel {
             let key = make_kernel_key(f);
             let msg = format!("Kernel not found: {:?}", key);
-            opencl.kernels.get(&key).expect(msg.as_str())
+            opencl.update_kernels.get(&key).expect(msg.as_str())
         }
 
         // Things which are constant in the kernel call, but still need to be copied over
         // TODO: only do this once
-        // TODO: make read-only and use __constant specifier in the kernel args
-        let mut g = Data1d::from_host_ro(&self.opencl, self.gravity.clone());
         let mut s = Data1d::from_host_ro(&self.opencl, self.cells.counts.mapv(|c| c as i32));
-        g.enqueue_write(&queue, "g");
         s.enqueue_write(&queue, "s");
 
-        // TODO: do we even need this?
+        if let Some(gravity) = &self.gravity {
+            let acc = self.fluid.acc.as_mut().expect("no acceleration buffer");
+            let key = SourceKernelKey::new(ndims, AccType::Constant);
+            let msg = format!("Kernel not found: {:?}", key);
+            let kernel = self.opencl.source_kernels.get(&key).expect(msg.as_str());
+
+            unsafe {
+                ExecuteKernel::new(&kernel)
+                    .set_arg(&s.dev)
+                    .set_arg(&mut acc.dev)
+                    .set_arg(&gravity.dev)
+                    .set_local_work_sizes(&wsize)
+                    .set_global_work_sizes(count_s)
+                    .enqueue_nd_range(&queue)
+                    .expect("ExecuteKernel::new failed.")
+            };
+        };
+
+        // See comment below about passing a null ptr.
+        let mut dummy = DataNd::<f32>::from_val_rw(&self.opencl, vec![1], 0.0);
+        dummy.enqueue_write(queue, "dummy");
+
         for iter in 0..iters {
             // We cannot pass bools to OpenCL so get an integer with values 0 or 1.
             let even = (1 - iter % 2) as i32;
 
+            // Set source terms for the acceleration for Boussinesq approximation.
+            for coupling in self.couplings.iter() {
+                let acc = self.fluid.acc.as_mut().expect("no acceleration buffer");
+                let key = SourceKernelKey::new(ndims, AccType::Boussinesq);
+                let msg = format!("Kernel not found: {:?}", key);
+                let kernel = self.opencl.source_kernels.get(&key).expect(msg.as_str());
+
+                let tracer = self.tracers.get(&coupling.tracer).unwrap();
+                unsafe {
+                    ExecuteKernel::new(&kernel)
+                        .set_arg(&s.dev)
+                        .set_arg(&mut acc.dev)
+                        .set_arg(&tracer.C.dev)
+                        .set_arg(&coupling.alpha)
+                        .set_arg(&coupling.c0)
+                        .set_arg(&coupling.gravity.dev)
+                        .set_local_work_sizes(&wsize)
+                        .set_global_work_sizes(count_s)
+                        .enqueue_nd_range(&queue)
+                        .expect("ExecuteKernel::new failed.")
+                };
+            }
+
+            let fluid_kernel = get_kernel(&self.opencl, &self.fluid);
+
+            // I have not found a good way with the rust OpenCL crate to pass a null ptr.
+            // Here we instead pass in a dummy buffer and use a flag to determine
+            // whether to use it or not.
+            let (acc, use_acc) = if let Some(acc) = &mut self.fluid.acc {
+                (acc, 1)
+            } else {
+                (&mut dummy, 0)
+            };
+
             unsafe {
-                ExecuteKernel::new(get_kernel(&self.opencl, &self.fluid))
+                ExecuteKernel::new(fluid_kernel)
                     .set_arg(&s.dev)
                     .set_arg(&even)
                     .set_arg(&self.fluid.omega)
-                    .set_arg(&g.dev)
                     .set_arg(&mut self.fluid.f.dev)
                     .set_arg(&mut self.fluid.rho.dev)
                     .set_arg(&mut self.fluid.vel.dev)
+                    .set_arg(&mut acc.dev)
+                    .set_arg(&use_acc)
                     .set_arg(&self.cells.flags.dev)
                     .set_local_work_sizes(&wsize)
                     .set_global_work_sizes(count_s)
@@ -290,7 +435,7 @@ impl Simulation {
         let file = std::fs::File::create(path)?;
         let mut buff = BufWriter::with_capacity(1024 * 1024, file); // 1 mebibyte buffer
         let mut serializer = Serializer::new(&mut buff);
-        self.serialize(&mut serializer).unwrap();
+        self.serialize(&mut serializer).expect("error serializing");
 
         Ok(())
     }
@@ -302,7 +447,7 @@ impl Simulation {
         let file = std::fs::File::open(path)?;
         let buff = BufReader::with_capacity(1024 * 1024, file);
         let mut de = Deserializer::new(buff);
-        let sim = SimulationDeserializer::deserialize(&mut de).unwrap();
+        let sim = SimulationDeserializer::deserialize(&mut de).expect("error deserializing");
         let mut sim = sim.to_simulation(opencl);
 
         // In general iteration is not zero, so finalize here to ensure the data is copied to the device.

@@ -334,6 +334,36 @@ impl SimulationPy {
         self.sim().set_gravity(gravity);
     }
 
+    /// Adds a `Boussinesq approximation <https://en.wikipedia.org/wiki/Boussinesq_approximation_(buoyancy)>`_ coupling between the fluid and a scalar field.
+    ///
+    /// If the scalar field has a value denoted by :math:`c`, the acceleration is given by
+    ///
+    /// .. math::
+    ///
+    ///     \mathbf a = \alpha \mathbf g (c - c_0)
+    ///
+    /// .. note::
+    ///     
+    ///     The coupling constant :math:`\alpha` is not strictly needed as it could be absorbed into :math:`g`.
+    ///     It is included for ease of specification where you probably already have a gravity vector in mind.
+    ///     
+    /// :param tracer: The :py:class:`Scalar` object to couple to.
+    /// :param alpha: The coupling strength.
+    /// :param c0: The value of the scalar field for which there is zero acceleration.
+    /// :param g: The body force vector in lattice units.
+    fn add_boussinesq_coupling<'py>(
+        &mut self,
+        tracer: Bound<'py, ScalarPy>,
+        alpha: f32,
+        c0: f32,
+        g: PyReadonlyArray1<f32>,
+    ) {
+        let tracer = tracer.borrow();
+        let g = g.as_array().to_owned();
+        self.sim()
+            .add_boussinesq_coupling(&tracer.name, alpha, c0, g);
+    }
+
     /// Add a scalar field which will follow the `advection-diffusion equation <https://en.wikipedia.org/wiki/Convection%E2%80%93diffusion_equation>`_.
     ///
     /// Returns the :py:class:`Scalar` object for the added tracer; you must keep this around to access the data.

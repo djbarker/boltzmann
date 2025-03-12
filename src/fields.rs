@@ -2,7 +2,9 @@ use ndarray::{ArrayViewD, Zip};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    opencl::{CtxDeserializer, Data, DataNd, DataNdDeserializer, EqnType, KernelKey, OpenCLCtx},
+    opencl::{
+        CtxDeserializer, Data, DataNd, DataNdDeserializer, EqnType, OpenCLCtx, UpdateKernelKey,
+    },
     velocities::VelocitySet,
 };
 
@@ -17,11 +19,11 @@ pub trait Field {
 }
 
 /// Get the OpenCL kernel lookup key for the given [`Field`].
-pub(crate) fn make_kernel_key<T>(field: &T) -> KernelKey
+pub(crate) fn make_kernel_key<T>(field: &T) -> UpdateKernelKey
 where
     T: Field,
 {
-    KernelKey {
+    UpdateKernelKey {
         d: field.velocities().D(),
         q: field.velocities().Q(),
         eqn: field.eqn_type(),
@@ -35,6 +37,10 @@ pub struct Fluid {
     pub f: DataNd<f32>,
     pub rho: DataNd<f32>,
     pub vel: DataNd<f32>,
+    /// Optional because we pay for what we use.
+    /// If we have neither gravity nor a Boussinesq coupling we have no acceleration,
+    /// therefore we don't allocate the buffers.
+    pub acc: Option<DataNd<f32>>,
     pub model: VelocitySet,
     pub omega: f32,
 }
@@ -50,6 +56,7 @@ impl Fluid {
             f: Data::from_val_rw(opencl, counts_q, 0.0),
             rho: Data::from_val_rw(opencl, counts, 1.0),
             vel: Data::from_val_rw(opencl, counts_d, 0.0),
+            acc: None,
             model: VelocitySet::make(d, q),
             omega: omega,
         }
@@ -98,7 +105,9 @@ impl Field for Fluid {
 
 impl MemUsage for Fluid {
     fn size_bytes(&self) -> usize {
-        std::mem::size_of::<f32>() * (self.f.host.len() + self.rho.host.len() + self.vel.host.len())
+        let acc_len = self.acc.as_ref().map(|a| a.host.len()).unwrap_or(0);
+        std::mem::size_of::<f32>()
+            * (self.f.host.len() + self.rho.host.len() + self.vel.host.len() + acc_len)
     }
 }
 
@@ -184,6 +193,7 @@ pub(crate) struct FluidDeserializer {
     f: DataNdDeserializer<f32>,
     rho: DataNdDeserializer<f32>,
     vel: DataNdDeserializer<f32>,
+    acc: Option<DataNdDeserializer<f32>>,
     model: VelocitySet,
     omega: f32,
 }
@@ -196,6 +206,7 @@ impl CtxDeserializer for FluidDeserializer {
             f: self.f.with_context(opencl),
             rho: self.rho.with_context(opencl),
             vel: self.vel.with_context(opencl),
+            acc: self.acc.map(|a| a.with_context(opencl)),
             model: self.model,
             omega: self.omega,
         }

@@ -103,7 +103,7 @@ For arbitrary dimensional quantities you can pass the relevant powers of ``T``, 
 
 
 The Domain Class
-================
+----------------
 
 To make setting initial- and boundary conditions easy we use the :py:class:`~boltzmann.units.Domain` class.
 This exposes

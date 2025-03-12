@@ -101,15 +101,14 @@ class EveryN(CheckpointGater):
     """
 
     interval: int
-    _last: int = field(default=0)
     _curr: int = field(default=0)
 
+    def __post_init__(self):
+        assert self.interval > 0, "Checkpoint Interval must be positive!"
+
     def allow(self) -> bool:
-        self._curr += 1
-        if self._curr - self._last >= self.interval:
-            self._last = self._curr
-            return True
-        return False
+        self._curr = (self._curr + 1) % self.interval
+        return self._curr == 1
 
 
 @dataclass
@@ -142,9 +141,9 @@ def parse_checkpoints(s: str) -> CheckpointGater:
     :returns: A :py:class:`CheckpointGater`.
     """
 
-    if (m := re.match(r"(\d)+", s)) is not None:
+    if (m := re.match(r"^(\d+)$", s)) is not None:
         return EveryN(int(m.group(1)))
-    elif (m := re.match(r"(\d)+m", s)) is not None:
+    elif (m := re.match(r"^(\d+)m$", s)) is not None:
         return EveryT(datetime.timedelta(minutes=int(m.group(1))))
     else:
         raise ValueError(f"Unable to parse checkpoint interval! [{s!r}]")
@@ -225,6 +224,7 @@ def run_sim(
             # First write to a temp file, then move into place atomically to avoid corruption.
             sim.write_checkpoint(str(output_dir / "checkpoint.mpk.tmp"))
             os.replace(output_dir / "checkpoint.mpk.tmp", output_dir / "checkpoint.mpk")
+            logger.info("Checkpoint written.")
 
         perf_out = timer_out.tock()
 
@@ -266,7 +266,7 @@ def parse_args(out_dir: Path | str, device: Device = "gpu") -> SimulationArgs:
     parser.add_argument("--device", choices={"gpu", "cpu"}, default=device, help="The OpenCL device to run on")
     parser.add_argument("--resume", action="store_true", help="Resume from the checkpoint.")
     parser.add_argument("--out-dir", type=Path, default=out_dir, help="Path to the directory where the checkpoint is stored.")
-    parser.add_argument("--checkpoints", type=str, default="10", help="How often to write checkpoints.")
+    parser.add_argument("--checkpoints", type=str, default="5", help="How often to write checkpoints.")
     # fmt: on
     args = parser.parse_args(args)
 

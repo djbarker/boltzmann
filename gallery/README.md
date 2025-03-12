@@ -2,7 +2,7 @@
 
 Some nice pictures of simulations produced with this package.
 The code for all of these is included in the [examples directory (`/python/examples`)](/python/examples).
-They were all run on my local desktop PC, which has an RTX 4060 Ti graphics card.
+They were all run on my local desktop PC, which has an RTX 4060 Ti graphics card with 16GB of VRAM.
 
 ## Flow Past a Cylinder
 
@@ -68,3 +68,49 @@ This motion is highlighted by showing a tracer which is advected with the fluid.
 The simulation has 32 million grid cells.
 
 _Code at [`kelvin_helmholtz/kelvin_helmholtz.py`](/python/examples/kelvin_helmholtz/kelvin_helmholtz.py)_
+
+## Boussinesq Approximation
+
+<p align="center">
+    <div align="center" style="display: flex; flex-wrap: nowrap;">
+        <a href="https://youtu.be/YyjomsE06RA">
+            <image src="boussinesq_temp_1.png" width=31%px/>
+            <image src="boussinesq_temp_2.png" width=31%px/>
+            <image src="boussinesq_temp_3.png" width=31%px/>
+        </a>
+    </div>
+    </br>
+    <i>
+    (Click images for a video.)
+    </i>
+</p>
+
+Using the [Boussinesq approximation](https://en.wikipedia.org/wiki/Boussinesq_approximation_(buoyancy)) 
+we can couple a tracer representing temperature to the fluid.
+The fluid is initially at rest but a cold and heat source in the domain cause a convection current to establish itself.
+The simulation has 4 million grid cells.
+
+_Code at [`boussinesq/boussinesq.py`](/python/examples/boussinesq/boussinesq.py)_
+
+## Rayleigh-Bénard Convection
+
+<p align="center">
+    <div align="center" style="display: flex; flex-wrap: nowrap;">
+        <a href="https://youtu.be/7ZdQ-CJM8yc">
+            <image src="rayleigh_benard_temp_1.png" width=31%px/>
+            <image src="rayleigh_benard_temp_2.png" width=31%px/>
+            <image src="rayleigh_benard_temp_3.png" width=31%px/>
+        </a>
+    </div>
+    </br>
+    <i>
+    (Click images for a video.)
+    </i>
+</p>
+
+Using the same Boussinesq coupling we can set up a simulation of turbulent [Rayleigh–Bénard convection](https://en.wikipedia.org/wiki/Rayleigh%E2%80%93B%C3%A9nard_convection).
+The whole bottom boundary is heated, while the top boundary is simultaneously cooled.
+The fluid is initially completely at rest but the temperature differentials caused by the boundary conditions start the fluid convecting.
+The simulation has 15 million cells.
+
+_Code at [`rayleigh_benard/rayleigh_benard.py`](/python/examples/rayleigh_benard/rayleigh_benard.py)._

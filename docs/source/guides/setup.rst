@@ -48,12 +48,6 @@ To set the initial values we access the :py:attr:`~Fluid.rho` and :py:attr:`~Flu
     
     Before the first iteration the simulation will automatically use the macroscopic values to infer the equilibrium distributions for the microscopic velocities.
 
-Body Force / Gravity
---------------------
-
-A body force is a force which applies uniformly throughout the simulation domain.
-It is set via the :py:meth:`Simulation.set_gravity` method, which accepts an acceleration *in lattice units*.
-
 Tracers
 -------
 
@@ -62,6 +56,29 @@ We can add multiple tracers to a simulation.
 Add tracers by calling the :py:meth:`Simulation.add_tracer` method with a name and the relevant parameters.
 The method returns a reference to the :py:class:`Tracer`, which you can use to access the data.
 The scalar value array is accessible via the :py:attr:`Tracer.val` attribute.
+
+Body Force (Gravity)
+--------------------
+
+A body force is a force which applies uniformly throughout the simulation domain and is constant over time.
+It is set via the :py:meth:`Simulation.set_gravity` method, which accepts an acceleration *in lattice units*.
+
+Fluid-Tracer Coupling
+---------------------
+
+The fluid can be coupled to the tracers via the `Boussinesq approximation <https://en.wikipedia.org/wiki/Boussinesq_approximation_(buoyancy)>`_.
+This lets the fluid feel a buoyancy force proportional to the tracer concentration.
+For example the tracer may represent the temperature or salinity of the fluid.
+The exact form of the coupling is
+
+.. math::
+
+    \mathbf{a} = \alpha (C - C_0) \mathbf{g}
+
+where :math:`\mathbf{a}` is the acceleration due to buoyancy, :math:`\alpha` is the coupling coefficient, :math:`C` is the tracer concentration, :math:`C_0` is the reference concentration and :math:`\mathbf{g}` is the gravitational acceleration.
+
+To add a coupling to a tracer call :py:meth:`Simulation.add_boussinesq_coupling` with the relevant parameters.
+
 
 Checkpointing
 -------------
