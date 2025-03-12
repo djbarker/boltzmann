@@ -1,6 +1,6 @@
 import numpy as np
 
-from PIL import ImageFont, ImageDraw
+from PIL import ImageFont, ImageDraw, Image
 from pathlib import Path
 
 
@@ -8,6 +8,7 @@ from boltzmann.core import CellFlags
 from boltzmann.simulation import SimulationScript, IterInfo
 from boltzmann.utils.logger import basic_config
 from boltzmann.utils.mpl import PngWriter, OrangeBlue_r
+from boltzmann.utils.postproc import calc_curl
 
 np.random.seed(42)
 
@@ -28,11 +29,24 @@ f = ImageFont.truetype("NotoSans-BoldItalic", fsz)
 _WHITE = (255, 255, 255)
 _BLACK = (0, 0, 0)
 
+
+def label(img: Image.Image, label: str):
+    draw = ImageDraw.Draw(img)
+    draw.text(
+        (fox, foy),
+        label,
+        _WHITE,
+        font=f,
+        stroke_width=fsz // 15,
+        stroke_fill=_BLACK,
+    )
+
+
 # img size
 outx = 2000
 
 dT_ = dT * 0.5
-iter = IterInfo(250, 2000)
+iter = IterInfo(250, 3000)
 with (script := SimulationScript([nx, ny], 1 / 0.505, iter, "out")) as sim:
 
     @script.init
@@ -71,15 +85,7 @@ with (script := SimulationScript([nx, ny], 1 / 0.505, iter, "out")) as sim:
             vmin=T0 - dT_,
             vmax=T0 + dT_,
         ) as img:
-            draw = ImageDraw.Draw(img)
-            draw.text(
-                (fox, foy),
-                "Temperature",
-                _WHITE,
-                font=f,
-                stroke_width=fsz // 15,
-                stroke_fill=_BLACK,
-            )
+            label(img, "Temperature")
 
         vmax = 0.08
         vmag = np.sqrt(np.sum(sim.fluid.vel**2, -1))
@@ -91,14 +97,20 @@ with (script := SimulationScript([nx, ny], 1 / 0.505, iter, "out")) as sim:
             vmag,
             "viridis",
             vmin=0,
-            vmax=0.08,
+            vmax=vmax,
         ) as img:
-            draw = ImageDraw.Draw(img)
-            draw.text(
-                (fox, foy),
-                "Velocity",
-                _WHITE,
-                font=f,
-                stroke_width=fsz // 15,
-                stroke_fill=_BLACK,
-            )
+            label(img, "Velocity")
+
+        # cmax = 0.08
+        # curl = calc_curl(sim.fluid.vel)
+        # curl = np.tanh(curl / cmax) * cmax
+        # with PngWriter(
+        #     output_dir / f"curl_{iter:06d}.png",
+        #     outx,
+        #     sim.cells.flags,
+        #     curl,
+        #     "RdBu",
+        #     vmin=-cmax,
+        #     vmax=cmax,
+        # ) as img:
+        #     label(img, "Vorticity")
