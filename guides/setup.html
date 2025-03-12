@@ -3,19 +3,20 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Simulation Setup &mdash; Boltzmann 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="../_static/documentation_options.js?v=01f34227"></script>
-      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -46,13 +47,12 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="basic.html">Basic Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="units.html">Parameters and Units</a></li>
-<li class="toctree-l1"><a class="reference internal" href="units.html#the-domain-class">The Domain Class</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="script.html">Simulation Scripts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../api/boltzmann.html">boltzmann package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/boltzmann.html">boltzmann</a></li>
 </ul>
 
         </div>
@@ -122,11 +122,6 @@ To set the initial values we access the <code class="xref py py-attr docutils li
 <p>Before the first iteration the simulation will automatically use the macroscopic values to infer the equilibrium distributions for the microscopic velocities.</p>
 </div>
 </section>
-<section id="body-force-gravity">
-<h2>Body Force / Gravity<a class="headerlink" href="#body-force-gravity" title="Link to this heading"></a></h2>
-<p>A body force is a force which applies uniformly throughout the simulation domain.
-It is set via the <code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.set_gravity()</span></code> method, which accepts an acceleration <em>in lattice units</em>.</p>
-</section>
 <section id="tracers">
 <h2>Tracers<a class="headerlink" href="#tracers" title="Link to this heading"></a></h2>
 <p>Tracers are scalar fields that are advected by the fluid.
@@ -134,6 +129,22 @@ We can add multiple tracers to a simulation.
 Add tracers by calling the <code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.add_tracer()</span></code> method with a name and the relevant parameters.
 The method returns a reference to the <code class="xref py py-class docutils literal notranslate"><span class="pre">Tracer</span></code>, which you can use to access the data.
 The scalar value array is accessible via the <code class="xref py py-attr docutils literal notranslate"><span class="pre">Tracer.val</span></code> attribute.</p>
+</section>
+<section id="body-force-gravity">
+<h2>Body Force (Gravity)<a class="headerlink" href="#body-force-gravity" title="Link to this heading"></a></h2>
+<p>A body force is a force which applies uniformly throughout the simulation domain and is constant over time.
+It is set via the <code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.set_gravity()</span></code> method, which accepts an acceleration <em>in lattice units</em>.</p>
+</section>
+<section id="fluid-tracer-coupling">
+<h2>Fluid-Tracer Coupling<a class="headerlink" href="#fluid-tracer-coupling" title="Link to this heading"></a></h2>
+<p>The fluid can be coupled to the tracers via the <a class="reference external" href="https://en.wikipedia.org/wiki/Boussinesq_approximation_(buoyancy)">Boussinesq approximation</a>.
+This lets the fluid feel a buoyancy force proportional to the tracer concentration.
+For example the tracer may represent the temperature or salinity of the fluid.
+The exact form of the coupling is</p>
+<div class="math notranslate nohighlight">
+\[\mathbf{a} = \alpha (C - C_0) \mathbf{g}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mathbf{a}\)</span> is the acceleration due to buoyancy, <span class="math notranslate nohighlight">\(\alpha\)</span> is the coupling coefficient, <span class="math notranslate nohighlight">\(C\)</span> is the tracer concentration, <span class="math notranslate nohighlight">\(C_0\)</span> is the reference concentration and <span class="math notranslate nohighlight">\(\mathbf{g}\)</span> is the gravitational acceleration.</p>
+<p>To add a coupling to a tracer call <code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.add_boussinesq_coupling()</span></code> with the relevant parameters.</p>
 </section>
 <section id="checkpointing">
 <h2>Checkpointing<a class="headerlink" href="#checkpointing" title="Link to this heading"></a></h2>

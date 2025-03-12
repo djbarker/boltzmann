@@ -6,14 +6,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Index &mdash; Boltzmann 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="_static/documentation_options.js?v=01f34227"></script>
-      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="#" />
@@ -43,13 +43,12 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="guides/basic.html">Basic Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/units.html">Parameters and Units</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/units.html#the-domain-class">The Domain Class</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/setup.html">Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/script.html">Simulation Scripts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="api/boltzmann.html">boltzmann package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/boltzmann.html">boltzmann</a></li>
 </ul>
 
         </div>
@@ -109,14 +108,16 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/boltzmann.units.html#boltzmann.units.Scales.acceleration">acceleration (boltzmann.units.Scales property)</a>
 </li>
+      <li><a href="api/boltzmann.core.html#boltzmann.core.Simulation.add_boussinesq_coupling">add_boussinesq_coupling() (boltzmann.core.Simulation method)</a>
+</li>
       <li><a href="api/boltzmann.utils.vtkio.html#boltzmann.utils.vtkio.VtiWriter.add_data">add_data() (boltzmann.utils.vtkio.VtiWriter method)</a>
 </li>
       <li><a href="api/boltzmann.utils.logger.html#boltzmann.utils.logger.PerfTimer.add_event">add_event() (boltzmann.utils.logger.PerfTimer method)</a>
 </li>
-      <li><a href="api/boltzmann.utils.logger.html#boltzmann.utils.logger.PerfTimer.add_events">add_events() (boltzmann.utils.logger.PerfTimer method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/boltzmann.utils.logger.html#boltzmann.utils.logger.PerfTimer.add_events">add_events() (boltzmann.utils.logger.PerfTimer method)</a>
+</li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.Simulation.add_tracer">add_tracer() (boltzmann.core.Simulation method)</a>
 </li>
       <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.CheckpointGater.allow">allow() (boltzmann.simulation.CheckpointGater method)</a>
@@ -163,8 +164,6 @@
         <li><a href="api/boltzmann.units.html#module-boltzmann.units">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     boltzmann.utils
 
@@ -172,6 +171,8 @@
         <li><a href="api/boltzmann.utils.html#module-boltzmann.utils">module</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     boltzmann.utils.logger
 
@@ -194,6 +195,13 @@
 </li>
       </ul></li>
       <li>
+    boltzmann.utils.postproc
+
+      <ul>
+        <li><a href="api/boltzmann.utils.postproc.html#module-boltzmann.utils.postproc">module</a>
+</li>
+      </ul></li>
+      <li>
     boltzmann.utils.vtkio
 
       <ul>
@@ -206,6 +214,8 @@
 <h2 id="C">C</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/boltzmann.utils.postproc.html#boltzmann.utils.postproc.calc_curl">calc_curl() (in module boltzmann.utils.postproc)</a>
+</li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.calc_curl_2d">calc_curl_2d() (in module boltzmann.core)</a>
 </li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.calc_lbm_params_lu">calc_lbm_params_lu() (in module boltzmann.core)</a>
@@ -418,6 +428,8 @@
 </li>
         <li><a href="api/boltzmann.utils.option.html#module-boltzmann.utils.option">boltzmann.utils.option</a>
 </li>
+        <li><a href="api/boltzmann.utils.postproc.html#module-boltzmann.utils.postproc">boltzmann.utils.postproc</a>
+</li>
         <li><a href="api/boltzmann.utils.vtkio.html#module-boltzmann.utils.vtkio">boltzmann.utils.vtkio</a>
 </li>
       </ul></li>
@@ -525,14 +537,16 @@
 <h2 id="T">T</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/boltzmann.units.html#boltzmann.units.Scales.time">time (boltzmann.units.Scales property)</a>
+</li>
       <li><a href="api/boltzmann.utils.logger.html#boltzmann.utils.logger.timed">timed() (in module boltzmann.utils.logger)</a>
 </li>
       <li><a href="api/boltzmann.units.html#boltzmann.units.UnitConverter.to_lattice_units">to_lattice_units() (boltzmann.units.UnitConverter method)</a>
 </li>
-      <li><a href="api/boltzmann.utils.option.html#boltzmann.utils.option.to_opt">to_opt() (in module boltzmann.utils.option)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/boltzmann.utils.option.html#boltzmann.utils.option.to_opt">to_opt() (in module boltzmann.utils.option)</a>
+</li>
       <li><a href="api/boltzmann.units.html#boltzmann.units.UnitConverter.to_physical_units">to_physical_units() (boltzmann.units.UnitConverter method)</a>
 </li>
       <li><a href="api/boltzmann.utils.vtkio.html#boltzmann.utils.vtkio.to_vtk_type">to_vtk_type() (in module boltzmann.utils.vtkio)</a>

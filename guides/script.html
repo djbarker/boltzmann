@@ -3,23 +3,23 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Simulation Scripts &mdash; Boltzmann 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="../_static/documentation_options.js?v=01f34227"></script>
-      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="boltzmann package" href="../api/boltzmann.html" />
+    <link rel="next" title="boltzmann" href="../api/boltzmann.html" />
     <link rel="prev" title="Simulation Setup" href="setup.html" /> 
 </head>
 
@@ -46,13 +46,12 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="basic.html">Basic Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="units.html">Parameters and Units</a></li>
-<li class="toctree-l1"><a class="reference internal" href="units.html#the-domain-class">The Domain Class</a></li>
 <li class="toctree-l1"><a class="reference internal" href="setup.html">Simulation Setup</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Simulation Scripts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../api/boltzmann.html">boltzmann package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/boltzmann.html">boltzmann</a></li>
 </ul>
 
         </div>
@@ -96,8 +95,8 @@ module provides us with utilities to achieve all of these quickly.</p>
 <h2>1. Imperative<a class="headerlink" href="#imperative" title="Link to this heading"></a></h2>
 <p>We can wire up a script quickly using two useful functions <code class="xref py py-meth docutils literal notranslate"><span class="pre">parse_args()</span></code> and <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_sim()</span></code>.
 The methods are explained just below but first, here’s an example</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">boltzmann.core</span> <span class="kn">import</span> <span class="n">Simulation</span>
-<span class="kn">from</span> <span class="nn">boltzmann.simulation</span> <span class="kn">import</span> <span class="n">parse_args</span><span class="p">,</span> <span class="n">run_sim</span><span class="p">,</span> <span class="n">IterInfo</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">Simulation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.simulation</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse_args</span><span class="p">,</span> <span class="n">run_sim</span><span class="p">,</span> <span class="n">IterInfo</span>
 
 <span class="c1"># Parse the standard command line arguments.</span>
 <span class="n">args</span> <span class="o">=</span> <span class="n">parse_args</span><span class="p">()</span>
@@ -156,20 +155,20 @@ The <a class="reference internal" href="../api/boltzmann.simulation.html#boltzma
 Under the hood it does the same thing as the imperative approach, but it automatically handles wiring all command line arguments into the <a class="reference internal" href="../api/boltzmann.simulation.html#boltzmann.simulation.run_sim" title="boltzmann.simulation.run_sim"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_sim()</span></code></a> call and loading the checkpoint (if requested).
 This can be slightly cleaner but it can make things appear a bit more magical in certain situations.</p>
 <p>Here’s an example:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">boltzmann.simulation</span> <span class="kn">import</span> <span class="n">IterInfo</span><span class="p">,</span> <span class="n">SimulationScript</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.simulation</span><span class="w"> </span><span class="kn">import</span> <span class="n">IterInfo</span><span class="p">,</span> <span class="n">SimulationScript</span>
 
 <span class="c1"># Simulation loop will run when the with-statement exists</span>
 <span class="n">meta</span> <span class="o">=</span> <span class="n">IterInfo</span><span class="p">(</span><span class="mi">250</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
 <span class="k">with</span> <span class="p">(</span><span class="n">script</span> <span class="o">:=</span> <span class="n">SimulationScript</span><span class="p">([</span><span class="mi">200</span><span class="p">,</span> <span class="mi">100</span><span class="p">],</span> <span class="mi">1</span><span class="o">/</span><span class="mf">0.51</span><span class="p">,</span> <span class="n">meta</span><span class="p">))</span> <span class="k">as</span> <span class="n">sim</span><span class="p">:</span>
 
     <span class="nd">@script</span><span class="o">.</span><span class="n">init</span>
-    <span class="k">def</span> <span class="nf">init</span><span class="p">():</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">init</span><span class="p">():</span>
         <span class="c1"># Set the initial conditions, if needed.</span>
         <span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[:,</span> <span class="mi">40</span><span class="p">:</span><span class="mi">60</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.1</span>
         <span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">rho</span><span class="p">[:]</span> <span class="o">+=</span> <span class="mf">0.1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">rho</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 
     <span class="nd">@script</span><span class="o">.</span><span class="n">out</span>
-    <span class="k">def</span> <span class="nf">out</span><span class="p">(</span><span class="n">out_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">iter</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">out</span><span class="p">(</span><span class="n">out_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">iter</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
         <span class="c1"># For each iteration generate an output</span>
         <span class="n">dvydx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)[:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">dvxdy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
@@ -224,7 +223,7 @@ $<span class="w"> </span>python<span class="w"> </span>my_sim.py<span class="w">
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="setup.html" class="btn btn-neutral float-left" title="Simulation Setup" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="../api/boltzmann.html" class="btn btn-neutral float-right" title="boltzmann package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../api/boltzmann.html" class="btn btn-neutral float-right" title="boltzmann" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

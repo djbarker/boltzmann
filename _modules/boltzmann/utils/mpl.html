@@ -6,14 +6,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>boltzmann.utils.mpl &mdash; Boltzmann 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="../../../_static/documentation_options.js?v=01f34227"></script>
-      <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
@@ -43,13 +43,12 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/basic.html">Basic Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/units.html">Parameters and Units</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../guides/units.html#the-domain-class">The Domain Class</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/setup.html">Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/script.html">Simulation Scripts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../api/boltzmann.html">boltzmann package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/boltzmann.html">boltzmann</a></li>
 </ul>
 
         </div>
@@ -77,24 +76,27 @@
            <div itemprop="articleBody">
              
   <h1>Source code for boltzmann.utils.mpl</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 
-<span class="kn">from</span> <span class="nn">matplotlib.colors</span> <span class="kn">import</span> <span class="n">LinearSegmentedColormap</span>
-<span class="kn">from</span> <span class="nn">matplotlib.colors</span> <span class="kn">import</span> <span class="n">Colormap</span>
-<span class="kn">from</span> <span class="nn">PIL.Image</span> <span class="kn">import</span> <span class="n">Image</span><span class="p">,</span> <span class="n">Resampling</span><span class="p">,</span> <span class="n">fromarray</span>
-<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.colors</span><span class="w"> </span><span class="kn">import</span> <span class="n">LinearSegmentedColormap</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.colors</span><span class="w"> </span><span class="kn">import</span> <span class="n">Colormap</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">PIL.Image</span><span class="w"> </span><span class="kn">import</span> <span class="n">Image</span><span class="p">,</span> <span class="n">Resampling</span><span class="p">,</span> <span class="n">fromarray</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s2">&quot;make_cmap&quot;</span><span class="p">,</span>
     <span class="s2">&quot;OrangeBlue&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;OrangeBlue_r&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;InkyBlueRed&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;InkyBlueRed_r&quot;</span><span class="p">,</span>
     <span class="s2">&quot;PngWriter&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 
 
 <div class="viewcode-block" id="make_cmap">
 <a class="viewcode-back" href="../../../api/boltzmann.utils.mpl.html#boltzmann.utils.mpl.make_cmap">[docs]</a>
-<span class="k">def</span> <span class="nf">make_cmap</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">colors</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LinearSegmentedColormap</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_cmap</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">colors</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LinearSegmentedColormap</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Make a custom colormap from a list of colors which are evenly spaced.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -107,9 +109,9 @@
     <span class="s2">&quot;#ffe359&quot;</span><span class="p">,</span>
     <span class="s2">&quot;#ff8000&quot;</span><span class="p">,</span>
     <span class="s2">&quot;#734c26&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;#1c1920&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;#1c1920&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;#1c1920&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#17151a&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#17151a&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#17151a&quot;</span><span class="p">,</span>
     <span class="s2">&quot;#265773&quot;</span><span class="p">,</span>
     <span class="s2">&quot;#0f82b8&quot;</span><span class="p">,</span>
     <span class="s2">&quot;#8fceff&quot;</span><span class="p">,</span>
@@ -118,11 +120,31 @@
 <span class="n">_nodes</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.16666667</span><span class="p">,</span> <span class="mf">0.33333333</span><span class="p">,</span> <span class="mf">0.49</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.51</span><span class="p">,</span> <span class="mf">0.66666667</span><span class="p">,</span> <span class="mf">0.83333333</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]</span>
 
 <span class="n">OrangeBlue</span> <span class="o">=</span> <span class="n">LinearSegmentedColormap</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span><span class="s2">&quot;OrangeBlue&quot;</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">_nodes</span><span class="p">,</span> <span class="n">_colors</span><span class="p">)))</span>
+<span class="n">OrangeBlue_r</span> <span class="o">=</span> <span class="n">LinearSegmentedColormap</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span><span class="s2">&quot;OrangeBlue_r&quot;</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">_nodes</span><span class="p">,</span> <span class="n">_colors</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">])))</span>
+
+<span class="n">_colors</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;#10396a&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#1968c2&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#198fe3&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#19cdff&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#ffffff&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#ffffff&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#ffffff&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#ffaf18&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#f3681a&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#e32b2b&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#890000&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="n">_nodes</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.125</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.375</span><span class="p">,</span> <span class="mf">0.49</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.51</span><span class="p">,</span> <span class="mf">0.625</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.875</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]</span>
+
+<span class="n">InkyBlueRed</span> <span class="o">=</span> <span class="n">LinearSegmentedColormap</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span><span class="s2">&quot;InkyBlueRed&quot;</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">_nodes</span><span class="p">,</span> <span class="n">_colors</span><span class="p">)))</span>
+<span class="n">InkyBlueRed_r</span> <span class="o">=</span> <span class="n">LinearSegmentedColormap</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span><span class="s2">&quot;InkyBlueRed_r&quot;</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">_nodes</span><span class="p">,</span> <span class="n">_colors</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">])))</span>
 
 
 <div class="viewcode-block" id="PngWriter">
 <a class="viewcode-back" href="../../../api/boltzmann.utils.mpl.html#boltzmann.utils.mpl.PngWriter">[docs]</a>
-<span class="k">class</span> <span class="nc">PngWriter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PngWriter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Save 2D scalar fields, or RGB color fields to a PNG image.</span>
 
@@ -130,7 +152,7 @@
 <span class="sd">    We can have some very basic annotation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span>
         <span class="n">outx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -166,10 +188,10 @@
         <span class="n">outy</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">outx</span> <span class="o">*</span> <span class="n">ar</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">outxy</span> <span class="o">=</span> <span class="p">(</span><span class="n">outx</span><span class="p">,</span> <span class="n">outy</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">img</span>
 
-    <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="o">**</span><span class="n">k</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="o">**</span><span class="n">k</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">img</span><span class="o">.</span><span class="n">thumbnail</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outxy</span><span class="p">,</span> <span class="n">Resampling</span><span class="o">.</span><span class="n">LANCZOS</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span></div>
 

@@ -3,18 +3,18 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Parameters and Units &mdash; Boltzmann 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="../_static/documentation_options.js?v=01f34227"></script>
-      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -46,13 +46,12 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="basic.html">Basic Simulation Setup</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Parameters and Units</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#the-domain-class">The Domain Class</a></li>
 <li class="toctree-l1"><a class="reference internal" href="setup.html">Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="script.html">Simulation Scripts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../api/boltzmann.html">boltzmann package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/boltzmann.html">boltzmann</a></li>
 </ul>
 
         </div>
@@ -101,7 +100,7 @@ In which case the function <a class="reference internal" href="../api/boltzmann.
 These values are chosen to maximize the speed of the simulation (rather than accuracy).
 If you wish to prioritize accuracy at the cost of needing more time-steps you can manually pass a value of <code class="docutils literal notranslate"><span class="pre">tau</span></code> to override the default choice.</p>
 <p>Here is an example of calculating the LBM parameters for a physical system:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">boltzmann.core</span> <span class="kn">import</span> <span class="n">Simulation</span><span class="p">,</span> <span class="n">calc_lbm_params_lu</span><span class="p">,</span> <span class="n">calc_lbm_params_si</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">Simulation</span><span class="p">,</span> <span class="n">calc_lbm_params_lu</span><span class="p">,</span> <span class="n">calc_lbm_params_si</span>
 
 <span class="n">dx</span> <span class="o">=</span> <span class="mf">0.001</span> <span class="c1"># Grid spacing [m]</span>
 <span class="n">L_si</span> <span class="o">=</span> <span class="mf">1.0</span>  <span class="c1"># Characteristic length-scale [m]</span>
@@ -144,7 +143,7 @@ This ability is what the <a class="reference internal" href="../api/boltzmann.un
 <p>It simply contains the conversion factors between the lattice units and the physical units for time, length and mass (the last of which is usually not relevant).
 Using these it lets us convert dimensional quantities such as distances, velocities and accelerations between the two unit systems easily.</p>
 <p>Here is an example of using the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Scales" title="boltzmann.units.Scales"><code class="xref py py-class docutils literal notranslate"><span class="pre">Scales</span></code></a> class:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">boltzmann.units</span> <span class="kn">import</span> <span class="n">Scales</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">Scales</span>
 
 <span class="c1"># ...</span>
 
@@ -167,9 +166,8 @@ Using these it lets us convert dimensional quantities such as distances, velocit
 For the most common cases of distance, velocity and acceleration the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Scales" title="boltzmann.units.Scales"><code class="xref py py-class docutils literal notranslate"><span class="pre">Scales</span></code></a> class has convenience properties to get the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.UnitConverter" title="boltzmann.units.UnitConverter"><code class="xref py py-class docutils literal notranslate"><span class="pre">UnitConverter</span></code></a>, as seen in the example.
 For arbitrary dimensional quantities you can pass the relevant powers of <code class="docutils literal notranslate"><span class="pre">T</span></code>, <code class="docutils literal notranslate"><span class="pre">L</span></code> and <code class="docutils literal notranslate"><span class="pre">M</span></code> to the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Scales.converter" title="boltzmann.units.Scales.converter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">converter()</span></code></a> method to construct a suitable <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.UnitConverter" title="boltzmann.units.UnitConverter"><code class="xref py py-class docutils literal notranslate"><span class="pre">UnitConverter</span></code></a>.</p>
 </section>
-</section>
 <section id="the-domain-class">
-<h1>The Domain Class<a class="headerlink" href="#the-domain-class" title="Link to this heading"></a></h1>
+<h2>The Domain Class<a class="headerlink" href="#the-domain-class" title="Link to this heading"></a></h2>
 <p>To make setting initial- and boundary conditions easy we use the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Domain" title="boltzmann.units.Domain"><code class="xref py py-class docutils literal notranslate"><span class="pre">Domain</span></code></a> class.
 This exposes</p>
 <ul class="simple">
@@ -183,11 +181,13 @@ If you are unfamiliar with this function I suggest reading the Numpy documentati
 <p>The positions are are the cell centres, not the cell edges.
 They are measured in physical units, not lattice units.</p>
 </div>
+<section id="example">
+<h3>Example<a class="headerlink" href="#example" title="Link to this heading"></a></h3>
 <p>Here is an example of using the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Domain" title="boltzmann.units.Domain"><code class="xref py py-class docutils literal notranslate"><span class="pre">Domain</span></code></a> class to set some initial conditions
 where velocity &amp; density depend on the position in the domain:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 
-<span class="kn">from</span> <span class="nn">boltzmann.units</span> <span class="kn">import</span> <span class="n">Domain</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">Domain</span>
 
 <span class="c1"># Construct the domain from the physical dimensions of the system.</span>
 <span class="n">domain</span> <span class="o">=</span> <span class="n">Domain</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">upper</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">dx</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
@@ -205,6 +205,8 @@ where velocity &amp; density depend on the position in the domain:</p>
 </div>
 <p>To construct a <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Domain" title="boltzmann.units.Domain"><code class="xref py py-class docutils literal notranslate"><span class="pre">Domain</span></code></a> we can pass various combinations of arguments.
 For full details refer to the class documentation.</p>
+</section>
+</section>
 </section>
 
 

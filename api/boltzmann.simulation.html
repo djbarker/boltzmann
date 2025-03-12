@@ -3,24 +3,24 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>boltzmann.simulation module &mdash; Boltzmann 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
+  <title>boltzmann.simulation &mdash; Boltzmann 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="../_static/documentation_options.js?v=01f34227"></script>
-      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="boltzmann.units module" href="boltzmann.units.html" />
-    <link rel="prev" title="boltzmann.core module" href="boltzmann.core.html" /> 
+    <link rel="next" title="boltzmann.units" href="boltzmann.units.html" />
+    <link rel="prev" title="boltzmann.core" href="boltzmann.core.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -46,17 +46,16 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../guides/basic.html">Basic Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/units.html">Parameters and Units</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../guides/units.html#the-domain-class">The Domain Class</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/setup.html">Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/script.html">Simulation Scripts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="boltzmann.html">boltzmann package</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="boltzmann.utils.html">boltzmann.utils package</a></li>
-<li class="toctree-l2"><a class="reference internal" href="boltzmann.core.html">boltzmann.core module</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">boltzmann.simulation module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="boltzmann.units.html">boltzmann.units module</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="boltzmann.html">boltzmann</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.utils.html">boltzmann.utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.core.html">boltzmann.core</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">boltzmann.simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.units.html">boltzmann.units</a></li>
 </ul>
 </li>
 </ul>
@@ -75,8 +74,8 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="boltzmann.html">boltzmann package</a></li>
-      <li class="breadcrumb-item active">boltzmann.simulation module</li>
+          <li class="breadcrumb-item"><a href="boltzmann.html">boltzmann</a></li>
+      <li class="breadcrumb-item active">boltzmann.simulation</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -86,7 +85,7 @@
            <div itemprop="articleBody">
              
   <section id="module-boltzmann.simulation">
-<span id="boltzmann-simulation-module"></span><h1>boltzmann.simulation module<a class="headerlink" href="#module-boltzmann.simulation" title="Link to this heading"></a></h1>
+<span id="boltzmann-simulation"></span><h1>boltzmann.simulation<a class="headerlink" href="#module-boltzmann.simulation" title="Link to this heading"></a></h1>
 <p>This module provides some “glue” for easily making scripts which run simulations.
 It provides automatic progress logging, checkpointing, and simulation resumption via the command line.</p>
 <p>See <span class="xref std std-doc">guides/script</span> for more information on how to use this module.</p>
@@ -150,7 +149,7 @@ Valid combinations are those that are sufficient to infer the others.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="boltzmann.simulation.EveryN">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">EveryN</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_last</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_curr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#EveryN"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.EveryN" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">EveryN</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_curr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#EveryN"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.EveryN" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><code class="xref py py-class docutils literal notranslate"><span class="pre">CheckpointGater</span></code></a></p>
 <p>Allow a checkpoint to be written every N times the <a class="reference internal" href="#boltzmann.simulation.CheckpointGater.allow" title="boltzmann.simulation.CheckpointGater.allow"><code class="xref py py-meth docutils literal notranslate"><span class="pre">CheckpointGater.allow()</span></code></a> method is called.</p>
 <dl class="py attribute">
@@ -293,19 +292,19 @@ depending on the command line arguments passed.</p>
 </ul>
 <p>Under the hood it calls <a class="reference internal" href="#boltzmann.simulation.run_sim" title="boltzmann.simulation.run_sim"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_sim()</span></code></a> so the behaviour is the same.
 However, this saves us worrying about manually loading checkpoints &amp; wiring the command line arguments into the function calls.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">boltzmann.simulation</span> <span class="kn">import</span> <span class="n">SimulationScript</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.simulation</span><span class="w"> </span><span class="kn">import</span> <span class="n">SimulationScript</span>
 
 <span class="c1"># The simulation will run automatically when the with-block is exited.</span>
 <span class="c1"># `sim` is a Simulation object.</span>
 <span class="k">with</span> <span class="p">(</span><span class="n">script</span> <span class="o">:=</span> <span class="n">SimulationScript</span><span class="p">(</span><span class="o">...</span><span class="p">))</span> <span class="k">as</span> <span class="n">sim</span><span class="p">:</span>
 
     <span class="nd">@script</span><span class="o">.</span><span class="n">init</span>
-    <span class="k">def</span> <span class="nf">init</span><span class="p">():</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">init</span><span class="p">():</span>
         <span class="c1"># Set some initial conditions.</span>
         <span class="k">pass</span>
 
     <span class="nd">@script</span><span class="o">.</span><span class="n">out</span>
-    <span class="k">def</span> <span class="nf">out</span><span class="p">(</span><span class="n">output_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">iter</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">out</span><span class="p">(</span><span class="n">output_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">iter</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
         <span class="c1"># Save some output.</span>
         <span class="k">pass</span>
 </pre></div>
@@ -349,8 +348,8 @@ See <a class="reference internal" href="#boltzmann.simulation.run_sim" title="bo
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="boltzmann.core.html" class="btn btn-neutral float-left" title="boltzmann.core module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="boltzmann.units.html" class="btn btn-neutral float-right" title="boltzmann.units module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="boltzmann.core.html" class="btn btn-neutral float-left" title="boltzmann.core" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="boltzmann.units.html" class="btn btn-neutral float-right" title="boltzmann.units" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

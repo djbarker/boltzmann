@@ -3,24 +3,24 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>boltzmann.utils.logger module &mdash; Boltzmann 0.1.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
+  <title>boltzmann.utils.logger &mdash; Boltzmann 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="../_static/documentation_options.js?v=01f34227"></script>
-      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="boltzmann.utils.mpl module" href="boltzmann.utils.mpl.html" />
-    <link rel="prev" title="boltzmann.utils package" href="boltzmann.utils.html" /> 
+    <link rel="next" title="boltzmann.utils.mpl" href="boltzmann.utils.mpl.html" />
+    <link rel="prev" title="boltzmann.utils" href="boltzmann.utils.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -46,23 +46,23 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../guides/basic.html">Basic Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/units.html">Parameters and Units</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../guides/units.html#the-domain-class">The Domain Class</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/setup.html">Simulation Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/script.html">Simulation Scripts</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="boltzmann.html">boltzmann package</a><ul class="current">
-<li class="toctree-l2 current"><a class="reference internal" href="boltzmann.utils.html">boltzmann.utils package</a><ul class="current">
-<li class="toctree-l3 current"><a class="current reference internal" href="#">boltzmann.utils.logger module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="boltzmann.utils.mpl.html">boltzmann.utils.mpl module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="boltzmann.utils.option.html">boltzmann.utils.option module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="boltzmann.utils.vtkio.html">boltzmann.utils.vtkio module</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="boltzmann.html">boltzmann</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="boltzmann.utils.html">boltzmann.utils</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">boltzmann.utils.logger</a></li>
+<li class="toctree-l3"><a class="reference internal" href="boltzmann.utils.mpl.html">boltzmann.utils.mpl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="boltzmann.utils.option.html">boltzmann.utils.option</a></li>
+<li class="toctree-l3"><a class="reference internal" href="boltzmann.utils.postproc.html">boltzmann.utils.postproc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="boltzmann.utils.vtkio.html">boltzmann.utils.vtkio</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="boltzmann.core.html">boltzmann.core module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="boltzmann.simulation.html">boltzmann.simulation module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="boltzmann.units.html">boltzmann.units module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.core.html">boltzmann.core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.simulation.html">boltzmann.simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.units.html">boltzmann.units</a></li>
 </ul>
 </li>
 </ul>
@@ -81,9 +81,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="boltzmann.html">boltzmann package</a></li>
-          <li class="breadcrumb-item"><a href="boltzmann.utils.html">boltzmann.utils package</a></li>
-      <li class="breadcrumb-item active">boltzmann.utils.logger module</li>
+          <li class="breadcrumb-item"><a href="boltzmann.html">boltzmann</a></li>
+          <li class="breadcrumb-item"><a href="boltzmann.utils.html">boltzmann.utils</a></li>
+      <li class="breadcrumb-item active">boltzmann.utils.logger</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -93,7 +93,7 @@
            <div itemprop="articleBody">
              
   <section id="module-boltzmann.utils.logger">
-<span id="boltzmann-utils-logger-module"></span><h1>boltzmann.utils.logger module<a class="headerlink" href="#module-boltzmann.utils.logger" title="Link to this heading"></a></h1>
+<span id="boltzmann-utils-logger"></span><h1>boltzmann.utils.logger<a class="headerlink" href="#module-boltzmann.utils.logger" title="Link to this heading"></a></h1>
 <p>Utils for logging &amp; timing.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="boltzmann.utils.logger.basic_config">
@@ -284,8 +284,8 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="boltzmann.utils.html" class="btn btn-neutral float-left" title="boltzmann.utils package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="boltzmann.utils.mpl.html" class="btn btn-neutral float-right" title="boltzmann.utils.mpl module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="boltzmann.utils.html" class="btn btn-neutral float-left" title="boltzmann.utils" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="boltzmann.utils.mpl.html" class="btn btn-neutral float-right" title="boltzmann.utils.mpl" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
