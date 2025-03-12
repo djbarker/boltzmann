@@ -85,6 +85,8 @@ with (script := SimulationScript([n, n], 1 / 0.51, iter, "out")) as sim:
             vmax=T0 + dT_,
         ) as img:
             label(img, "Temperature")
+
+        vmax = 0.05
         vmag = np.sqrt(np.sum(sim.fluid.vel**2, -1))
         with PngWriter(
             output_dir / f"vmag_{iter:06d}.png",
