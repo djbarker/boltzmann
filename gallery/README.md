@@ -6,7 +6,7 @@ They were all run on my local desktop PC, which has an RTX 4060 Ti graphics card
 
 ## Flow Past a Cylinder
 
-![Flow Past a Cylinder](banner.png)
+![Flow Past a Cylinder](images/banner.png)
 
 2D simulation with 27 million grid cells at a Reynold's number of 10,000.
 The flow undergoes [vortex shedding](https://en.wikipedia.org/wiki/Vortex_shedding) and is somewhat turbulent. 
@@ -15,7 +15,7 @@ _Code at [`vortex_street/vortex_street.py`](/python/examples/vortex_street/vorte
 
 ## Colliding Jets
 
-![Colliding jets with tracers](jets_2d.png)
+![Colliding jets with tracers](images/jets_2d.png)
 
 An example simulation showing the use of tracers.
 The simulation is of two jets colliding head-on. 
@@ -27,8 +27,8 @@ _Code at [`jets_2d/jets.py`](/python/examples/jets_2d/jets.py)._
 
 <p>
     <div align="center" style="display: flex; flex-wrap: nowrap;">
-        <image src="voronoi_velocity.png" width=48%px/>
-        <image src="voronoi_tracer.png" width=48%px/>
+        <image src="images/voronoi_velocity.png" width=48%px/>
+        <image src="images/voronoi_tracer.png" width=48%px/>
     </div>
 </p>
 
@@ -41,8 +41,8 @@ _Code at [`voronoi/voronoi.py`](/python/examples/voronoi/voronoi.py)_
 
 <p>
     <div align="center" style="display: flex; flex-wrap: nowrap;">
-        <image src="jets_3d_velocity.png" width=48%px/>
-        <image src="jets_3d_qcriterion.png" width=48%px/>
+        <image src="images/jets_3d_velocity.png" width=48%px/>
+        <image src="images/jets_3d_qcriterion.png" width=48%px/>
     </div>
 </p>
 
@@ -56,8 +56,8 @@ _Code at [`jets_3d/jets.py`](/python/examples/voronoi/voronoi.py)_
 
 <p>
     <div align="center" style="display: flex; flex-wrap: nowrap;">
-        <image src="kelvin_helmholtz_tracer.png" width=48%px/>
-        <image src="kelvin_helmholtz_vorticity.png" width=48%px/>
+        <image src="images/kelvin_helmholtz_tracer.png" width=48%px/>
+        <image src="images/kelvin_helmholtz_vorticity.png" width=48%px/>
     </div>
 </p>
 
@@ -74,9 +74,9 @@ _Code at [`kelvin_helmholtz/kelvin_helmholtz.py`](/python/examples/kelvin_helmho
 <p align="center">
     <div align="center" style="display: flex; flex-wrap: nowrap;">
         <a href="https://youtu.be/YyjomsE06RA">
-            <image src="boussinesq_temp_1.png" width=31%px/>
-            <image src="boussinesq_temp_2.png" width=31%px/>
-            <image src="boussinesq_temp_3.png" width=31%px/>
+            <image src="images/boussinesq_temp_1.png" width=31%px/>
+            <image src="images/boussinesq_temp_2.png" width=31%px/>
+            <image src="images/boussinesq_temp_3.png" width=31%px/>
         </a>
     </div>
     </br>
@@ -97,9 +97,9 @@ _Code at [`boussinesq/boussinesq.py`](/python/examples/boussinesq/boussinesq.py)
 <p align="center">
     <div align="center" style="display: flex; flex-wrap: nowrap;">
         <a href="https://youtu.be/7ZdQ-CJM8yc">
-            <image src="rayleigh_benard_temp_1.png" width=31%px/>
-            <image src="rayleigh_benard_temp_2.png" width=31%px/>
-            <image src="rayleigh_benard_temp_3.png" width=31%px/>
+            <image src="images/rayleigh_benard_temp_1.png" width=31%px/>
+            <image src="images/rayleigh_benard_temp_2.png" width=31%px/>
+            <image src="images/rayleigh_benard_temp_3.png" width=31%px/>
         </a>
     </div>
     </br>
