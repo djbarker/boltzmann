@@ -73,9 +73,9 @@ The exact form of the coupling is
 
 .. math::
 
-    \mathbf{a}{\rho} = \alpha (C - C_0) \mathbf{g}
+    \mathbf{a} = \alpha (C - C_0) \mathbf{g}
 
-where :math:`\mathbf{a}{\rho}` is the buoyancy force, :math:`\alpha` is the coupling coefficient, :math:`C` is the tracer concentration, :math:`C_0` is the reference concentration and :math:`\mathbf{g}` is the gravitational acceleration.
+where :math:`\mathbf{a}` is the acceleration due to buoyancy, :math:`\alpha` is the coupling coefficient, :math:`C` is the tracer concentration, :math:`C_0` is the reference concentration and :math:`\mathbf{g}` is the gravitational acceleration.
 
 To add a coupling to a tracer call :py:meth:`Simulation.add_boussinesq_coupling` with the relevant parameters.
 

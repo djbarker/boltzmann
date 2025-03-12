@@ -71,7 +71,7 @@ _Code at [`kelvin_helmholtz/kelvin_helmholtz.py`](/python/examples/kelvin_helmho
 
 ## Boussinesq Approximation
 
-<p  align="center">
+<p align="center">
     <div align="center" style="display: flex; flex-wrap: nowrap;">
         <a href="https://youtu.be/YyjomsE06RA">
             <image src="boussinesq_temp_1.png" width=31%px/>
@@ -94,7 +94,7 @@ _Code at [`boussinesq/boussinesq.py`](/python/examples/boussinesq/boussinesq.py)
 
 ## Rayleigh-Bénard Convection
 
-<p  align="center">
+<p align="center">
     <div align="center" style="display: flex; flex-wrap: nowrap;">
         <a href="https://youtu.be/7ZdQ-CJM8yc">
             <image src="rayleigh_benard_temp_1.png" width=31%px/>
