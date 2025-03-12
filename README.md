@@ -89,7 +89,7 @@ This should produce the plot below
 
 <p align="center">
     <picture align="center">
-        <img src="gallery/example_basic.png"/>
+        <img src="gallery/images/example_basic.png"/>
     </picture>
     </br>
     <i>
