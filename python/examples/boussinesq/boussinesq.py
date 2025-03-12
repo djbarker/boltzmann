@@ -46,6 +46,8 @@ outx = 1000
 dT_ = dT * 0.25
 iter = IterInfo(500, 1500)
 with (script := SimulationScript([n, n], 1 / 0.51, iter, "out")) as sim:
+    # let's plot the time-averaged temperature for fun (this won't survive a restart without more work)
+    temp_avg = np.zeros_like(sim.fluid.rho)
 
     @script.init
     def init():
@@ -73,7 +75,12 @@ with (script := SimulationScript([n, n], 1 / 0.51, iter, "out")) as sim:
 
     @script.out
     def output(output_dir: Path, iter: int):
+        global temp_avg
+
         temp = sim.get_tracer("temp")
+
+        iter_ = iter
+        temp_avg = (temp_avg * (iter_ - 1.0) + temp.val) / iter_
 
         with PngWriter(
             output_dir / f"temp_{iter:06d}.png",
@@ -85,6 +92,17 @@ with (script := SimulationScript([n, n], 1 / 0.51, iter, "out")) as sim:
             vmax=T0 + dT_,
         ) as img:
             label(img, "Temperature")
+
+        with PngWriter(
+            output_dir / f"avg_temp_{iter:06d}.png",
+            outx,
+            sim.cells.flags,
+            temp_avg,
+            InkyBlueRed,
+            vmin=T0 - dT_,
+            vmax=T0 + dT_,
+        ) as img:
+            label(img, "Average Temperature")
 
         vmax = 0.05
         vmag = np.sqrt(np.sum(sim.fluid.vel**2, -1))

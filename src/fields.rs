@@ -55,7 +55,7 @@ impl Fluid {
         Self {
             f: Data::from_val_rw(opencl, counts_q, 0.0),
             rho: Data::from_val_rw(opencl, counts, 1.0),
-            vel: Data::from_val_rw(opencl, counts_d.clone(), 0.0),
+            vel: Data::from_val_rw(opencl, counts_d, 0.0),
             acc: None,
             model: VelocitySet::make(d, q),
             omega: omega,
