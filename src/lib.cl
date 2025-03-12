@@ -233,7 +233,6 @@ kernel void update_d2q9_bgk(__constant int *s, int even, float omega,
     f_[6] = f[off[5] + 6];
     f_[7] = f[off[8] + 7];
     f_[8] = f[off[7] + 8];
-
   } else {
     f_[0] = f[off[0] + 0];
     f_[1] = f[off[0] + 2];
@@ -251,19 +250,16 @@ kernel void update_d2q9_bgk(__constant int *s, int even, float omega,
    float vx = (f_[1] - f_[2] + f_[5] - f_[6] + f_[7] - f_[8]) / r;
    float vy = (f_[3] - f_[4] + f_[5] - f_[6] - f_[7] + f_[8]) / r;
   // clang-format on
-
   if (use_acc) {
     vx += acc[ii * 2 + 0] / omega;
     vy += acc[ii * 2 + 1] / omega;
   }
-
   if (fixed) {
     omega = 1.0;
     r = rho[ii];
     vx = vel[ii * 2 + 0];
     vy = vel[ii * 2 + 1];
   }
-
   const float vv = vx * vx + vy * vy;
 
   // clang-format off
@@ -277,7 +273,6 @@ kernel void update_d2q9_bgk(__constant int *s, int even, float omega,
    f_[7] += omega * (r * (-1.0/24.0*vv + (1.0/12.0)*vx - 1.0/12.0*vy + (1.0/8.0)*pow(vx - vy, 2) + 1.0/36.0) - f_[7]);
    f_[8] += omega * (r * (-1.0/24.0*vv - 1.0/12.0*vx + (1.0/12.0)*vy + (1.0/8.0)*pow(vx - vy, 2) + 1.0/36.0) - f_[8]);
   // clang-format on
-
   if (even) {
     f[off[0] + 0] = f_[0];
     f[off[2] + 1] = f_[2];
@@ -288,7 +283,6 @@ kernel void update_d2q9_bgk(__constant int *s, int even, float omega,
     f[off[5] + 6] = f_[5];
     f[off[8] + 7] = f_[8];
     f[off[7] + 8] = f_[7];
-
   } else {
     f[off[0] + 0] = f_[0];
     f[off[0] + 1] = f_[1];
@@ -411,8 +405,8 @@ kernel void update_d3q7_bgk(__constant int *s, int even, float omega,
 }
 
 kernel void update_d3q27_bgk(__constant int *s, int even, float omega,
-                             __constant float *g, global float *f,
-                             global float *rho, global float *vel,
+                             global float *f, global float *rho,
+                             global float *vel, global float *acc, int use_acc,
                              global int *cell) {
   const int qs[27][3] = {{0, 0, 0},    {1, 0, 0},   {-1, 0, 0},  {0, 1, 0},
                          {0, -1, 0},   {0, 0, 1},   {0, 0, -1},  {1, 1, 0},
@@ -480,7 +474,6 @@ kernel void update_d3q27_bgk(__constant int *s, int even, float omega,
     f_[24] = f[off[23] + 24];
     f_[25] = f[off[26] + 25];
     f_[26] = f[off[25] + 26];
-
   } else {
     f_[0] = f[off[0] + 0];
     f_[1] = f[off[0] + 2];
@@ -517,10 +510,11 @@ kernel void update_d3q27_bgk(__constant int *s, int even, float omega,
    float vy = (f_[10] + f_[13] - f_[14] + f_[17] - f_[18] + f_[19] - f_[20] - f_[21] + f_[22] + f_[23] - f_[24] - f_[25] + f_[26] + f_[3] - f_[4] + f_[7] - f_[8] - f_[9]) / r;
    float vz = (f_[11] - f_[12] + f_[13] - f_[14] - f_[15] + f_[16] - f_[17] + f_[18] + f_[19] - f_[20] + f_[21] - f_[22] - f_[23] + f_[24] - f_[25] + f_[26] + f_[5] - f_[6]) / r;
   // clang-format on
-  vx += (g[0] / omega);
-  vy += (g[1] / omega);
-  vz += (g[2] / omega);
-
+  if (use_acc) {
+    vx += acc[ii * 3 + 0] / omega;
+    vy += acc[ii * 3 + 1] / omega;
+    vz += acc[ii * 3 + 2] / omega;
+  }
   if (fixed) {
     omega = 1.0;
     r = rho[ii];
@@ -528,7 +522,6 @@ kernel void update_d3q27_bgk(__constant int *s, int even, float omega,
     vy = vel[ii * 3 + 1];
     vz = vel[ii * 3 + 2];
   }
-
   const float vv = vx * vx + vy * vy + vz * vz;
 
   // clang-format off
@@ -560,7 +553,6 @@ kernel void update_d3q27_bgk(__constant int *s, int even, float omega,
    f_[25] += omega * (r * (-1.0/144.0*vv + (1.0/72.0)*vx - 1.0/72.0*vy - 1.0/72.0*vz + (1.0/48.0)*pow(-vx + vy + vz, 2) + 1.0/216.0) - f_[25]);
    f_[26] += omega * (r * (-1.0/144.0*vv - 1.0/72.0*vx + (1.0/72.0)*vy + (1.0/72.0)*vz + (1.0/48.0)*pow(-vx + vy + vz, 2) + 1.0/216.0) - f_[26]);
   // clang-format on
-
   if (even) {
     f[off[0] + 0] = f_[0];
     f[off[2] + 1] = f_[2];
@@ -589,7 +581,6 @@ kernel void update_d3q27_bgk(__constant int *s, int even, float omega,
     f[off[23] + 24] = f_[23];
     f[off[26] + 25] = f_[26];
     f[off[25] + 26] = f_[25];
-
   } else {
     f[off[0] + 0] = f_[0];
     f[off[0] + 1] = f_[1];

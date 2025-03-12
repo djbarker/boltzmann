@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 This script auto-generates the kernels for the OpenCL updates.
 It's not actually needed to run the module since the OpenCL kernels get compiled into the Rust extension module.
@@ -8,7 +10,7 @@ import sympy as sp
 
 from enum import Enum
 from fractions import Fraction
-from typing import Literal
+from typing import Generator, Literal
 from textwrap import dedent, indent
 from contextlib import contextmanager
 from sympy.printing import ccode
@@ -173,9 +175,19 @@ class Axis(Enum):
                 return "z"
 
 
+def _prepare(block: str, indent_lvl: int) -> str:
+    return indent(dedent(block).strip(), "    " * indent_lvl) + "\n"
+
+
 class Kernel:
-    def __init__(self) -> None:
+    """
+    Simple class to make building the kernel string less unpleasant.
+    """
+
+    def __init__(self, indent: int = 0) -> None:
         self.kernel = ""
+        self.indent = indent
+        self.is_if = False
 
     @contextmanager
     def no_format(self):
@@ -186,8 +198,37 @@ class Kernel:
         yield
         self.kernel += "// clang-format on\n"
 
+    @contextmanager
+    def if_(self, condition: str) -> Generator[Kernel, None, None]:
+        """
+        Contents will be wrapped in an in if-statement.
+        """
+
+        self.kernel += f"if ({condition}) {{\n"
+        inner = Kernel(self.indent + 1)
+        yield inner
+        self.kernel += _prepare(inner.kernel, self.indent + 1)
+        self.kernel += "}"
+        self.is_if = True
+
+    @contextmanager
+    def else_(self) -> Generator[Kernel, None, None]:
+        """
+        Contents will be wrapped in an else-statement.
+        """
+        assert self.is_if, "'else' block must follow an 'if'."
+        self.is_if = False
+        self.kernel += " else {\n"
+        inner = Kernel(self.indent + 1)
+        yield inner
+        self.kernel += _prepare(inner.kernel.strip(), self.indent + 1)
+        self.kernel += "}\n\n"
+
     def __iadd__(self, rhs: str) -> "Kernel":
-        self.kernel += rhs
+        if self.is_if:
+            self.kernel += "\n"
+            self.is_if = False
+        self.kernel += rhs + "\n"
         return self
 
 
@@ -218,16 +259,16 @@ def gen_kernel_AA_v1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]
 
     # get the velocity set
     qs = ", ".join(f"{{{', '.join(list(map(str, q)))}}}" for q in model.qs)
-    kernel += f"const int qs[{nvel}][{ndim}] = {{{qs}}};\n\n"
+    kernel += f"const int qs[{nvel}][{ndim}] = {{{qs}}};\n"
 
     # get the OpenCL indices
     for axis in axes:
-        kernel += f"const size_t i{axis.name} = get_global_id({axis.idx});\n"
+        kernel += f"const size_t i{axis.name} = get_global_id({axis.idx});"
     kernel += "\n"
 
     # check if we actually need to do any work
     cond = " || ".join([f"i{axis.name} >= s[{axis.idx}]" for axis in axes])
-    kernel += f"if ({cond}) return;\n\n"
+    kernel += f"if ({cond}) return;\n"
 
     # calculate the 1d index into the data
     stride = [1]
@@ -239,7 +280,7 @@ def gen_kernel_AA_v1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]
         index.append(i)
 
     ii = sp.simplify(sp.Add(*index))
-    kernel += f"const size_t ii = {ii};\n\n"
+    kernel += f"const size_t ii = {ii};"
 
     # check the cell type
     fixed = CellFlags.FIXED_FLUID if kernel_type == "fluid" else CellFlags.FIXED_SCALAR_VALUE
@@ -280,15 +321,11 @@ def gen_kernel_AA_v1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]
         reads_even += f"f_[{i}] = f[off[{model.js[i]}] + {i}];\n"
         reads_odd += f"f_[{i}] = f[off[0] + {model.js[i]}];\n"
 
-    kernel += f"""
-    float f_[{nvel}];
-    if (even) {{
-        {reads_even}
-    }} else {{
-        {reads_odd}
-    }}
-
-    """
+    kernel += f"float f_[{nvel}];"
+    with kernel.if_("even") as inner:
+        inner += reads_even
+    with kernel.else_() as inner:
+        inner += reads_odd
 
     # calculate the moments
     rho = []
@@ -302,27 +339,28 @@ def gen_kernel_AA_v1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]
     vel = [str(_dot(f_, v)) for v in vel]
 
     with kernel.no_format():
-        kernel += f"float r = {rho};\n"
+        kernel += f"float r = {rho};"
         for axis in axes:
             if kernel_type == "fluid":
-                kernel += f"float v{axis.name} = ({vel[axis.idx]}) / r;\n"
+                kernel += f"float v{axis.name} = ({vel[axis.idx]}) / r;"
             else:
-                kernel += f"float v{axis.name} = vel[{ndim} * ii + {axis.idx}];\n"
+                kernel += f"float v{axis.name} = vel[{ndim} * ii + {axis.idx}];"
 
     # add gravity if needed
     if kernel_type == "fluid":
-        for axis in axes:
-            kernel += f"v{axis.name} += (g[{axis.idx}] / omega);\n"
+        with kernel.if_("use_acc") as inner:
+            for axis in axes:
+                inner += f"v{axis.name} += acc[ii * {ndim} + {axis.idx}] / omega;"
 
     # update values if fixed
-    kernel += f"""
-    if (fixed) {{
+    with kernel.if_("fixed") as inner:
+        inner += f"""
         omega = 1.0;
         r = {val_name}[ii];
-    """
-    for axis in axes:
-        kernel += f"v{axis.name} = vel[ii*{ndim} + {axis.idx}];\n"
-    kernel += "}\n\n"
+        """.strip()
+
+        for axis in axes:
+            inner += f"v{axis.name} = vel[ii*{ndim} + {axis.idx}];"
 
     # calculate equilibrium & collide
     vv = " + ".join([f"v{axis.name} * v{axis.name}" for axis in axes])
@@ -335,33 +373,29 @@ def gen_kernel_AA_v1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]
             feq = sp.simplify(feq, rational=True)
             feq = ccode(feq)
             feq = f"r * ({feq})"
-            kernel += f"f_[{i}] += omega * ({feq} - f_[{i}]);\n"
+            kernel += f"f_[{i}] += omega * ({feq} - f_[{i}]);"
 
     # write back
     writes_even = ""
     writes_odd = ""
     for i in range(nvel):
-        writes_even += f"f[off[{model.js[i]}] + {i}] = f_[{model.js[i]}];\n"
-        writes_odd += f"f[off[0] + {i}] = f_[{i}];\n"
+        writes_even += f"f[off[{model.js[i]}] + {i}] = f_[{model.js[i]}];"
+        writes_odd += f"f[off[0] + {i}] = f_[{i}];"
 
-    kernel += f"""
-    if (even) {{
-        {writes_even}
-    }} else {{
-        {writes_odd}
-    }}
-
-    """
+    with kernel.if_("even") as inner:
+        inner += writes_even
+    with kernel.else_() as inner:
+        inner += writes_odd
 
     # update macroscopic variables
-    kernel += f"{val_name}[ii] = r;\n"
+    kernel += f"{val_name}[ii] = r;"
     if kernel_type == "fluid":
         for axis in axes:
-            kernel += f"vel[ii*{ndim} + {axis.idx}] = v{axis.name};\n"
+            kernel += f"vel[ii*{ndim} + {axis.idx}] = v{axis.name};"
 
     # now finally wrap it in the function call
     if kernel_type == "fluid":
-        args = "__constant int *s, int even, float omega, __constant float *g, global float *f, global float *rho, global float *vel, global int *cell"
+        args = "__constant int *s, int even, float omega, global float *f, global float *rho, global float *vel, global float *acc, int use_acc, global int *cell"
     else:
         args = "__constant int *s, int even, float omega, global float *f, global float *val, global float *vel, global int *cell"
 
@@ -385,9 +419,9 @@ if __name__ == "__main__":
 
     with open(fname, "w") as fout:
         for model, kernel in [
-            (D2Q5, "tracer"),
+            (D2Q5, "scalar"),
             (D2Q9, "fluid"),
-            (D3Q7, "tracer"),
+            (D3Q7, "scalar"),
             (D3Q27, "fluid"),
         ]:
             print(gen_kernel_AA_v1(model, kernel), file=fout)
