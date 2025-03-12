@@ -62,7 +62,7 @@ class PerfInfo:
     :py:class:`PerfInfo` objects can be added together (& subtracted) which is useful for measuring long-running performance.
     """
 
-    events: int = field(default=0)  #: The number of events that processed.
+    events: int = field(default=0)  #: The number of events that have been processed.
     micros: int = field(default=0)  #: The number of microseconds taken to process the events.
 
     @property
