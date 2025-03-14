@@ -196,6 +196,7 @@ def run_sim(
     dotted(logger, "Memory usage", f"{sim.size_bytes // 1_000_000:,d}", "MB")
     dotted(logger, "Iters / output", batch_iters)
     dotted(logger, "Cells", f"{sim.cells.count / 1e6:,.1f}M")
+    dotted(logger, "     ", " x ".join([str(int(i)) for i in sim.cells.counts]))
 
     max_i = meta.count
     sim_i = sim.iteration // batch_iters
