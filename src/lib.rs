@@ -5,7 +5,9 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use fields::{MemUsage, Scalar};
 // Imports from other crates:
 use ndarray::{arr1, Array1, ArrayView1, ArrayViewD, ArrayViewMutD};
-use numpy::{PyArrayDyn, PyReadonlyArray1, PyReadonlyArrayDyn, PyReadwriteArrayDyn};
+use numpy::{
+    Ix1, PyArray, PyArrayDyn, PyReadonlyArray1, PyReadonlyArrayDyn, PyReadwriteArrayDyn, ToPyArray,
+};
 use opencl::{DeviceType, OpenCLCtx};
 use pyo3::prelude::*;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
@@ -189,6 +191,17 @@ impl CellsPy {
     #[getter]
     fn size_bytes(&self) -> usize {
         self.sim.lock().unwrap().cells.size_bytes()
+    }
+
+    /// The number of grid cells in each dimension.
+    ///
+    /// :returns: The count in each dimension.
+    #[getter]
+    fn counts<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArray<usize, Ix1>> {
+        let borrow = this.borrow();
+        let sim = borrow.sim.lock().unwrap();
+        let array = &sim.cells.counts;
+        unsafe { PyArray::<usize, Ix1>::borrow_from_array(array, this.into_any()) }
     }
 
     /// The total number of grid cells.
