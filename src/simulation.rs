@@ -431,9 +431,16 @@ impl Simulation {
         self.iteration += iters as u64;
     }
 
-    pub fn write_checkpoint(&self, path: impl AsRef<Path>) -> std::io::Result<()> {
+    pub fn write_checkpoint(&mut self, path: impl AsRef<Path>) -> std::io::Result<()> {
+        // Ensure that all data has been copied over from device to the host before serialization.
+        self.fluid.read_to_host(&self.opencl, true);
+        for (_, tracer) in self.tracers.iter_mut() {
+            tracer.read_to_host(&self.opencl, true);
+        }
+
+        // Serialize.
         let file = std::fs::File::create(path)?;
-        let mut buff = BufWriter::with_capacity(1024 * 1024, file); // 1 mebibyte buffer
+        let mut buff = BufWriter::with_capacity(32 * 1024 * 1024, file); // 32 mebibyte buffer
         let mut serializer = Serializer::new(&mut buff);
         self.serialize(&mut serializer).expect("error serializing");
 
