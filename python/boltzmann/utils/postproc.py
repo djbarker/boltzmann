@@ -2,6 +2,32 @@ import numpy as np
 
 from boltzmann.units import Scales
 
+__all__ = [
+    "calc_vmag",
+    "calc_curl",
+]
+
+
+def calc_vmag(val: np.ndarray, scales: Scales | None = None) -> np.ndarray:
+    """
+    Calculate the magnitude of a 2D or 3D vector field.
+
+    Args:
+        val: The (velocty) vector field.
+        scales: Optional :py:class:`Scales` object.
+                If provided, the array will be rescaled from lattice to physical units.
+
+    Returns:
+        The (scalar) magnitude of the vector field.
+    """
+
+    out = np.sqrt(np.sum(val**2, axis=-1))
+
+    if scales is not None:
+        out[:] = scales.velocity.to_physical_units(out)
+
+    return out
+
 
 def calc_curl(val: np.ndarray, scales: Scales | None = None) -> np.ndarray:
     """
@@ -48,6 +74,6 @@ def calc_curl(val: np.ndarray, scales: Scales | None = None) -> np.ndarray:
         )
 
     if scales is not None:
-        out /= scales.dt
+        out[:] = scales.converter(T=-1).to_physical_units(out)
 
     return out
