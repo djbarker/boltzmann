@@ -5,14 +5,15 @@ It provides automatic progress logging, checkpointing, and simulation resumption
 See :doc:`guides/script <guides/script>` for more information on how to use this module.
 """
 
-from abc import ABC, abstractmethod
 import argparse as ap
 import logging
+import numpy as np
 import os
 import re
 import sys
 import datetime
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Generator, Protocol
@@ -210,6 +211,9 @@ def run_sim(
     for i in range(sim_i + 1, max_i):
         timer_sim = tick()
         sim.iterate(batch_iters)
+
+        if np.any(~np.isfinite(sim.fluid.vel)):
+            raise ValueError("Non-finite value detected!")
 
         # Call tock() before checkpointing so it's not included in the mlups calculation.
         perf_sim = timer_sim.tock(events=sim.cells.count * batch_iters)
