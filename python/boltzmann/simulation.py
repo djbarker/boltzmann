@@ -20,7 +20,7 @@ from typing import Generator, Protocol
 
 from boltzmann.core import Device, Simulation
 from boltzmann.units import Array1dT
-from boltzmann.utils.logger import dotted, tick
+from boltzmann.utils.logger import dotted, tick, timed
 from boltzmann.utils.option import Some, to_opt
 
 
@@ -99,27 +99,32 @@ class CheckpointGater(ABC):
 class EveryN(CheckpointGater):
     """
     Allow a checkpoint to be written every N times the :py:meth:`CheckpointGater.allow` method is called.
+
+    Will not write a checkpoint on the first call;
+    there is no point checkpointing if no progress has been made.
     """
 
     interval: int
-    _curr: int = field(default=0)
+    _curr: int = field(default=1)
 
     def __post_init__(self):
         assert self.interval > 0, "Checkpoint Interval must be positive!"
 
     def allow(self) -> bool:
         self._curr = (self._curr + 1) % self.interval
-        return self._curr == 1
+        return self._curr == 0
 
 
 @dataclass
 class EveryT(CheckpointGater):
     """
     Allow a checkpoint to be written at regular time intervals.
+
+    Will start with the current time so will not initially write a checkpoint.
     """
 
     interval: datetime.timedelta
-    _last: datetime.datetime = field(default=datetime.datetime(1970, 1, 1))
+    _last: datetime.datetime = field(default_factory=datetime.datetime.now)
 
     def allow(self) -> bool:
         now = datetime.datetime.now()
@@ -228,9 +233,9 @@ def run_sim(
         # Write checkpoint if requested.
         if checkpoints.allow():
             # First write to a temp file, then move into place atomically to avoid corruption.
-            sim.write_checkpoint(str(output_dir / "checkpoint.mpk.tmp"))
-            os.replace(output_dir / "checkpoint.mpk.tmp", output_dir / "checkpoint.mpk")
-            logger.info("Checkpoint written.")
+            with timed(logger, "writing checkpoint", level=logging.INFO):
+                sim.write_checkpoint(str(output_dir / "checkpoint.mpk.tmp"))
+                os.replace(output_dir / "checkpoint.mpk.tmp", output_dir / "checkpoint.mpk")
 
         perf_out = timer_out.tock()
 
