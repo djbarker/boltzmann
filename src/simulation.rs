@@ -421,9 +421,9 @@ impl Simulation {
         queue.finish().expect("queue.finish failed");
 
         // Read the data back from the OpenCL device buffers to the host arrays.
-        self.fluid.read_to_host(&self.opencl);
+        self.fluid.read_to_host(&self.opencl, false);
         for (_, tracer) in self.tracers.iter_mut() {
-            tracer.read_to_host(&self.opencl);
+            tracer.read_to_host(&self.opencl, false);
         }
 
         queue.finish().expect("queue.finish()");

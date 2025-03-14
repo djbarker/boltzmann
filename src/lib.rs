@@ -96,16 +96,6 @@ struct FluidPy {
 
 #[pymethods]
 impl FluidPy {
-    /// The distribution function data.
-    /// You probably do not need to access this directly.
-    /// It is exposed for completeness.
-    #[getter]
-    fn f<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
-        let borrow = this.borrow();
-        let array = &borrow.sim.lock().unwrap().fluid.f.host;
-        unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
-    }
-
     /// The fluid density data.
     #[getter]
     fn rho<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
@@ -142,23 +132,6 @@ struct ScalarPy {
 
 #[pymethods]
 impl ScalarPy {
-    /// The distribution function data.
-    /// You probably do not need to access this directly.
-    /// It is exposed for completeness.
-    #[getter]
-    fn g<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
-        let borrow = this.borrow();
-        let sim = borrow.sim.lock().unwrap();
-        if let Some(tracer) = sim.tracers.get(borrow.name.as_str()) {
-            let array = &tracer.g.host;
-            unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
-        } else {
-            // Just panic here because we shouldn't be able to get the [`ScalarPy`]
-            // object if the [`Simulation`] doesn't have any tracers configured.
-            panic!("No tracers configured")
-        }
-    }
-
     /// The scalar field data.
     #[getter]
     fn val<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
