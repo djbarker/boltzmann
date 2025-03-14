@@ -5,10 +5,9 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use fields::{MemUsage, Scalar};
 // Imports from other crates:
 use ndarray::{arr1, Array1, ArrayView1, ArrayViewD, ArrayViewMutD};
-use numpy::{
-    Ix1, PyArray, PyArrayDyn, PyReadonlyArray1, PyReadonlyArrayDyn, PyReadwriteArrayDyn, ToPyArray,
-};
+use numpy::{Ix1, PyArray, PyArrayDyn, PyReadonlyArray1, PyReadonlyArrayDyn, PyReadwriteArrayDyn};
 use opencl::{DeviceType, OpenCLCtx};
+use opencl3::device::{CL_DEVICE_TYPE_CPU, CL_DEVICE_TYPE_GPU};
 use pyo3::prelude::*;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
@@ -276,6 +275,18 @@ impl SimulationPy {
         Self {
             sim: Arc::new(Mutex::new(Simulation::new(dev, &counts, q, omega_ns))),
         }
+    }
+
+    #[getter]
+    fn device_info(&self) -> String {
+        let device = &self.sim().opencl.device;
+        let vendor = device.vendor().expect("Error getting OpenCL Vendor");
+        let dev_type = match device.dev_type().expect("Error getting OpenCL Device Type") {
+            CL_DEVICE_TYPE_GPU => "GPU",
+            CL_DEVICE_TYPE_CPU => "CPU",
+            _ => "UNKNOWN",
+        };
+        format!("{} {}", vendor, dev_type)
     }
 
     // #[getter]
