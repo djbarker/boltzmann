@@ -101,7 +101,8 @@ class PngWriter(object):
 
         self.img = fromarray((data * 255).astype(np.uint8))
 
-        ar = data.shape[1] / data.shape[0]
+        # NOTE: We have already tranposed here, so y is in position 0.
+        ar = data.shape[0] / data.shape[1]
         outy = int(outx * ar)
         self.outxy = (outx, outy)
 
@@ -109,5 +110,6 @@ class PngWriter(object):
         return self.img
 
     def __exit__(self, *a, **k):
-        self.img.thumbnail(self.outxy, Resampling.LANCZOS)
+        if self.outxy[0] != self.img.width or self.outxy[1] != self.img.height:
+            self.img.thumbnail(self.outxy, Resampling.LANCZOS)
         self.img.save(self.path)
