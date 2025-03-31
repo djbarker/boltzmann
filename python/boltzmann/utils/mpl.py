@@ -76,9 +76,12 @@ class PngWriter(object):
         cell: np.ndarray,
         data: np.ndarray,
         cmap: str | Colormap | None = None,
-        vmin: float = 0.0,
-        vmax: float = 1.0,
+        vmin: float | None = None,
+        vmax: float | None = None,
     ):
+        vmin = vmin or np.nanmin(data)
+        vmax = vmax or np.nanmax(data)
+
         self.path = path
 
         cell = cell[:, :, None]
