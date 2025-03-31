@@ -5,6 +5,7 @@ from boltzmann.units import Scales
 __all__ = [
     "calc_vmag",
     "calc_curl",
+    "calc_stream_func",
 ]
 
 
@@ -77,3 +78,32 @@ def calc_curl(val: np.ndarray, scales: Scales | None = None) -> np.ndarray:
         out[:] = scales.converter(T=-1).to_physical_units(out)
 
     return out
+
+
+def calc_stream_func(vel: np.ndarray, scales: Scales | None = None) -> np.ndarray:
+    """
+    Calculate the 2D `stream function <https://en.wikipedia.org/wiki/Stream_function>`_ of a velocity field.
+
+    Note:
+        The reference point is at the (0, 0) index of the array.
+
+    Args:
+        val: The (velocty) vector field.
+        scales: Optional :py:class:`Scales` object.
+                If provided, the array will be rescaled from lattice to physical units.
+
+    Returns:
+        The stream function.
+    """
+
+    assert vel.ndim == 3 and vel.shape[2] == 2, "Expected 2D velocity field!"
+
+    phix = np.cumsum(vel[..., 1], axis=0)
+    phiy = np.cumsum(vel[..., 0], axis=1)
+
+    phi = phiy - phix
+
+    if scales is not None:
+        phi[:] = scales.converter(L=2, T=-1).to_physical_units(phi)
+
+    return phi
