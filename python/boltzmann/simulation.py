@@ -217,7 +217,8 @@ def run_sim(
     timer_tot = tick()
     for i in range(sim_i + 1, max_i):
         timer_sim = tick()
-        sim.iterate(batch_iters)
+        with timed(logger, "simulation iteration batch"):
+            sim.iterate(batch_iters)
 
         if np.any(~np.isfinite(sim.fluid.vel)):
             raise ValueError("Non-finite value detected!")
@@ -227,15 +228,16 @@ def run_sim(
         mlups = perf_sim.events / (1e6 * perf_sim.seconds)
 
         # Caller writes their output(s) here.
-        timer_out = tick()
-        yield i
+        with timed(logger, "writing output") as timer_out:
+            yield i
 
         # Write checkpoint if requested.
         if checkpoints.allow():
             # First write to a temp file, then move into place atomically to avoid corruption.
-            with timed(logger, "writing checkpoint", level=logging.INFO):
+            with timed(logger, "writing checkpoint"):
                 sim.write_checkpoint(str(output_dir / "checkpoint.mpk.tmp"))
                 os.replace(output_dir / "checkpoint.mpk.tmp", output_dir / "checkpoint.mpk")
+                logger.info("Checkpoint written.")
 
         perf_out = timer_out.tock()
 
