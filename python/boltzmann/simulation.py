@@ -96,6 +96,18 @@ class CheckpointGater(ABC):
 
 
 @dataclass
+class NoCheckpoints(CheckpointGater):
+    """
+    Disable checkpointing.
+
+    This is useful if you are debugging output generation, for example, and want to repeatedly restart from an existing checkpoint.
+    """
+
+    def allow(self) -> bool:
+        return False
+
+
+@dataclass
 class EveryN(CheckpointGater):
     """
     Allow a checkpoint to be written every N times the :py:meth:`CheckpointGater.allow` method is called.
@@ -138,8 +150,9 @@ def parse_checkpoints(s: str) -> CheckpointGater:
     """
     Parse a string into a :py:class:`CheckpointGater` object.
 
-    There are only two valid formats:
+    There are only three valid formats:
 
+        * ``"off"`` - which will disable checkpointing.
         * ``"<N>"`` - which will checkpoint every ``N`` iterations.
         * ``"<N>m"``- which will checkpoint every ``N`` minutes.
 
@@ -147,7 +160,9 @@ def parse_checkpoints(s: str) -> CheckpointGater:
     :returns: A :py:class:`CheckpointGater`.
     """
 
-    if (m := re.match(r"^(\d+)$", s)) is not None:
+    if s == "off":
+        return NoCheckpoints()
+    elif (m := re.match(r"^(\d+)$", s)) is not None:
         return EveryN(int(m.group(1)))
     elif (m := re.match(r"^(\d+)m$", s)) is not None:
         return EveryT(datetime.timedelta(minutes=int(m.group(1))))

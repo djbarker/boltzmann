@@ -1,7 +1,7 @@
 import datetime
 import time
 
-from boltzmann.simulation import EveryN, EveryT, parse_checkpoints
+from boltzmann.simulation import EveryN, EveryT, NoCheckpoints, parse_checkpoints
 
 
 def test_every_n():
@@ -36,6 +36,7 @@ def test_every_t():
 
 
 def test_parse_checkpoints():
+    assert parse_checkpoints("off") == NoCheckpoints()
     assert parse_checkpoints("5") == EveryN(5)
     assert parse_checkpoints("10") == EveryN(10)
     everyt = parse_checkpoints("5m")
