@@ -211,7 +211,10 @@ def run_sim(
     batch_iters = 2 * int(meta.interval / 2 + 0.5)
 
     # Log simulatin info.
-    dotted(logger, "OpenCL device", sim.device_info.replace("Corporation ", ""))
+    device = " ".join(
+        filter(lambda s: s != "", sim.device_info.replace("Corporation", "").strip().split(" "))
+    )
+    dotted(logger, "OpenCL device", device)
     dotted(logger, "Output directory", str(output_dir))
     dotted(logger, "Memory usage", f"{sim.size_bytes // 1_000_000:,d}", "MB")
     dotted(logger, "Iters / output", batch_iters)
