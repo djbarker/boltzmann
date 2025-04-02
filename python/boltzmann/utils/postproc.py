@@ -80,7 +80,11 @@ def calc_curl(val: np.ndarray, scales: Scales | None = None) -> np.ndarray:
     return out
 
 
-def calc_stream_func(vel: np.ndarray, scales: Scales | None = None) -> np.ndarray:
+def calc_stream_func(
+    vel: np.ndarray,
+    scales: Scales | None = None,
+    origin: tuple[int, int] | tuple[float, float] | None = None,
+) -> np.ndarray:
     """
     Calculate the 2D `stream function <https://en.wikipedia.org/wiki/Stream_function>`_ of a velocity field.
 
@@ -91,6 +95,7 @@ def calc_stream_func(vel: np.ndarray, scales: Scales | None = None) -> np.ndarra
         val: The (velocty) vector field.
         scales: Optional :py:class:`Scales` object.
                 If provided, the array will be rescaled from lattice to physical units.
+        origin:
 
     Returns:
         The stream function.
@@ -98,10 +103,23 @@ def calc_stream_func(vel: np.ndarray, scales: Scales | None = None) -> np.ndarra
 
     assert vel.ndim == 3 and vel.shape[2] == 2, "Expected 2D velocity field!"
 
-    phix = np.cumsum(vel[..., 1], axis=0)
-    phiy = np.cumsum(vel[..., 0], axis=1)
+    origin = origin or (0, 0)
 
-    phi = phiy - phix
+    if scales is not None:
+        origin = (
+            scales.distance.to_lattice_units(origin[0]),
+            scales.distance.to_lattice_units(origin[1]),
+        )
+
+    x, y = origin
+    x = int(x)
+    y = int(y)
+
+    ivdx = np.cumsum(vel[..., 1], axis=0)
+    iudy = np.cumsum(vel[..., 0], axis=1)
+
+    phi = iudy[0, :][None, :] - ivdx
+    phi -= phi[x, y]
 
     if scales is not None:
         phi[:] = scales.converter(L=2, T=-1).to_physical_units(phi)
