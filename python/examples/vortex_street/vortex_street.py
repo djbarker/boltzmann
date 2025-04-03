@@ -1,23 +1,24 @@
 # %% Imports
+import matplotlib
 
-from concurrent.futures import ThreadPoolExecutor
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt
 import logging
-from typing import Literal
-from boltzmann.units import Domain, Scales
 import numpy as np
 
-from scipy.ndimage import distance_transform_edt
-from PIL import ImageDraw, ImageFont
 from pathlib import Path
+from PIL import ImageDraw, ImageFont
+from scipy.ndimage import distance_transform_edt
+from typing import Literal
 
+from boltzmann.core import CellFlags, calc_lbm_params_si
+from boltzmann.core import Simulation  # type: ignore
+from boltzmann.simulation import IterInfo, parse_args, run_sim
+from boltzmann.units import Domain, Scales
 from boltzmann.utils.logger import basic_config, timed, dotted
-from boltzmann.core import (
-    CellFlags,
-    calc_lbm_params_lu,
-)
-from boltzmann.core import calc_curl_2d, Simulation  # type: ignore
-from boltzmann.utils.mpl import PngWriter, OrangeBlue
-from boltzmann.simulation import IterInfo, parse_cli, run_sim
+from boltzmann.utils.mpl import PngWriter
+from boltzmann.utils.postproc import calc_curl, calc_vmag, calc_stream_func
 
 basic_config()
 logger = logging.getLogger(__name__)
@@ -29,18 +30,17 @@ aspect_ratio = 3
 y_si = 4.0
 x_si = y_si * aspect_ratio
 
-d_si = 1.5 * y_si / 10.0  # Cylinder diameter.
-
-Re = 1000  # Reynolds number [1]
+d_si = 0.15 * y_si  # Cylinder diameter.
+Re = 10  # Reynolds number [1]
 nu_si = 1e-4  # kinematic viscosity [m^2/s]
-u_si = Re * nu_si / d_si  # flow velocity [m/s]
+L = 1000  # Cell count in the y direction [1]
 
-# LBM parameters
-L = 3000
+# implied params
+u_si = Re * nu_si / d_si  # => flow velocity [m/s]
+dx = y_si / L  # => spatial resolution [m]
 
-D = L * (d_si / y_si)
-(tau, u) = calc_lbm_params_lu(Re, D, M_max=0.1)
-dx = y_si / L
+# calc LBM params
+(tau, u) = calc_lbm_params_si(dx, u_si, d_si, nu_si, M_max=0.1)
 dt = (u / u_si) * dx
 
 dotted(logger, "Reynolds number", Re)
@@ -50,127 +50,111 @@ dotted(logger, "L", L)
 dotted(logger, "dx", dx)
 dotted(logger, "dt", dt)
 
-scales = Scales.make(dx=dx, dt=dt)
+scales = Scales(dx=dx, dt=dt)
 
 # dimensionless time does not depend on viscosity, purely on distances
-out_dx_si = d_si / 15  # want to output when flow has moved this far
+out_dx_si = d_si / 20  # want to output when flow has moved this far
 sim_dx_si = u_si * dt  # flow moves this far in dt (i.e. one iteration)
 n = out_dx_si / sim_dx_si
 n = int(n + 1e-8)
 out_dt_si = dt * n
 
-time_meta = IterInfo.make(
+meta = IterInfo.make(
     dt=dt,
     dt_output=out_dt_si,
     count=800,
 )
-
 
 # geometry
 lower = np.array([0 * x_si, -y_si / 2.0])
 upper = np.array([1 * x_si, +y_si / 2.0])
 domain = Domain.make(lower=lower, upper=upper, dx=dx)
 
+# cylinder center
+cx = d_si * 2.5
+cy = 0.0
+
 # color scheme constants
 l_si = d_si / 10  # Characteristic length scale for color normalization.
-vmax_vmag = 1.6 * u_si
-vmax_curl = u_si / l_si
+vmax_vmag = 1.8 * u_si
+vmax_curl = 0.8 * u_si / l_si
 vmax_qcrit = 0.2 * (u_si / l_si) ** 2
 vmax_conc = 1.00
 
 # %% Initialize arrays
 
+
+def pve(x: np.ndarray) -> np.ndarray:
+    """
+    Clip an array below by zero.
+    """
+    return np.where(x < 0, 0, x)
+
+
+velocity_init_mode: Literal["uniform", "tapered", "stream"] = "stream"
+
 omega_ns = 1 / tau
 omega_ad = 1 / min(0.52, tau)
 
-cnt = domain.counts.astype(np.int32)
-
-args = parse_cli(base=f"out_re{Re}")
+args = parse_args(out_dir=f"out_re{Re}")
 
 # Either load the simulation or create it.
 if args.resume:
-    with timed(logger, "Loading simulation"):
-        sim = Simulation.load_checkpoint(args.dev, str(args.base / "checkpoint.mpk"))
-        tracer_R = sim.get_tracer(0)
-        tracer_G = sim.get_tracer(1)
-        # tracer_B = sim.get_tracer(2)
+    sim = Simulation.load_checkpoint(args.device, str(args.out_dir / "checkpoint.mpk"))
 else:
-    with timed(logger, "Creating simulation"):
-        sim = Simulation(args.dev, cnt, omega_ns=omega_ns)
-        tracer_R = sim.add_tracer(omega_ad=omega_ad)
-        tracer_G = sim.add_tracer(omega_ad=omega_ad)
-        # tracer_B = sim.add_tracer(omega_ad=omega_ad)
+    sim = Simulation(args.device, domain.counts, omega_ns=omega_ns)
 
-    with timed(logger, "Setting initial values"):
-        # fixed velocity in- & out-flow
-        sim.cells.flags[+0, :] = CellFlags.FIXED_FLUID  # left
-        sim.cells.flags[-1, :] = CellFlags.FIXED_FLUID  # right
-        sim.cells.flags[+0, :] |= CellFlags.FIXED_SCALAR_VALUE  # left
-        sim.cells.flags[-1, :] |= CellFlags.FIXED_SCALAR_VALUE  # right
+    # Fixed velocity & tracer in- & out-flow.
+    sim.cells.flags[+0, :] = CellFlags.FIXED_FLUID  # left
+    sim.cells.flags[-1, :] = CellFlags.FIXED_FLUID  # right
+    sim.cells.flags[+0, :] |= CellFlags.FIXED_SCALAR_VALUE  # left
+    sim.cells.flags[-1, :] |= CellFlags.FIXED_SCALAR_VALUE  # right
 
-        # cylinder
-        XX, YY = np.meshgrid(domain.x, domain.y, indexing="ij")
-        cx = d_si * 2.5
-        cy = 0.0
-        RR = (XX - cx) ** 2 + (YY - cy) ** 2
-        sim.cells.flags[RR < (d_si / 2) ** 2] = CellFlags.WALL
+    # Cylinder geometry.
+    XX, YY = np.meshgrid(domain.x, domain.y, indexing="ij")
+    RR = np.sqrt((XX - cx) ** 2 + (YY - cy) ** 2)
+    sim.cells.flags[RR < (d_si / 2)] = CellFlags.WALL
 
-        # Ramp the velocity from zero to flow velocity moving away from the walls.
-        WW = 1 - 1 * (sim.cells.flags == CellFlags.WALL)
-        DD = distance_transform_edt(WW).clip(0, int((y_si / 10) / domain.dx))  # type: ignore
-        DD = DD / np.max(DD)
-        sim.fluid.vel[:, :, 0] = u_si * DD
+    # Use EDT not SDF because we may have more complex shapes than a cylinder.
+    WW = 1 - 1 * (sim.cells.flags == CellFlags.WALL)
+    DD = distance_transform_edt(WW) * domain.dx  # type: ignore
 
-        # perturb velocity
-        vy_si = -np.exp(-(((domain.x - cx) / 10) ** 2)) * u_si * 0.01
-        sim.fluid.vel[:, :, 1] = vy_si[:, None]
+    match velocity_init_mode:
+        case "uniform":
+            sim.fluid.vel[..., 0] = u_si
+        case "tapered":
+            D = 1.0 * d_si
+            sim.fluid.vel[:, :, 0] = u_si * (np.where(DD > D, D, DD) / (D))
+        case "stream":
+            stream = domain.yy / domain.dx
+            stream *= 1 - np.exp(-((DD / (y_si / 10)) ** 2))
+            sim.fluid.vel[..., 0] = +u_si * np.gradient(stream, axis=1)
+            sim.fluid.vel[..., 1] = -u_si * np.gradient(stream, axis=0)
+        case _:
+            raise ValueError(velocity_init_mode)
 
-        # Set up tracers.
+    # Perturb y-velocity slightly to speed onset of shedding.
+    vy_si = -np.exp(-(((domain.x - cx) / 10) ** 2)) * u_si * 0.01
+    sim.fluid.vel[..., 1] += vy_si[:, None]
 
-        # darken = 1.0
-        # n_streamers = 22
-        # dj = int(domain.counts[1] / 150.0)
-        # for i in range(n_streamers):
-        #     c = plt.cm.hsv(i / (n_streamers))
-        #     yj = int((domain.counts[1] / n_streamers) * (i + 0.5))
-        #     xs = slice(0, dj)
-        #     ys = slice(yj - dj // 2, yj + dj // 2)
-        #     tracer_R_[xs, ys] = c[0] * darken
-        #     tracer_G_[xs, ys] = c[1] * darken
-        #     tracer_B_[xs, ys] = c[2] * darken
-        #     cells_[xs, ys] = CellType.FIXED
-        #
-        # cells_[xs, :] = CellType.FIXED
-
-        mask = distance_transform_edt(WW)
-        mask = (0 < mask) & (mask <= 4)  # type: ignore
-        # mask = (mask == 1) & (mask == 2)
-        tracer_R.val[:, : domain.counts[1] // 2][mask[:, : domain.counts[1] // 2]] = 1.0
-        tracer_G.val[:, domain.counts[1] // 2 :][mask[:, domain.counts[1] // 2 :]] = 1.0
-        sim.cells.flags[mask] |= CellFlags.FIXED_SCALAR_VALUE
-
-        # IMPORTANT: convert velocity to lattice units / timestep
-        sim.fluid.vel[:] = scales.velocity.to_lattice_units(sim.fluid.vel)
+    # NOTE: Convert velocity to lattice units / timestep.
+    sim.fluid.vel[:] = scales.velocity.to_lattice_units(sim.fluid.vel)
 
 
 # %% Define simulation output
 
-
 # allocate extra arrays for plotting to avoid reallocating each step
 vmag_ = np.zeros_like(sim.fluid.rho[:, :])
 curl_ = np.zeros_like(sim.fluid.rho[:, :])
-qcrit_ = np.zeros_like(sim.fluid.rho[:, :])
+stream_ = np.zeros_like(sim.fluid.rho[:, :])
 tracer_ = np.zeros([sim.fluid.vel.shape[0], sim.fluid.vel.shape[1], 3])
 
-
+# output params
 fsz = domain.counts[1] // 15
 fox = domain.counts[1] // 60
 foy = 0
-
-try:
-    FONT = ImageFont.truetype("/home/dan/micromamba/envs/boltzmann/fonts/Inconsolata-Bold.ttf", fsz)
-except OSError as e:
-    raise OSError("Couldn't load True-Type Font file") from e
+font = ImageFont.truetype("NotoSans-BoldItalic", fsz)
+outy = 1000
 
 
 def write_png(
@@ -180,103 +164,183 @@ def write_png(
     background: Literal["dark", "light"],
     **kwargs,
 ):
-    outx = 6000
-
     tcol = (255, 255, 255) if background == "dark" else (0, 0, 0)
     bcol = (0, 0, 0) if background == "dark" else (255, 255, 255)
+    outx = outy * aspect_ratio
 
     with PngWriter(path, outx, sim.cells.flags, data, **kwargs) as img:
         draw = ImageDraw.Draw(img)
-        draw.text((fox, foy), label, tcol, font=FONT, stroke_width=fsz // 15, stroke_fill=bcol)
+        draw.text((fox, foy), label, tcol, font=font, stroke_width=fsz // 15, stroke_fill=bcol)
 
 
-# output is slow so we parallelize it
-executor = ThreadPoolExecutor(max_workers=10)
+# Re-use figures.
+figkw = dict(figsize=(5 * (x_si / y_si), 5), dpi=300, facecolor="w")
+fig_data = plt.figure(**figkw)  # type: ignore
+fig_stream = plt.figure(**figkw)  # type: ignore
+fig_combined = plt.figure(**figkw)  # type: ignore
 
-
-def write_output(base: Path, iter: int):
-    global curl_, qcrit_, vmag_, tracer_
-
-    # First gather the various data to output.
-
-    with timed(logger, "calc curl"):
-        curl__ = curl_.reshape(sim.fluid.rho.shape)
-        qcrit__ = qcrit_.reshape(sim.fluid.rho.shape)
-        calc_curl_2d(sim.fluid.vel, sim.cells.flags, cnt, curl__, qcrit__)  # in LU
-        curl_[:] = curl_ * ((dx / dt) / dx)  # in SI
-        curl_[:] = np.tanh(curl_ / vmax_curl) * vmax_curl
-        qcrit_[:] = qcrit_ * ((dx / dt) / dx) ** 2  # in SI
-        qcrit_[:] = np.tanh(qcrit_ / vmax_qcrit) * vmax_qcrit
-
-    with timed(logger, "calc vmag"):
-        vmag_[:] = np.sqrt(np.sum(sim.fluid.vel**2, axis=-1))
-        vmag_[:] = scales.velocity.to_physical_units(vmag_)
-        vmag_[:] = np.tanh(vmag_ / vmax_vmag) * vmax_vmag
-
-    tracer_[:, :, 0] = tracer_R.val
-    tracer_[:, :, 1] = tracer_G.val
-    # tracer_[:, :, 2] = tracer_B_
-
-    # Then write out the PNG files.
-
+for iter in run_sim(sim, meta, args.out_dir, args.checkpoints):
     with timed(logger, "writing output", 1):
-        futs = []
-        futs.append(
-            executor.submit(
-                lambda: write_png(
-                    base / f"vmag_{iter:06d}.png",
-                    vmag_,
-                    "Velocity",
-                    "dark",
-                    cmap="inferno",
-                    vmax=vmax_vmag,
-                )
+        with timed(logger, "calc curl"):
+            curl_[:] = calc_curl(sim.fluid.vel, scales=scales)
+
+        # Calculate current dimensionless time.
+        if False:
+            T = d_si / u_si
+            tau_ = (iter * out_dt_si) / T
+
+            write_png(
+                args.out_dir / f"density_{iter:06d}.png",
+                sim.fluid.rho,
+                f"Density\nτ = {tau_:7.2f}",
+                "light",
+                cmap="InkyBlueRed",
+                vmin=0.95,
+                vmax=1.05,
             )
+
+        write_png(
+            args.out_dir / f"curl_{iter:06d}.png",
+            curl_,
+            "Vorticity",
+            "dark",
+            cmap="OrangeBlue",
+            vmin=-vmax_curl,
+            vmax=vmax_curl,
         )
 
-        futs.append(
-            executor.submit(
-                lambda: write_png(
-                    base / f"curl_{iter:06d}.png",
-                    curl_,
-                    "Vorticity",
-                    "dark",
-                    cmap=OrangeBlue,
-                    vmin=-vmax_curl,
-                    vmax=vmax_curl,
-                )
+        lines = dict(linewidths=1, linestyles="solid", negative_linestyles="solid")
+
+        def imshow_with_contours(
+            vel: np.ndarray,
+            data: np.ndarray | None,
+            levels: np.ndarray,
+            mode: Literal["mult", "add", "smart"],
+            fname: str,
+            *,
+            vmax: float | None = None,
+            vmin: float | None = None,
+            cmap: str = "inferno",
+        ):
+            """ """
+
+            vmag_[:] = calc_vmag(vel, scales=scales)
+            stream_[:] = calc_stream_func(vel, scales=scales, origin=(0, y_si / 2))
+
+            vmag_[sim.cells.flags == CellFlags.WALL] = np.nan
+            stream_[sim.cells.flags == CellFlags.WALL] = np.nan
+
+            data = data or vmag_
+            vmin = vmin or np.nanmin(data)
+            vmax = vmax or np.nanmax(data)
+
+            # draw field
+            ax = fig_data.gca()
+            ax.imshow(
+                data.T,
+                interpolation="none",
+                origin="lower",
+                vmin=vmin,
+                vmax=vmax,
+                cmap=cmap,
             )
+            ax.set_xlim(0, vmag_.shape[0])
+            ax.set_ylim(0, vmag_.shape[1])
+            ax.axis("off")
+            fig_data.tight_layout(pad=0)
+            fig_data.canvas.draw()
+            w, h = fig_data.canvas.get_width_height()
+            buf1 = np.frombuffer(fig_data.canvas.buffer_rgba(), np.uint8).reshape(h, w, -1).copy()  # type: ignore
+            fig_data.clear()
+
+            # draw contours
+
+            ax = fig_stream.gca()
+            ax.contour(stream_.T, levels=levels, colors="k", **lines)
+            ax.set_xlim(0, vmag_.shape[0])
+            ax.set_ylim(0, vmag_.shape[1])
+            ax.axis("off")
+            fig_stream.tight_layout(pad=0)
+            fig_stream.canvas.draw()
+            w, h = fig_stream.canvas.get_width_height()
+            buf2 = np.frombuffer(fig_stream.canvas.buffer_rgba(), np.uint8).reshape(h, w, -1).copy()  # type: ignore
+            fig_stream.clear()
+
+            # combine
+
+            buf1 = buf1.astype(np.float64) / 255.0
+            buf2 = buf2.astype(np.float64) / 255.0
+            buf2 = 1.0 - buf2  # zero where we have no contours, one where we do
+
+            if mode == "add":
+                buf1 = buf1 + 0.3 * buf2
+            elif mode == "mult":
+                buf1 = buf1 * (1 + buf2)
+            elif mode == "smart":
+                # This mode attempts to make ligher areas darker (or at least not overexposed) and
+                # darker areas lighter.
+                # The results heavily depend on the mapping parameters a & b which are the values
+                # zero and full brightness get mapped to respectively.
+                #
+                # NOTE: This works on each colour channel separately. To do a better job we could
+                #       map into HSL and work just on the L channel.
+
+                # -- additive blending
+                # a = 0.1
+                # b = 0.8
+                # m = b - a
+                # buf3 = m * buf1 + a
+                # buf1 = buf1 * (1 - buf2) + buf3 * buf2
+
+                # -- multiplicative blending
+                a = 1.5
+                b = 1.0
+                m = b - a
+                buf3 = m * buf1 + a
+                buf1 = buf1 * (1 - buf2) + buf3 * buf2 * buf1
+
+            # Ignore the alpha channel.
+            buf1[..., 3] = 1.0
+
+            ax = fig_combined.gca()
+            ax.imshow(np.clip(buf1, 0, 1))
+            ax.axis("off")
+            fig_combined.savefig(args.out_dir / fname, bbox_inches="tight", pad_inches=0)
+            fig_combined.clear()
+
+        # -- Fixed reference frame.
+
+        smax_lu = u * L / 2
+        smax_si = scales.converter(L=2, T=-1).to_physical_units(smax_lu)
+        levels = np.linspace(-1, 1, 30)
+        levels = np.abs(levels) ** 2 * np.sign(levels) * smax_si
+
+        imshow_with_contours(
+            sim.fluid.vel,
+            None,
+            levels,
+            "smart",
+            f"vmag_fixed_{iter:06d}.png",
+            vmin=0,
+            vmax=vmax_vmag,
         )
 
-        futs.append(
-            executor.submit(
-                lambda: write_png(
-                    base / f"cols_{iter:06d}.png",
-                    tracer_,
-                    "Tracer",
-                    "dark",
-                    vmax=0.4,
-                )
-            )
+        # -- Comoving reference frame.
+
+        uu = np.array([u, 0])[None, None, :]
+        smax_si *= 0.3
+        levels = np.linspace(-1, 1, 30)
+        levels = np.abs(levels) ** 2 * np.sign(levels) * smax_si
+
+        imshow_with_contours(
+            sim.fluid.vel - uu,
+            None,
+            levels,
+            "smart",
+            f"vmag_comov_{iter:06d}.png",
+            vmin=0,
+            vmax=vmax_vmag * 0.6,
         )
-
-        # join
-        _ = [f.result() for f in futs]
-
-        # write_png(
-        #     base / f"qcrit_{iter:06d}.png",
-        #     qcrit_,
-        #     "Q-Criterion",
-        #     "dark",
-        #     cmap=OrangeBlue,
-        #     vmin=-vmax_qcrit,
-        #     vmax=vmax_qcrit,
-        # )
-
-
-# %% Main Loop
-
-run_sim(args.base, time_meta, sim, write_output, write_checkpoints=not args.no_checkpoint)
 
 
 # render with
