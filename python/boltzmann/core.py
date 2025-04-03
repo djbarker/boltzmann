@@ -136,6 +136,11 @@ def calc_lbm_params_si(
     Reynold's number.
     Under the hood, however, this function calls :py:meth:`calc_lbm_params_lu`.
 
+    .. note::
+
+        The suffix ``_si`` means the arguments are in SI units.
+        The function still returns the LBM parameters in lattice units.
+
     :param dx: Lattice spacing.
     :param u_si: Characteristic velocity of the system.
     :param L_si: Characteristic length-scale of the system.
