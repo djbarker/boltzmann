@@ -1,8 +1,8 @@
-import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import numpy as np
 
-from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.colors import Colormap
+from matplotlib.colors import LinearSegmentedColormap, Colormap
 from PIL.Image import Image, Resampling, fromarray
 from pathlib import Path
 
@@ -59,6 +59,14 @@ _nodes = [0.0, 0.125, 0.25, 0.375, 0.49, 0.5, 0.51, 0.625, 0.75, 0.875, 1.0]
 
 InkyBlueRed = LinearSegmentedColormap.from_list("InkyBlueRed", list(zip(_nodes, _colors)))
 InkyBlueRed_r = LinearSegmentedColormap.from_list("InkyBlueRed_r", list(zip(_nodes, _colors[::-1])))
+
+# Register our custom colourmaps.
+mpl.colormaps.register(cmap=OrangeBlue)
+mpl.colormaps.register(cmap=OrangeBlue_r)
+mpl.colormaps.register(cmap=InkyBlueRed)
+mpl.colormaps.register(cmap=InkyBlueRed_r)
+mpl.colormaps.register(cmap=InkyBlueRed, name="InkyRedBlue_r")
+mpl.colormaps.register(cmap=InkyBlueRed_r, name="InkyRedBlue")
 
 
 class PngWriter(object):
