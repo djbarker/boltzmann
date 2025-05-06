@@ -23,7 +23,7 @@ alpha = -0.001  # Thermal coupling constant
 fsz = n // 25
 fox = n // 60
 foy = 0
-f = ImageFont.truetype("NotoSans-BoldItalic", fsz)
+font = ImageFont.truetype("NotoSans-BoldItalic", fsz)
 _WHITE = (255, 255, 255)
 _BLACK = (0, 0, 0)
 
@@ -34,7 +34,7 @@ def label(img: Image.Image, label: str):
         (fox, foy),
         label,
         _WHITE,
-        font=f,
+        font=font,
         stroke_width=fsz // 15,
         stroke_fill=_BLACK,
     )
