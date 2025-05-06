@@ -142,7 +142,7 @@ impl Scalar {
     // Copy data from our host arrays into the OpenCL buffers.
     pub fn write_to_dev(&mut self, opencl: &OpenCLCtx) {
         let queue = &opencl.queue;
-        let _write_g = self.g.enqueue_write(queue, "q");
+        let _write_g = self.g.enqueue_write(queue, "g");
         let _write_C = self.C.enqueue_write(queue, "C");
 
         queue
