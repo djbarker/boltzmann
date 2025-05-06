@@ -63,6 +63,8 @@ InkyBlueRed_r = LinearSegmentedColormap.from_list("InkyBlueRed_r", list(zip(_nod
 # Register our custom colourmaps.
 mpl.colormaps.register(cmap=OrangeBlue)
 mpl.colormaps.register(cmap=OrangeBlue_r)
+mpl.colormaps.register(cmap=OrangeBlue, name="BlueOrange_r")
+mpl.colormaps.register(cmap=OrangeBlue_r, name="BlueOrange")
 mpl.colormaps.register(cmap=InkyBlueRed)
 mpl.colormaps.register(cmap=InkyBlueRed_r)
 mpl.colormaps.register(cmap=InkyBlueRed, name="InkyRedBlue_r")
