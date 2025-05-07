@@ -133,6 +133,12 @@ else:
         case _:
             raise ValueError(velocity_init_mode)
 
+    # Ensure in- and outflow are not affected by initialisation.
+    sim.fluid.vel[+0, :, 0] = u_si
+    sim.fluid.vel[-1, :, 0] = u_si
+    sim.fluid.vel[+0, :, 1] = 0
+    sim.fluid.vel[-1, :, 1] = 0
+
     # Perturb y-velocity slightly to speed onset of shedding.
     vy_si = -np.exp(-(((domain.x - cx) / 10) ** 2)) * u_si * 0.01
     sim.fluid.vel[..., 1] += vy_si[:, None]
