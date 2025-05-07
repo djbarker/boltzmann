@@ -108,15 +108,17 @@ Permissible values are defined in <a class="reference internal" href="../api/bol
 Values can be combined. (Although not all combinations are very meaningful.)</p>
 <p>The allows us to do things such as</p>
 <ul class="simple">
-<li><p>Turn cells into no-slip walls.  <code class="xref py py-attr docutils literal notranslate"><span class="pre">CellFlags.WALL</span></code></p></li>
-<li><p>Fix the velocity to the initial value (e.g. for in- and out-flow.) <code class="xref py py-attr docutils literal notranslate"><span class="pre">CellFlags.FIXED_FLUID</span></code></p></li>
-<li><p>Fix a scalar field’s value (e.g. for a source of tracer.) <code class="xref py py-attr docutils literal notranslate"><span class="pre">CellFlags.FIXED_SCALAR</span></code></p></li>
+<li><p>Turn cells into no-slip walls - <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.CellFlags.WALL" title="boltzmann.core.CellFlags.WALL"><code class="xref py py-attr docutils literal notranslate"><span class="pre">WALL</span></code></a></p></li>
+<li><p>Fix the velocity to the initial value (e.g. for in- and out-flow) - <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.CellFlags.FIXED_FLUID" title="boltzmann.core.CellFlags.FIXED_FLUID"><code class="xref py py-attr docutils literal notranslate"><span class="pre">FIXED_FLUID</span></code></a></p></li>
+<li><p>Fix a scalar field’s value (e.g. for a source of tracer) - <code class="xref py py-attr docutils literal notranslate"><span class="pre">FIXED_SCALAR</span></code></p></li>
 </ul>
 </section>
 <section id="initial-conditions">
 <h2>Initial Conditions<a class="headerlink" href="#initial-conditions" title="Link to this heading"></a></h2>
 <p>The initial conditions are set by updating the velocity and density arrays before running the simulation.
-To set the initial values we access the <code class="xref py py-attr docutils literal notranslate"><span class="pre">rho</span></code> and <code class="xref py py-attr docutils literal notranslate"><span class="pre">vel</span></code> arrays via the <code class="xref py py-attr docutils literal notranslate"><span class="pre">Simulation.fluid</span></code> member.</p>
+To set the initial values we access the <code class="xref py py-attr docutils literal notranslate"><span class="pre">rho</span></code> and <code class="xref py py-attr docutils literal notranslate"><span class="pre">vel</span></code> arrays via the <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Simulation.fluid" title="boltzmann.core.Simulation.fluid"><code class="xref py py-attr docutils literal notranslate"><span class="pre">fluid</span></code></a> member of the <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Simulation" title="boltzmann.core.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a>.</p>
+<p>To aid in setting up the initial conditions the <a class="reference internal" href="../api/boltzmann.units.html#boltzmann.units.Domain" title="boltzmann.units.Domain"><code class="xref py py-class docutils literal notranslate"><span class="pre">Domain</span></code></a> class exposes position arrays in physical units.
+See the documentation at <span class="xref std std-doc">guides/units units</span> for more information.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Before the first iteration the simulation will automatically use the macroscopic values to infer the equilibrium distributions for the microscopic velocities.</p>
@@ -126,14 +128,14 @@ To set the initial values we access the <code class="xref py py-attr docutils li
 <h2>Tracers<a class="headerlink" href="#tracers" title="Link to this heading"></a></h2>
 <p>Tracers are scalar fields that are advected by the fluid.
 We can add multiple tracers to a simulation.
-Add tracers by calling the <code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.add_tracer()</span></code> method with a name and the relevant parameters.
-The method returns a reference to the <code class="xref py py-class docutils literal notranslate"><span class="pre">Tracer</span></code>, which you can use to access the data.
-The scalar value array is accessible via the <code class="xref py py-attr docutils literal notranslate"><span class="pre">Tracer.val</span></code> attribute.</p>
+Add tracers by calling the <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Simulation.add_tracer" title="boltzmann.core.Simulation.add_tracer"><code class="xref py py-meth docutils literal notranslate"><span class="pre">add_tracer()</span></code></a> method with a name and the relevant parameters.
+The method returns a reference to the <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Scalar" title="boltzmann.core.Scalar"><code class="xref py py-class docutils literal notranslate"><span class="pre">Scalar</span></code></a>, which you can use to access the data.
+The scalar value array is accessible via the <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Scalar.val" title="boltzmann.core.Scalar.val"><code class="xref py py-attr docutils literal notranslate"><span class="pre">val</span></code></a> attribute.</p>
 </section>
 <section id="body-force-gravity">
 <h2>Body Force (Gravity)<a class="headerlink" href="#body-force-gravity" title="Link to this heading"></a></h2>
 <p>A body force is a force which applies uniformly throughout the simulation domain and is constant over time.
-It is set via the <code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.set_gravity()</span></code> method, which accepts an acceleration <em>in lattice units</em>.</p>
+It is set via the <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Simulation.set_gravity" title="boltzmann.core.Simulation.set_gravity"><code class="xref py py-meth docutils literal notranslate"><span class="pre">set_gravity()</span></code></a> method, which accepts an acceleration <em>in lattice units</em>.</p>
 </section>
 <section id="fluid-tracer-coupling">
 <h2>Fluid-Tracer Coupling<a class="headerlink" href="#fluid-tracer-coupling" title="Link to this heading"></a></h2>
@@ -144,7 +146,7 @@ The exact form of the coupling is</p>
 <div class="math notranslate nohighlight">
 \[\mathbf{a} = \alpha (C - C_0) \mathbf{g}\]</div>
 <p>where <span class="math notranslate nohighlight">\(\mathbf{a}\)</span> is the acceleration due to buoyancy, <span class="math notranslate nohighlight">\(\alpha\)</span> is the coupling coefficient, <span class="math notranslate nohighlight">\(C\)</span> is the tracer concentration, <span class="math notranslate nohighlight">\(C_0\)</span> is the reference concentration and <span class="math notranslate nohighlight">\(\mathbf{g}\)</span> is the gravitational acceleration.</p>
-<p>To add a coupling to a tracer call <code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.add_boussinesq_coupling()</span></code> with the relevant parameters.</p>
+<p>To add a coupling to a tracer call <a class="reference internal" href="../api/boltzmann.core.html#boltzmann.core.Simulation.add_boussinesq_coupling" title="boltzmann.core.Simulation.add_boussinesq_coupling"><code class="xref py py-meth docutils literal notranslate"><span class="pre">add_boussinesq_coupling()</span></code></a> with the relevant parameters.</p>
 </section>
 <section id="checkpointing">
 <h2>Checkpointing<a class="headerlink" href="#checkpointing" title="Link to this heading"></a></h2>

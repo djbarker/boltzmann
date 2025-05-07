@@ -83,21 +83,22 @@
 <span class="sd">See :doc:`guides/script &lt;guides/script&gt;` for more information on how to use this module.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ap</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Generator</span><span class="p">,</span> <span class="n">Protocol</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">Device</span><span class="p">,</span> <span class="n">Simulation</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">Array1dT</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.utils.logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">dotted</span><span class="p">,</span> <span class="n">tick</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.utils.logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">dotted</span><span class="p">,</span> <span class="n">tick</span><span class="p">,</span> <span class="n">timed</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.utils.option</span><span class="w"> </span><span class="kn">import</span> <span class="n">Some</span><span class="p">,</span> <span class="n">to_opt</span>
 
 
@@ -184,16 +185,37 @@
 
 
 
+<div class="viewcode-block" id="NoCheckpoints">
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.NoCheckpoints">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">NoCheckpoints</span><span class="p">(</span><span class="n">CheckpointGater</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Disable checkpointing.</span>
+
+<span class="sd">    This is useful if you are debugging output generation, for example, and want to repeatedly restart from an existing checkpoint.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="NoCheckpoints.allow">
+<a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.NoCheckpoints.allow">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">allow</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+</div>
+
+
+
 <div class="viewcode-block" id="EveryN">
 <a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.EveryN">[docs]</a>
 <span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">EveryN</span><span class="p">(</span><span class="n">CheckpointGater</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Allow a checkpoint to be written every N times the :py:meth:`CheckpointGater.allow` method is called.</span>
+
+<span class="sd">    Will not write a checkpoint on the first call;</span>
+<span class="sd">    there is no point checkpointing if no progress has been made.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">interval</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">_curr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">_curr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">interval</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Checkpoint Interval must be positive!&quot;</span>
@@ -202,7 +224,7 @@
 <a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.EveryN.allow">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">allow</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_curr</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_curr</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">interval</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_curr</span> <span class="o">==</span> <span class="mi">1</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_curr</span> <span class="o">==</span> <span class="mi">0</span></div>
 </div>
 
 
@@ -213,10 +235,12 @@
 <span class="k">class</span><span class="w"> </span><span class="nc">EveryT</span><span class="p">(</span><span class="n">CheckpointGater</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Allow a checkpoint to be written at regular time intervals.</span>
+
+<span class="sd">    Will start with the current time so will not initially write a checkpoint.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">interval</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span>
-    <span class="n">_last</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">1970</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">_last</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">)</span>
 
 <div class="viewcode-block" id="EveryT.allow">
 <a class="viewcode-back" href="../../api/boltzmann.simulation.html#boltzmann.simulation.EveryT.allow">[docs]</a>
@@ -236,8 +260,9 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Parse a string into a :py:class:`CheckpointGater` object.</span>
 
-<span class="sd">    There are only two valid formats:</span>
+<span class="sd">    There are only three valid formats:</span>
 
+<span class="sd">        * ``&quot;off&quot;`` - which will disable checkpointing.</span>
 <span class="sd">        * ``&quot;&lt;N&gt;&quot;`` - which will checkpoint every ``N`` iterations.</span>
 <span class="sd">        * ``&quot;&lt;N&gt;m&quot;``- which will checkpoint every ``N`` minutes.</span>
 
@@ -245,7 +270,9 @@
 <span class="sd">    :returns: A :py:class:`CheckpointGater`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">if</span> <span class="p">(</span><span class="n">m</span> <span class="o">:=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^(\d+)$&quot;</span><span class="p">,</span> <span class="n">s</span><span class="p">))</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">s</span> <span class="o">==</span> <span class="s2">&quot;off&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">NoCheckpoints</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="p">(</span><span class="n">m</span> <span class="o">:=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^(\d+)$&quot;</span><span class="p">,</span> <span class="n">s</span><span class="p">))</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">EveryN</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)))</span>
     <span class="k">elif</span> <span class="p">(</span><span class="n">m</span> <span class="o">:=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^(\d+)m$&quot;</span><span class="p">,</span> <span class="n">s</span><span class="p">))</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">EveryT</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">minutes</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))))</span>
@@ -297,10 +324,15 @@
     <span class="n">batch_iters</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="nb">int</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">interval</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span>
 
     <span class="c1"># Log simulatin info.</span>
+    <span class="n">device</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">sim</span><span class="o">.</span><span class="n">device_info</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;Corporation&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">))</span>
+    <span class="p">)</span>
+    <span class="n">dotted</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="s2">&quot;OpenCL device&quot;</span><span class="p">,</span> <span class="n">device</span><span class="p">)</span>
     <span class="n">dotted</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="s2">&quot;Output directory&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_dir</span><span class="p">))</span>
     <span class="n">dotted</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="s2">&quot;Memory usage&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">sim</span><span class="o">.</span><span class="n">size_bytes</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="mi">1_000_000</span><span class="si">:</span><span class="s2">,d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;MB&quot;</span><span class="p">)</span>
     <span class="n">dotted</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="s2">&quot;Iters / output&quot;</span><span class="p">,</span> <span class="n">batch_iters</span><span class="p">)</span>
     <span class="n">dotted</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="s2">&quot;Cells&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">sim</span><span class="o">.</span><span class="n">cells</span><span class="o">.</span><span class="n">count</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1e6</span><span class="si">:</span><span class="s2">,.1f</span><span class="si">}</span><span class="s2">M&quot;</span><span class="p">)</span>
+    <span class="n">dotted</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="s2">&quot;     &quot;</span><span class="p">,</span> <span class="s2">&quot; x &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">sim</span><span class="o">.</span><span class="n">cells</span><span class="o">.</span><span class="n">counts</span><span class="p">]))</span>
 
     <span class="n">max_i</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">count</span>
     <span class="n">sim_i</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">iteration</span> <span class="o">//</span> <span class="n">batch_iters</span>
@@ -316,22 +348,27 @@
     <span class="n">timer_tot</span> <span class="o">=</span> <span class="n">tick</span><span class="p">()</span>
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">sim_i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">max_i</span><span class="p">):</span>
         <span class="n">timer_sim</span> <span class="o">=</span> <span class="n">tick</span><span class="p">()</span>
-        <span class="n">sim</span><span class="o">.</span><span class="n">iterate</span><span class="p">(</span><span class="n">batch_iters</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">timed</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="s2">&quot;simulation iteration batch&quot;</span><span class="p">):</span>
+            <span class="n">sim</span><span class="o">.</span><span class="n">iterate</span><span class="p">(</span><span class="n">batch_iters</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">fluid</span><span class="o">.</span><span class="n">vel</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Non-finite value detected!&quot;</span><span class="p">)</span>
 
         <span class="c1"># Call tock() before checkpointing so it&#39;s not included in the mlups calculation.</span>
         <span class="n">perf_sim</span> <span class="o">=</span> <span class="n">timer_sim</span><span class="o">.</span><span class="n">tock</span><span class="p">(</span><span class="n">events</span><span class="o">=</span><span class="n">sim</span><span class="o">.</span><span class="n">cells</span><span class="o">.</span><span class="n">count</span> <span class="o">*</span> <span class="n">batch_iters</span><span class="p">)</span>
         <span class="n">mlups</span> <span class="o">=</span> <span class="n">perf_sim</span><span class="o">.</span><span class="n">events</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1e6</span> <span class="o">*</span> <span class="n">perf_sim</span><span class="o">.</span><span class="n">seconds</span><span class="p">)</span>
 
         <span class="c1"># Caller writes their output(s) here.</span>
-        <span class="n">timer_out</span> <span class="o">=</span> <span class="n">tick</span><span class="p">()</span>
-        <span class="k">yield</span> <span class="n">i</span>
+        <span class="k">with</span> <span class="n">timed</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="s2">&quot;writing output&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">timer_out</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">i</span>
 
         <span class="c1"># Write checkpoint if requested.</span>
         <span class="k">if</span> <span class="n">checkpoints</span><span class="o">.</span><span class="n">allow</span><span class="p">():</span>
             <span class="c1"># First write to a temp file, then move into place atomically to avoid corruption.</span>
-            <span class="n">sim</span><span class="o">.</span><span class="n">write_checkpoint</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;checkpoint.mpk.tmp&quot;</span><span class="p">))</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;checkpoint.mpk.tmp&quot;</span><span class="p">,</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;checkpoint.mpk&quot;</span><span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checkpoint written.&quot;</span><span class="p">)</span>
+            <span class="k">with</span> <span class="n">timed</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="s2">&quot;writing checkpoint&quot;</span><span class="p">):</span>
+                <span class="n">sim</span><span class="o">.</span><span class="n">write_checkpoint</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;checkpoint.mpk.tmp&quot;</span><span class="p">))</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;checkpoint.mpk.tmp&quot;</span><span class="p">,</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;checkpoint.mpk&quot;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checkpoint written.&quot;</span><span class="p">)</span>
 
         <span class="n">perf_out</span> <span class="o">=</span> <span class="n">timer_out</span><span class="o">.</span><span class="n">tock</span><span class="p">()</span>
 

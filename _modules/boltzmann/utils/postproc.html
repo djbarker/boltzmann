@@ -80,6 +80,36 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">boltzmann.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">Scales</span>
 
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;calc_vmag&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;calc_curl&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;calc_stream_func&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<div class="viewcode-block" id="calc_vmag">
+<a class="viewcode-back" href="../../../api/boltzmann.utils.postproc.html#boltzmann.utils.postproc.calc_vmag">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">calc_vmag</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">scales</span><span class="p">:</span> <span class="n">Scales</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the magnitude of a 2D or 3D vector field.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        val: The (velocty) vector field.</span>
+<span class="sd">        scales: Optional :py:class:`Scales` object.</span>
+<span class="sd">                If provided, the array will be rescaled from lattice to physical units.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The (scalar) magnitude of the vector field.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">val</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">scales</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">scales</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">to_physical_units</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
 
 <div class="viewcode-block" id="calc_curl">
 <a class="viewcode-back" href="../../../api/boltzmann.utils.postproc.html#boltzmann.utils.postproc.calc_curl">[docs]</a>
@@ -128,9 +158,59 @@
         <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">scales</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">out</span> <span class="o">/=</span> <span class="n">scales</span><span class="o">.</span><span class="n">dt</span>
+        <span class="n">out</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">scales</span><span class="o">.</span><span class="n">converter</span><span class="p">(</span><span class="n">T</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">to_physical_units</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">out</span></div>
+
+
+
+<div class="viewcode-block" id="calc_stream_func">
+<a class="viewcode-back" href="../../../api/boltzmann.utils.postproc.html#boltzmann.utils.postproc.calc_stream_func">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">calc_stream_func</span><span class="p">(</span>
+    <span class="n">vel</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">scales</span><span class="p">:</span> <span class="n">Scales</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">origin</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the 2D `stream function &lt;https://en.wikipedia.org/wiki/Stream_function&gt;`_ of a velocity field.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        The reference point is at the (0, 0) index of the array.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        val: The (velocty) vector field.</span>
+<span class="sd">        scales: Optional :py:class:`Scales` object.</span>
+<span class="sd">                If provided, the array will be rescaled from lattice to physical units.</span>
+<span class="sd">        origin:</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The stream function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">assert</span> <span class="n">vel</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">vel</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;Expected 2D velocity field!&quot;</span>
+
+    <span class="n">origin</span> <span class="o">=</span> <span class="n">origin</span> <span class="ow">or</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">scales</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">origin</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">scales</span><span class="o">.</span><span class="n">distance</span><span class="o">.</span><span class="n">to_lattice_units</span><span class="p">(</span><span class="n">origin</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+            <span class="n">scales</span><span class="o">.</span><span class="n">distance</span><span class="o">.</span><span class="n">to_lattice_units</span><span class="p">(</span><span class="n">origin</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="p">)</span>
+
+    <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">origin</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+
+    <span class="n">ivdx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">vel</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">iudy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">vel</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">phi</span> <span class="o">=</span> <span class="n">iudy</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:][</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">ivdx</span>
+    <span class="n">phi</span> <span class="o">-=</span> <span class="n">phi</span><span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">scales</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">phi</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">scales</span><span class="o">.</span><span class="n">converter</span><span class="p">(</span><span class="n">L</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">T</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">to_physical_units</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">phi</span></div>
 
 </pre></div>
 

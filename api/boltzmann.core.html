@@ -20,7 +20,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="boltzmann.simulation" href="boltzmann.simulation.html" />
+    <link rel="next" title="boltzmann.mock" href="boltzmann.mock.html" />
     <link rel="prev" title="boltzmann.utils.vtkio" href="boltzmann.utils.vtkio.html" /> 
 </head>
 
@@ -55,6 +55,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="boltzmann.html">boltzmann</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="boltzmann.utils.html">boltzmann.utils</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">boltzmann.core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.mock.html">boltzmann.mock</a></li>
 <li class="toctree-l2"><a class="reference internal" href="boltzmann.simulation.html">boltzmann.simulation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="boltzmann.units.html">boltzmann.units</a></li>
 </ul>
@@ -164,12 +165,17 @@ If you specify tau that value will be used instead.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="boltzmann.core.calc_lbm_params_si">
-<span class="sig-prename descclassname"><span class="pre">boltzmann.core.</span></span><span class="sig-name descname"><span class="pre">calc_lbm_params_si</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u_si</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">L_si</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nu_si</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_min</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slack</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/boltzmann/core.html#calc_lbm_params_si"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.core.calc_lbm_params_si" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">boltzmann.core.</span></span><span class="sig-name descname"><span class="pre">calc_lbm_params_si</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u_si</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">L_si</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nu_si</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tau_min</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slack</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/boltzmann/core.html#calc_lbm_params_si"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.core.calc_lbm_params_si" title="Link to this definition"></a></dt>
 <dd><p>Choose the values of tau and u which maximize simulation speed &amp; verify stability.
 If you specify tau that value will be used instead.</p>
 <p>Sometimes it is more natural to specify the physical parameters directly rather than via
 Reynold’s number.
 Under the hood, however, this function calls <a class="reference internal" href="#boltzmann.core.calc_lbm_params_lu" title="boltzmann.core.calc_lbm_params_lu"><code class="xref py py-meth docutils literal notranslate"><span class="pre">calc_lbm_params_lu()</span></code></a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The suffix <code class="docutils literal notranslate"><span class="pre">_si</span></code> means the arguments are in SI units.
+The function still returns the LBM parameters in lattice units.</p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -268,6 +274,11 @@ This function is idempotent (over the name) and will return the existing tracer 
 </dd></dl>
 
 <dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.core.Simulation.device_info">
+<span class="sig-name descname"><span class="pre">device_info</span></span><a class="headerlink" href="#boltzmann.core.Simulation.device_info" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
 <dt class="sig sig-object py" id="boltzmann.core.Simulation.fluid">
 <span class="sig-name descname"><span class="pre">fluid</span></span><a class="headerlink" href="#boltzmann.core.Simulation.fluid" title="Link to this definition"></a></dt>
 <dd><p>The <a class="reference internal" href="#boltzmann.core.Fluid" title="boltzmann.core.Fluid"><code class="xref py py-class docutils literal notranslate"><span class="pre">Fluid</span></code></a> object containing the fluid density &amp; velocity fields.</p>
@@ -354,14 +365,6 @@ This will fail if the name is unknown.</p>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Stores the density and velocity fields, relaxation parameter and a velocity set.</p>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="boltzmann.core.Fluid.f">
-<span class="sig-name descname"><span class="pre">f</span></span><a class="headerlink" href="#boltzmann.core.Fluid.f" title="Link to this definition"></a></dt>
-<dd><p>The distribution function data.
-You probably do not need to access this directly.
-It is exposed for completeness.</p>
-</dd></dl>
-
-<dl class="py attribute">
 <dt class="sig sig-object py" id="boltzmann.core.Fluid.rho">
 <span class="sig-name descname"><span class="pre">rho</span></span><a class="headerlink" href="#boltzmann.core.Fluid.rho" title="Link to this definition"></a></dt>
 <dd><p>The fluid density data.</p>
@@ -391,14 +394,6 @@ It is exposed for completeness.</p>
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.core.</span></span><span class="sig-name descname"><span class="pre">Scalar</span></span><a class="headerlink" href="#boltzmann.core.Scalar" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Stores the scalar field data, relaxation parameter and a velocity set.</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="boltzmann.core.Scalar.g">
-<span class="sig-name descname"><span class="pre">g</span></span><a class="headerlink" href="#boltzmann.core.Scalar.g" title="Link to this definition"></a></dt>
-<dd><p>The distribution function data.
-You probably do not need to access this directly.
-It is exposed for completeness.</p>
-</dd></dl>
-
 <dl class="py attribute">
 <dt class="sig sig-object py" id="boltzmann.core.Scalar.size_bytes">
 <span class="sig-name descname"><span class="pre">size_bytes</span></span><a class="headerlink" href="#boltzmann.core.Scalar.size_bytes" title="Link to this definition"></a></dt>
@@ -435,6 +430,17 @@ It is exposed for completeness.</p>
 </dd></dl>
 
 <dl class="py attribute">
+<dt class="sig sig-object py" id="boltzmann.core.Cells.counts">
+<span class="sig-name descname"><span class="pre">counts</span></span><a class="headerlink" href="#boltzmann.core.Cells.counts" title="Link to this definition"></a></dt>
+<dd><p>The number of grid cells in each dimension.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The count in each dimension.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
 <dt class="sig sig-object py" id="boltzmann.core.Cells.flags">
 <span class="sig-name descname"><span class="pre">flags</span></span><a class="headerlink" href="#boltzmann.core.Cells.flags" title="Link to this definition"></a></dt>
 <dd><p>The cell flag data.</p>
@@ -466,7 +472,7 @@ It is exposed for completeness.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="boltzmann.utils.vtkio.html" class="btn btn-neutral float-left" title="boltzmann.utils.vtkio" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="boltzmann.simulation.html" class="btn btn-neutral float-right" title="boltzmann.simulation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="boltzmann.mock.html" class="btn btn-neutral float-right" title="boltzmann.mock" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

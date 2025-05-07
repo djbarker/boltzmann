@@ -114,10 +114,10 @@
 </li>
       <li><a href="api/boltzmann.utils.logger.html#boltzmann.utils.logger.PerfTimer.add_event">add_event() (boltzmann.utils.logger.PerfTimer method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/boltzmann.utils.logger.html#boltzmann.utils.logger.PerfTimer.add_events">add_events() (boltzmann.utils.logger.PerfTimer method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/boltzmann.core.html#boltzmann.core.Simulation.add_tracer">add_tracer() (boltzmann.core.Simulation method)</a>
 </li>
       <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.CheckpointGater.allow">allow() (boltzmann.simulation.CheckpointGater method)</a>
@@ -126,6 +126,8 @@
         <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.EveryN.allow">(boltzmann.simulation.EveryN method)</a>
 </li>
         <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.EveryT.allow">(boltzmann.simulation.EveryT method)</a>
+</li>
+        <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.NoCheckpoints.allow">(boltzmann.simulation.NoCheckpoints method)</a>
 </li>
       </ul></li>
   </ul></td>
@@ -151,6 +153,13 @@
 </li>
       </ul></li>
       <li>
+    boltzmann.mock
+
+      <ul>
+        <li><a href="api/boltzmann.mock.html#module-boltzmann.mock">module</a>
+</li>
+      </ul></li>
+      <li>
     boltzmann.simulation
 
       <ul>
@@ -164,6 +173,8 @@
         <li><a href="api/boltzmann.units.html#module-boltzmann.units">module</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     boltzmann.utils
 
@@ -171,8 +182,6 @@
         <li><a href="api/boltzmann.utils.html#module-boltzmann.utils">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     boltzmann.utils.logger
 
@@ -222,10 +231,18 @@
 </li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.calc_lbm_params_si">calc_lbm_params_si() (in module boltzmann.core)</a>
 </li>
+      <li><a href="api/boltzmann.utils.postproc.html#boltzmann.utils.postproc.calc_stream_func">calc_stream_func() (in module boltzmann.utils.postproc)</a>
+</li>
+      <li><a href="api/boltzmann.utils.postproc.html#boltzmann.utils.postproc.calc_vmag">calc_vmag() (in module boltzmann.utils.postproc)</a>
+</li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.CellFlags">CellFlags (class in boltzmann.core)</a>
 </li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.Simulation.cells">cells (boltzmann.core.Simulation attribute)</a>
+
+      <ul>
+        <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockSimulation.cells">(boltzmann.mock.MockSimulation attribute)</a>
 </li>
+      </ul></li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.Cells">Cells (class in boltzmann.core)</a>
 </li>
   </ul></td>
@@ -241,11 +258,19 @@
       <li><a href="api/boltzmann.core.html#boltzmann.core.Cells.count">count (boltzmann.core.Cells attribute)</a>
 
       <ul>
+        <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockCells.count">(boltzmann.mock.MockCells property)</a>
+</li>
         <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.IterInfo.count">(boltzmann.simulation.IterInfo attribute)</a>
 </li>
       </ul></li>
-      <li><a href="api/boltzmann.units.html#boltzmann.units.Domain.counts">counts (boltzmann.units.Domain attribute)</a>
+      <li><a href="api/boltzmann.core.html#boltzmann.core.Cells.counts">counts (boltzmann.core.Cells attribute)</a>
+
+      <ul>
+        <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockCells.counts">(boltzmann.mock.MockCells attribute)</a>
 </li>
+        <li><a href="api/boltzmann.units.html#boltzmann.units.Domain.counts">(boltzmann.units.Domain attribute)</a>
+</li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
@@ -258,8 +283,12 @@
 </li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.Device">Device (in module boltzmann.core)</a>
 </li>
-      <li><a href="api/boltzmann.units.html#boltzmann.units.Domain.dims">dims (boltzmann.units.Domain attribute)</a>
+      <li><a href="api/boltzmann.core.html#boltzmann.core.Simulation.device_info">device_info (boltzmann.core.Simulation attribute)</a>
+
+      <ul>
+        <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockSimulation.device_info">(boltzmann.mock.MockSimulation attribute)</a>
 </li>
+      </ul></li>
       <li><a href="api/boltzmann.units.html#boltzmann.units.Scales.distance">distance (boltzmann.units.Scales property)</a>
 </li>
   </ul></td>
@@ -304,7 +333,7 @@
 <h2 id="F">F</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/boltzmann.core.html#boltzmann.core.Fluid.f">f (boltzmann.core.Fluid attribute)</a>
+      <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockFluid.f">f (boltzmann.mock.MockFluid attribute)</a>
 </li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.CellFlags.FIXED_FLUID">FIXED_FLUID (boltzmann.core.CellFlags attribute)</a>
 </li>
@@ -314,14 +343,22 @@
 </li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.CellFlags.FIXED_SCALAR_VALUE">FIXED_SCALAR_VALUE (boltzmann.core.CellFlags attribute)</a>
 </li>
+      <li><a href="api/boltzmann.core.html#boltzmann.core.Cells.flags">flags (boltzmann.core.Cells attribute)</a>
+
+      <ul>
+        <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockCells.flags">(boltzmann.mock.MockCells attribute)</a>
+</li>
+      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/boltzmann.core.html#boltzmann.core.Cells.flags">flags (boltzmann.core.Cells attribute)</a>
-</li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.CellFlags.FLUID">FLUID (boltzmann.core.CellFlags attribute)</a>
 </li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.Simulation.fluid">fluid (boltzmann.core.Simulation attribute)</a>
+
+      <ul>
+        <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockSimulation.fluid">(boltzmann.mock.MockSimulation attribute)</a>
 </li>
+      </ul></li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.Fluid">Fluid (class in boltzmann.core)</a>
 </li>
       <li><a href="api/boltzmann.utils.logger.html#boltzmann.utils.logger.PerfInfo.fmt">fmt() (boltzmann.utils.logger.PerfInfo method)</a>
@@ -332,8 +369,6 @@
 <h2 id="G">G</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/boltzmann.core.html#boltzmann.core.Scalar.g">g (boltzmann.core.Scalar attribute)</a>
-</li>
       <li><a href="api/boltzmann.units.html#boltzmann.units.Domain.get_dim">get_dim() (boltzmann.units.Domain method)</a>
 </li>
   </ul></td>
@@ -371,9 +406,17 @@
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/boltzmann.core.html#boltzmann.core.Simulation.iterate">iterate() (boltzmann.core.Simulation method)</a>
+
+      <ul>
+        <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockSimulation.iterate">(boltzmann.mock.MockSimulation method)</a>
 </li>
+      </ul></li>
       <li><a href="api/boltzmann.core.html#boltzmann.core.Simulation.iteration">iteration (boltzmann.core.Simulation attribute)</a>
+
+      <ul>
+        <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockSimulation.iteration">(boltzmann.mock.MockSimulation attribute)</a>
 </li>
+      </ul></li>
       <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.IterInfo">IterInfo (class in boltzmann.simulation)</a>
 </li>
   </ul></td>
@@ -394,9 +437,11 @@
 <h2 id="M">M</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.IterInfo.make">make() (boltzmann.simulation.IterInfo static method)</a>
+      <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockSimulation.make">make() (boltzmann.mock.MockSimulation static method)</a>
 
       <ul>
+        <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.IterInfo.make">(boltzmann.simulation.IterInfo static method)</a>
+</li>
         <li><a href="api/boltzmann.units.html#boltzmann.units.Domain.make">(boltzmann.units.Domain static method)</a>
 </li>
       </ul></li>
@@ -408,6 +453,12 @@
 </li>
       <li><a href="api/boltzmann.utils.logger.html#boltzmann.utils.logger.PerfInfo.micros">micros (boltzmann.utils.logger.PerfInfo attribute)</a>
 </li>
+      <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockCells">MockCells (class in boltzmann.mock)</a>
+</li>
+      <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockFluid">MockFluid (class in boltzmann.mock)</a>
+</li>
+      <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockSimulation">MockSimulation (class in boltzmann.mock)</a>
+</li>
       <li>
     module
 
@@ -415,6 +466,8 @@
         <li><a href="api/boltzmann.html#module-boltzmann">boltzmann</a>
 </li>
         <li><a href="api/boltzmann.core.html#module-boltzmann.core">boltzmann.core</a>
+</li>
+        <li><a href="api/boltzmann.mock.html#module-boltzmann.mock">boltzmann.mock</a>
 </li>
         <li><a href="api/boltzmann.simulation.html#module-boltzmann.simulation">boltzmann.simulation</a>
 </li>
@@ -439,7 +492,15 @@
 <h2 id="N">N</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/boltzmann.utils.vtkio.html#boltzmann.utils.vtkio.VtiWriter.ndim">ndim (boltzmann.utils.vtkio.VtiWriter property)</a>
+      <li><a href="api/boltzmann.units.html#boltzmann.units.Domain.ndim">ndim (boltzmann.units.Domain attribute)</a>
+
+      <ul>
+        <li><a href="api/boltzmann.utils.vtkio.html#boltzmann.utils.vtkio.VtiWriter.ndim">(boltzmann.utils.vtkio.VtiWriter property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.NoCheckpoints">NoCheckpoints (class in boltzmann.simulation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -485,10 +546,14 @@
 </li>
       <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.SimulationArgs.resume">resume (boltzmann.simulation.SimulationArgs attribute)</a>
 </li>
+      <li><a href="api/boltzmann.core.html#boltzmann.core.Fluid.rho">rho (boltzmann.core.Fluid attribute)</a>
+
+      <ul>
+        <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockFluid.rho">(boltzmann.mock.MockFluid attribute)</a>
+</li>
+      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/boltzmann.core.html#boltzmann.core.Fluid.rho">rho (boltzmann.core.Fluid attribute)</a>
-</li>
       <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.SimulationScript.run">run() (boltzmann.simulation.SimulationScript method)</a>
 </li>
       <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.run_sim">run_sim() (in module boltzmann.simulation)</a>
@@ -513,10 +578,10 @@
 </li>
       <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.SimulationArgs">SimulationArgs (class in boltzmann.simulation)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/boltzmann.simulation.html#boltzmann.simulation.SimulationScript">SimulationScript (class in boltzmann.simulation)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/boltzmann.core.html#boltzmann.core.Cells.size_bytes">size_bytes (boltzmann.core.Cells attribute)</a>
 
       <ul>
@@ -525,6 +590,12 @@
         <li><a href="api/boltzmann.core.html#boltzmann.core.Scalar.size_bytes">(boltzmann.core.Scalar attribute)</a>
 </li>
         <li><a href="api/boltzmann.core.html#boltzmann.core.Simulation.size_bytes">(boltzmann.core.Simulation attribute)</a>
+</li>
+        <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockCells.size_bytes">(boltzmann.mock.MockCells attribute)</a>
+</li>
+        <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockFluid.size_bytes">(boltzmann.mock.MockFluid attribute)</a>
+</li>
+        <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockSimulation.size_bytes">(boltzmann.mock.MockSimulation property)</a>
 </li>
       </ul></li>
       <li><a href="api/boltzmann.utils.option.html#boltzmann.utils.option.Some">Some (class in boltzmann.utils.option)</a>
@@ -579,10 +650,14 @@
         <li><a href="api/boltzmann.utils.option.html#boltzmann.utils.option.Some.val">(boltzmann.utils.option.Some attribute)</a>
 </li>
       </ul></li>
+      <li><a href="api/boltzmann.core.html#boltzmann.core.Fluid.vel">vel (boltzmann.core.Fluid attribute)</a>
+
+      <ul>
+        <li><a href="api/boltzmann.mock.html#boltzmann.mock.MockFluid.vel">(boltzmann.mock.MockFluid attribute)</a>
+</li>
+      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/boltzmann.core.html#boltzmann.core.Fluid.vel">vel (boltzmann.core.Fluid attribute)</a>
-</li>
       <li><a href="api/boltzmann.units.html#boltzmann.units.Scales.velocity">velocity (boltzmann.units.Scales property)</a>
 </li>
       <li><a href="api/boltzmann.utils.vtkio.html#boltzmann.utils.vtkio.VtiWriter">VtiWriter (class in boltzmann.utils.vtkio)</a>
@@ -612,6 +687,10 @@
       <li><a href="api/boltzmann.units.html#boltzmann.units.Domain.x">x (boltzmann.units.Domain property)</a>
 </li>
   </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/boltzmann.units.html#boltzmann.units.Domain.xx">xx (boltzmann.units.Domain property)</a>
+</li>
+  </ul></td>
 </tr></table>
 
 <h2 id="Y">Y</h2>
@@ -620,12 +699,20 @@
       <li><a href="api/boltzmann.units.html#boltzmann.units.Domain.y">y (boltzmann.units.Domain property)</a>
 </li>
   </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/boltzmann.units.html#boltzmann.units.Domain.yy">yy (boltzmann.units.Domain property)</a>
+</li>
+  </ul></td>
 </tr></table>
 
 <h2 id="Z">Z</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/boltzmann.units.html#boltzmann.units.Domain.z">z (boltzmann.units.Domain property)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/boltzmann.units.html#boltzmann.units.Domain.zz">zz (boltzmann.units.Domain property)</a>
 </li>
   </ul></td>
 </tr></table>

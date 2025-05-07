@@ -53,6 +53,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="boltzmann.html">boltzmann</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="boltzmann.utils.html">boltzmann.utils</a></li>
 <li class="toctree-l2"><a class="reference internal" href="boltzmann.core.html">boltzmann.core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.mock.html">boltzmann.mock</a></li>
 <li class="toctree-l2"><a class="reference internal" href="boltzmann.simulation.html">boltzmann.simulation</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">boltzmann.units</a></li>
 </ul>
@@ -87,7 +88,7 @@
 <span id="boltzmann-units"></span><h1>boltzmann.units<a class="headerlink" href="#module-boltzmann.units" title="Link to this heading"></a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="boltzmann.units.Domain">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.units.</span></span><span class="sig-name descname"><span class="pre">Domain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lower</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dims</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/units.html#Domain"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.units.Domain" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.units.</span></span><span class="sig-name descname"><span class="pre">Domain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lower</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ndim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_meshgrid_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/units.html#Domain"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.units.Domain" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Describes the domain grid.</p>
 <p>The semantics are that each cell has a size of <code class="docutils literal notranslate"><span class="pre">dx</span></code>, the <code class="docutils literal notranslate"><span class="pre">lower</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">upper</span></code> arrays are the lower
@@ -131,8 +132,8 @@ Ultimately it’s probably worth doing this but that’s a <strong>TODO</strong>
 </dd></dl>
 
 <dl class="py attribute">
-<dt class="sig sig-object py" id="boltzmann.units.Domain.dims">
-<span class="sig-name descname"><span class="pre">dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#boltzmann.units.Domain.dims" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="boltzmann.units.Domain.ndim">
+<span class="sig-name descname"><span class="pre">ndim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#boltzmann.units.Domain.ndim" title="Link to this definition"></a></dt>
 <dd><p>Number of dimensions. (<code class="code highlight python docutils literal highlight-python"><span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">counts</span><span class="p">)</span></code>)</p>
 </dd></dl>
 
@@ -215,6 +216,24 @@ This method will throw a <code class="xref py py-exc docutils literal notranslat
 <span class="sig-name descname"><span class="pre">meshgrid</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/boltzmann/units.html#Domain.meshgrid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.units.Domain.meshgrid" title="Link to this definition"></a></dt>
 <dd><p>Return a meshgrid of the domain.
 Useful for setting initial conditions based on physical parameters.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.xx">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">xx</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#boltzmann.units.Domain.xx" title="Link to this definition"></a></dt>
+<dd><p>The x component of <a class="reference internal" href="#boltzmann.units.Domain.meshgrid" title="boltzmann.units.Domain.meshgrid"><code class="xref py py-meth docutils literal notranslate"><span class="pre">meshgrid()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.yy">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">yy</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#boltzmann.units.Domain.yy" title="Link to this definition"></a></dt>
+<dd><p>The y component of <a class="reference internal" href="#boltzmann.units.Domain.meshgrid" title="boltzmann.units.Domain.meshgrid"><code class="xref py py-meth docutils literal notranslate"><span class="pre">meshgrid()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="boltzmann.units.Domain.zz">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">zz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#boltzmann.units.Domain.zz" title="Link to this definition"></a></dt>
+<dd><p>The z component of <a class="reference internal" href="#boltzmann.units.Domain.meshgrid" title="boltzmann.units.Domain.meshgrid"><code class="xref py py-meth docutils literal notranslate"><span class="pre">meshgrid()</span></code></a>.</p>
 </dd></dl>
 
 </dd></dl>

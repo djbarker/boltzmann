@@ -104,7 +104,9 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="boltzmann.utils.postproc.html">boltzmann.utils.postproc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.utils.postproc.html#boltzmann.utils.postproc.calc_vmag"><code class="docutils literal notranslate"><span class="pre">calc_vmag()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.utils.postproc.html#boltzmann.utils.postproc.calc_curl"><code class="docutils literal notranslate"><span class="pre">calc_curl()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.utils.postproc.html#boltzmann.utils.postproc.calc_stream_func"><code class="docutils literal notranslate"><span class="pre">calc_stream_func()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="boltzmann.utils.vtkio.html">boltzmann.utils.vtkio</a><ul>
@@ -134,6 +136,7 @@
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Simulation.add_boussinesq_coupling"><code class="docutils literal notranslate"><span class="pre">Simulation.add_boussinesq_coupling()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Simulation.add_tracer"><code class="docutils literal notranslate"><span class="pre">Simulation.add_tracer()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Simulation.cells"><code class="docutils literal notranslate"><span class="pre">Simulation.cells</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Simulation.device_info"><code class="docutils literal notranslate"><span class="pre">Simulation.device_info</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Simulation.fluid"><code class="docutils literal notranslate"><span class="pre">Simulation.fluid</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Simulation.get_tracer"><code class="docutils literal notranslate"><span class="pre">Simulation.get_tracer()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Simulation.iterate"><code class="docutils literal notranslate"><span class="pre">Simulation.iterate()</span></code></a></li>
@@ -145,22 +148,48 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Fluid"><code class="docutils literal notranslate"><span class="pre">Fluid</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Fluid.f"><code class="docutils literal notranslate"><span class="pre">Fluid.f</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Fluid.rho"><code class="docutils literal notranslate"><span class="pre">Fluid.rho</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Fluid.size_bytes"><code class="docutils literal notranslate"><span class="pre">Fluid.size_bytes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Fluid.vel"><code class="docutils literal notranslate"><span class="pre">Fluid.vel</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Scalar"><code class="docutils literal notranslate"><span class="pre">Scalar</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Scalar.g"><code class="docutils literal notranslate"><span class="pre">Scalar.g</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Scalar.size_bytes"><code class="docutils literal notranslate"><span class="pre">Scalar.size_bytes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Scalar.val"><code class="docutils literal notranslate"><span class="pre">Scalar.val</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Cells"><code class="docutils literal notranslate"><span class="pre">Cells</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Cells.count"><code class="docutils literal notranslate"><span class="pre">Cells.count</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Cells.counts"><code class="docutils literal notranslate"><span class="pre">Cells.counts</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Cells.flags"><code class="docutils literal notranslate"><span class="pre">Cells.flags</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.core.html#boltzmann.core.Cells.size_bytes"><code class="docutils literal notranslate"><span class="pre">Cells.size_bytes</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.mock.html">boltzmann.mock</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockCells"><code class="docutils literal notranslate"><span class="pre">MockCells</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockCells.counts"><code class="docutils literal notranslate"><span class="pre">MockCells.counts</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockCells.flags"><code class="docutils literal notranslate"><span class="pre">MockCells.flags</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockCells.size_bytes"><code class="docutils literal notranslate"><span class="pre">MockCells.size_bytes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockCells.count"><code class="docutils literal notranslate"><span class="pre">MockCells.count</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockFluid"><code class="docutils literal notranslate"><span class="pre">MockFluid</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockFluid.f"><code class="docutils literal notranslate"><span class="pre">MockFluid.f</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockFluid.vel"><code class="docutils literal notranslate"><span class="pre">MockFluid.vel</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockFluid.rho"><code class="docutils literal notranslate"><span class="pre">MockFluid.rho</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockFluid.size_bytes"><code class="docutils literal notranslate"><span class="pre">MockFluid.size_bytes</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockSimulation"><code class="docutils literal notranslate"><span class="pre">MockSimulation</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockSimulation.cells"><code class="docutils literal notranslate"><span class="pre">MockSimulation.cells</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockSimulation.fluid"><code class="docutils literal notranslate"><span class="pre">MockSimulation.fluid</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockSimulation.iteration"><code class="docutils literal notranslate"><span class="pre">MockSimulation.iteration</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockSimulation.device_info"><code class="docutils literal notranslate"><span class="pre">MockSimulation.device_info</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockSimulation.make"><code class="docutils literal notranslate"><span class="pre">MockSimulation.make()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockSimulation.size_bytes"><code class="docutils literal notranslate"><span class="pre">MockSimulation.size_bytes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.mock.html#boltzmann.mock.MockSimulation.iterate"><code class="docutils literal notranslate"><span class="pre">MockSimulation.iterate()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -174,6 +203,10 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="boltzmann.simulation.html#boltzmann.simulation.CheckpointGater"><code class="docutils literal notranslate"><span class="pre">CheckpointGater</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.simulation.html#boltzmann.simulation.CheckpointGater.allow"><code class="docutils literal notranslate"><span class="pre">CheckpointGater.allow()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="boltzmann.simulation.html#boltzmann.simulation.NoCheckpoints"><code class="docutils literal notranslate"><span class="pre">NoCheckpoints</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.simulation.html#boltzmann.simulation.NoCheckpoints.allow"><code class="docutils literal notranslate"><span class="pre">NoCheckpoints.allow()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="boltzmann.simulation.html#boltzmann.simulation.EveryN"><code class="docutils literal notranslate"><span class="pre">EveryN</span></code></a><ul>
@@ -212,7 +245,7 @@
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.upper"><code class="docutils literal notranslate"><span class="pre">Domain.upper</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.counts"><code class="docutils literal notranslate"><span class="pre">Domain.counts</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.dx"><code class="docutils literal notranslate"><span class="pre">Domain.dx</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.dims"><code class="docutils literal notranslate"><span class="pre">Domain.dims</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.ndim"><code class="docutils literal notranslate"><span class="pre">Domain.ndim</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.make"><code class="docutils literal notranslate"><span class="pre">Domain.make()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.get_dim"><code class="docutils literal notranslate"><span class="pre">Domain.get_dim()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.x"><code class="docutils literal notranslate"><span class="pre">Domain.x</span></code></a></li>
@@ -223,6 +256,9 @@
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.height"><code class="docutils literal notranslate"><span class="pre">Domain.height</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.depth"><code class="docutils literal notranslate"><span class="pre">Domain.depth</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.meshgrid"><code class="docutils literal notranslate"><span class="pre">Domain.meshgrid()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.xx"><code class="docutils literal notranslate"><span class="pre">Domain.xx</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.yy"><code class="docutils literal notranslate"><span class="pre">Domain.yy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.Domain.zz"><code class="docutils literal notranslate"><span class="pre">Domain.zz</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="boltzmann.units.html#boltzmann.units.UnitConverter"><code class="docutils literal notranslate"><span class="pre">UnitConverter</span></code></a><ul>

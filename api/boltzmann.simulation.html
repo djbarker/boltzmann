@@ -20,7 +20,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="boltzmann.units" href="boltzmann.units.html" />
-    <link rel="prev" title="boltzmann.core" href="boltzmann.core.html" /> 
+    <link rel="prev" title="boltzmann.mock" href="boltzmann.mock.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -54,6 +54,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="boltzmann.html">boltzmann</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="boltzmann.utils.html">boltzmann.utils</a></li>
 <li class="toctree-l2"><a class="reference internal" href="boltzmann.core.html">boltzmann.core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="boltzmann.mock.html">boltzmann.mock</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">boltzmann.simulation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="boltzmann.units.html">boltzmann.units</a></li>
 </ul>
@@ -148,10 +149,26 @@ Valid combinations are those that are sufficient to infer the others.</p>
 </dd></dl>
 
 <dl class="py class">
+<dt class="sig sig-object py" id="boltzmann.simulation.NoCheckpoints">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">NoCheckpoints</span></span><a class="reference internal" href="../_modules/boltzmann/simulation.html#NoCheckpoints"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.NoCheckpoints" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><code class="xref py py-class docutils literal notranslate"><span class="pre">CheckpointGater</span></code></a></p>
+<p>Disable checkpointing.</p>
+<p>This is useful if you are debugging output generation, for example, and want to repeatedly restart from an existing checkpoint.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="boltzmann.simulation.NoCheckpoints.allow">
+<span class="sig-name descname"><span class="pre">allow</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="../_modules/boltzmann/simulation.html#NoCheckpoints.allow"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.NoCheckpoints.allow" title="Link to this definition"></a></dt>
+<dd><p>Returns true if the simulation should write a checkpoint.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="boltzmann.simulation.EveryN">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">EveryN</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_curr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#EveryN"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.EveryN" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">EveryN</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_curr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#EveryN"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.EveryN" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><code class="xref py py-class docutils literal notranslate"><span class="pre">CheckpointGater</span></code></a></p>
 <p>Allow a checkpoint to be written every N times the <a class="reference internal" href="#boltzmann.simulation.CheckpointGater.allow" title="boltzmann.simulation.CheckpointGater.allow"><code class="xref py py-meth docutils literal notranslate"><span class="pre">CheckpointGater.allow()</span></code></a> method is called.</p>
+<p>Will not write a checkpoint on the first call;
+there is no point checkpointing if no progress has been made.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="boltzmann.simulation.EveryN.interval">
 <span class="sig-name descname"><span class="pre">interval</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#boltzmann.simulation.EveryN.interval" title="Link to this definition"></a></dt>
@@ -167,9 +184,10 @@ Valid combinations are those that are sufficient to infer the others.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="boltzmann.simulation.EveryT">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">EveryT</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">timedelta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_last</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">datetime.datetime(1970,</span> <span class="pre">1,</span> <span class="pre">1,</span> <span class="pre">0,</span> <span class="pre">0)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#EveryT"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.EveryT" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">EveryT</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">interval:</span> <span class="pre">~datetime.timedelta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_last:</span> <span class="pre">~datetime.datetime</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/boltzmann/simulation.html#EveryT"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.EveryT" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><code class="xref py py-class docutils literal notranslate"><span class="pre">CheckpointGater</span></code></a></p>
 <p>Allow a checkpoint to be written at regular time intervals.</p>
+<p>Will start with the current time so will not initially write a checkpoint.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="boltzmann.simulation.EveryT.interval">
 <span class="sig-name descname"><span class="pre">interval</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">timedelta</span></em><a class="headerlink" href="#boltzmann.simulation.EveryT.interval" title="Link to this definition"></a></dt>
@@ -187,9 +205,10 @@ Valid combinations are those that are sufficient to infer the others.</p>
 <dt class="sig sig-object py" id="boltzmann.simulation.parse_checkpoints">
 <span class="sig-prename descclassname"><span class="pre">boltzmann.simulation.</span></span><span class="sig-name descname"><span class="pre">parse_checkpoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><span class="pre">CheckpointGater</span></a></span></span><a class="reference internal" href="../_modules/boltzmann/simulation.html#parse_checkpoints"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#boltzmann.simulation.parse_checkpoints" title="Link to this definition"></a></dt>
 <dd><p>Parse a string into a <a class="reference internal" href="#boltzmann.simulation.CheckpointGater" title="boltzmann.simulation.CheckpointGater"><code class="xref py py-class docutils literal notranslate"><span class="pre">CheckpointGater</span></code></a> object.</p>
-<p>There are only two valid formats:</p>
+<p>There are only three valid formats:</p>
 <blockquote>
 <div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;off&quot;</span></code> - which will disable checkpointing.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">&quot;&lt;N&gt;&quot;</span></code> - which will checkpoint every <code class="docutils literal notranslate"><span class="pre">N</span></code> iterations.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">&quot;&lt;N&gt;m&quot;</span></code>- which will checkpoint every <code class="docutils literal notranslate"><span class="pre">N</span></code> minutes.</p></li>
 </ul>
@@ -348,7 +367,7 @@ See <a class="reference internal" href="#boltzmann.simulation.run_sim" title="bo
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="boltzmann.core.html" class="btn btn-neutral float-left" title="boltzmann.core" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="boltzmann.mock.html" class="btn btn-neutral float-left" title="boltzmann.mock" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="boltzmann.units.html" class="btn btn-neutral float-right" title="boltzmann.units" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
