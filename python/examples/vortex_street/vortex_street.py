@@ -264,9 +264,7 @@ for iter in run_sim(sim, meta, args.out_dir, args.checkpoints):
 
                 # Combine stream contours with image.
                 buf1 = np.array(img).astype(np.float64) / 255.0
-                buf2 = arr_i8_.astype(np.float64).T[
-                    ..., None
-                ]  # Zero where we have no contours, one where we do.
+                buf2 = arr_i8_.astype(np.float64).T[::-1, :, None]
 
                 if mode == "add":
                     buf1 = buf1 + 0.3 * buf2
