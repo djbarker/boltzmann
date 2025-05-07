@@ -26,10 +26,11 @@ aspect_ratio = 3
 y_si = 4.0
 x_si = y_si * aspect_ratio
 
-d_si = 0.15 * y_si  # Cylinder diameter.
-Re = 10  # Reynolds number [1]
+d_si = 0.1 * y_si  # Cylinder diameter [m].
+r_si = d_si / 2.0  # Cylinder radius [m].
+Re = 1000  # Reynolds number [1]
 nu_si = 1e-4  # kinematic viscosity [m^2/s]
-L = 1000  # Cell count in the y direction [1]
+L = 2000  # Cell count in the y direction [1]
 
 # implied params
 u_si = Re * nu_si / d_si  # => flow velocity [m/s]
@@ -48,9 +49,9 @@ dotted(logger, "dt", dt)
 
 scales = Scales(dx=dx, dt=dt)
 
-# dimensionless time does not depend on viscosity, purely on distances
-out_dx_si = d_si / 20  # want to output when flow has moved this far
-sim_dx_si = u_si * dt  # flow moves this far in dt (i.e. one iteration)
+# Dimensionless time does not depend on viscosity, purely on distances.
+out_dx_si = d_si / 20  # We want to output when flow has moved this far.
+sim_dx_si = u_si * dt  # The flow moves this far in dt (i.e. one iteration.)
 n = out_dx_si / sim_dx_si
 n = int(n + 1e-8)
 out_dt_si = dt * n
@@ -61,16 +62,16 @@ meta = IterInfo.make(
     count=800,
 )
 
-# geometry
+# Domain geometry.
 lower = np.array([0 * x_si, -y_si / 2.0])
 upper = np.array([1 * x_si, +y_si / 2.0])
 domain = Domain.make(lower=lower, upper=upper, dx=dx)
 
-# cylinder center
-cx = d_si * 2.5
+# Cylinder center [m].
+cx = y_si * 0.2
 cy = 0.0
 
-# color scheme constants
+# Color scheme constants.
 l_si = d_si / 10  # Characteristic length scale for color normalization.
 vmax_vmag = 1.8 * u_si
 vmax_curl = 0.8 * u_si / l_si
@@ -118,14 +119,17 @@ else:
     match velocity_init_mode:
         case "uniform":
             sim.fluid.vel[..., 0] = u_si
+
         case "tapered":
             D = 1.0 * d_si
             sim.fluid.vel[:, :, 0] = u_si * (np.where(DD > D, D, DD) / (D))
+
         case "stream":
             stream = domain.yy / domain.dx
             stream *= 1 - np.exp(-((DD / (y_si / 10)) ** 2))
             sim.fluid.vel[..., 0] = +u_si * np.gradient(stream, axis=1)
             sim.fluid.vel[..., 1] = -u_si * np.gradient(stream, axis=0)
+
         case _:
             raise ValueError(velocity_init_mode)
 
