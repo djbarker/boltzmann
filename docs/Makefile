@@ -34,8 +34,7 @@ build:
 # See README.md
 deploy:
 	$(MAKE) build
-	cd ..
-	cp -r docs/build/html/* .
+	cp -r build/html/* ../
 	git add -u
 	git commit -m "Update docs."
 	git push

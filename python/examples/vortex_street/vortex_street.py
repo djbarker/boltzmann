@@ -139,7 +139,8 @@ else:
 
         case "stream":
             stream = domain.yy / domain.dx
-            stream *= 1 - np.exp(-((DD / (y_si / 10)) ** 2))
+            # stream *= 1 - np.exp(-((DD / (y_si / 10)) ** 2))
+            stream *= 1 - np.exp(-((DD / (y_si / 25)) ** 2))
             sim.fluid.vel[..., 0] = +u_si * np.gradient(stream, axis=1)
             sim.fluid.vel[..., 1] = -u_si * np.gradient(stream, axis=0)
 
@@ -206,7 +207,7 @@ for iter in run_sim(sim, meta, args.out_dir, args.checkpoints):
             write_png(
                 args.out_dir / f"density_{iter:06d}.png",
                 sim.fluid.rho,
-                f"Density\nτ = {tau_:7.2f}",
+                f"Density\nτ = {tau_:.2f}",
                 "light",
                 cmap="InkyBlueRed",
                 vmin=0.95,
@@ -216,7 +217,8 @@ for iter in run_sim(sim, meta, args.out_dir, args.checkpoints):
         write_png(
             args.out_dir / f"curl_{iter:06d}.png",
             curl_,
-            "Vorticity",
+            # "Vorticity",
+            "",
             "dark",
             cmap="OrangeBlue",
             vmin=-vmax_curl,
