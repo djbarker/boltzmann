@@ -1,15 +1,11 @@
 # %% Imports
-import matplotlib
 
-matplotlib.use("Agg")
-
-import matplotlib.pyplot as plt
 import logging
 import numpy as np
 
 from pathlib import Path
-from PIL import ImageDraw, ImageFont
-from scipy.ndimage import distance_transform_edt
+from PIL import ImageDraw, ImageFont, Image
+from scipy.ndimage import distance_transform_edt, maximum_filter, minimum_filter, binary_dilation
 from typing import Literal
 
 from boltzmann.core import CellFlags, calc_lbm_params_si
@@ -147,6 +143,7 @@ else:
 vmag_ = np.zeros_like(sim.fluid.rho[:, :])
 curl_ = np.zeros_like(sim.fluid.rho[:, :])
 stream_ = np.zeros_like(sim.fluid.rho[:, :])
+arr_i8_ = np.zeros_like(sim.fluid.rho[:, :], dtype=np.int8)
 tracer_ = np.zeros([sim.fluid.vel.shape[0], sim.fluid.vel.shape[1], 3])
 
 # output params
@@ -155,6 +152,7 @@ fox = domain.counts[1] // 60
 foy = 0
 font = ImageFont.truetype("NotoSans-BoldItalic", fsz)
 outy = 1000
+outx = outy * aspect_ratio
 
 
 def write_png(
@@ -166,18 +164,11 @@ def write_png(
 ):
     tcol = (255, 255, 255) if background == "dark" else (0, 0, 0)
     bcol = (0, 0, 0) if background == "dark" else (255, 255, 255)
-    outx = outy * aspect_ratio
 
     with PngWriter(path, outx, sim.cells.flags, data, **kwargs) as img:
         draw = ImageDraw.Draw(img)
         draw.text((fox, foy), label, tcol, font=font, stroke_width=fsz // 15, stroke_fill=bcol)
 
-
-# Re-use figures.
-figkw = dict(figsize=(5 * (x_si / y_si), 5), dpi=300, facecolor="w")
-fig_data = plt.figure(**figkw)  # type: ignore
-fig_stream = plt.figure(**figkw)  # type: ignore
-fig_combined = plt.figure(**figkw)  # type: ignore
 
 for iter in run_sim(sim, meta, args.out_dir, args.checkpoints):
     with timed(logger, "writing output", 1):
@@ -223,7 +214,6 @@ for iter in run_sim(sim, meta, args.out_dir, args.checkpoints):
             cmap: str = "inferno",
         ):
             """ """
-
             vmag_[:] = calc_vmag(vel, scales=scales)
             stream_[:] = calc_stream_func(vel, scales=scales, origin=(0, y_si / 2))
 
@@ -234,79 +224,60 @@ for iter in run_sim(sim, meta, args.out_dir, args.checkpoints):
             vmin = vmin or np.nanmin(data)
             vmax = vmax or np.nanmax(data)
 
-            # draw field
-            ax = fig_data.gca()
-            ax.imshow(
-                data.T,
-                interpolation="none",
-                origin="lower",
+            with PngWriter(
+                args.out_dir / fname,
+                outx,
+                sim.cells.flags,
+                vmag_,
+                cmap=cmap,
                 vmin=vmin,
                 vmax=vmax,
-                cmap=cmap,
-            )
-            ax.set_xlim(0, vmag_.shape[0])
-            ax.set_ylim(0, vmag_.shape[1])
-            ax.axis("off")
-            fig_data.tight_layout(pad=0)
-            fig_data.canvas.draw()
-            w, h = fig_data.canvas.get_width_height()
-            buf1 = np.frombuffer(fig_data.canvas.buffer_rgba(), np.uint8).reshape(h, w, -1).copy()  # type: ignore
-            fig_data.clear()
+            ) as img:
+                # Quantize stream function & detect edges.
+                width = L // 300  # Pixels.
+                arr_i8_[:] = np.digitize(stream_, levels)
+                arr_i8_[:] = (maximum_filter(arr_i8_, 3) - minimum_filter(arr_i8_, 3)) != 0
+                arr_i8_[:] = binary_dilation(arr_i8_, iterations=(width - 2) // 2)
 
-            # draw contours
+                # Combine stream contours with image.
+                buf1 = np.array(img).astype(np.float64) / 255.0
+                buf2 = arr_i8_.astype(np.float64).T[
+                    ..., None
+                ]  # Zero where we have no contours, one where we do.
 
-            ax = fig_stream.gca()
-            ax.contour(stream_.T, levels=levels, colors="k", **lines)
-            ax.set_xlim(0, vmag_.shape[0])
-            ax.set_ylim(0, vmag_.shape[1])
-            ax.axis("off")
-            fig_stream.tight_layout(pad=0)
-            fig_stream.canvas.draw()
-            w, h = fig_stream.canvas.get_width_height()
-            buf2 = np.frombuffer(fig_stream.canvas.buffer_rgba(), np.uint8).reshape(h, w, -1).copy()  # type: ignore
-            fig_stream.clear()
+                if mode == "add":
+                    buf1 = buf1 + 0.3 * buf2
+                elif mode == "mult":
+                    buf1 = buf1 * (1 + buf2)
+                elif mode == "smart":
+                    # This mode attempts to make ligher areas darker (or at least not overexposed) and
+                    # darker areas lighter.
+                    # The results heavily depend on the mapping parameters a & b which are the values
+                    # zero and full brightness get mapped to respectively.
+                    #
+                    # NOTE: This works on each colour channel separately. To do a better job we could
+                    #       map into HSL and work just on the L channel.
 
-            # combine
+                    # -- additive blending
+                    # a = 0.1
+                    # b = 0.8
+                    # m = b - a
+                    # buf3 = m * buf1 + a
+                    # buf1 = buf1 * (1 - buf2) + buf3 * buf2
 
-            buf1 = buf1.astype(np.float64) / 255.0
-            buf2 = buf2.astype(np.float64) / 255.0
-            buf2 = 1.0 - buf2  # zero where we have no contours, one where we do
+                    # -- multiplicative blending
+                    a = 1.5
+                    b = 1.0
+                    m = b - a
+                    buf3 = m * buf1 + a
+                    buf1 = buf1 * (1 - buf2) + buf3 * buf2 * buf1
 
-            if mode == "add":
-                buf1 = buf1 + 0.3 * buf2
-            elif mode == "mult":
-                buf1 = buf1 * (1 + buf2)
-            elif mode == "smart":
-                # This mode attempts to make ligher areas darker (or at least not overexposed) and
-                # darker areas lighter.
-                # The results heavily depend on the mapping parameters a & b which are the values
-                # zero and full brightness get mapped to respectively.
-                #
-                # NOTE: This works on each colour channel separately. To do a better job we could
-                #       map into HSL and work just on the L channel.
+                # Ignore the alpha channel.
+                # buf1[..., 3] = 1.0
 
-                # -- additive blending
-                # a = 0.1
-                # b = 0.8
-                # m = b - a
-                # buf3 = m * buf1 + a
-                # buf1 = buf1 * (1 - buf2) + buf3 * buf2
-
-                # -- multiplicative blending
-                a = 1.5
-                b = 1.0
-                m = b - a
-                buf3 = m * buf1 + a
-                buf1 = buf1 * (1 - buf2) + buf3 * buf2 * buf1
-
-            # Ignore the alpha channel.
-            buf1[..., 3] = 1.0
-
-            ax = fig_combined.gca()
-            ax.imshow(np.clip(buf1, 0, 1))
-            ax.axis("off")
-            fig_combined.savefig(args.out_dir / fname, bbox_inches="tight", pad_inches=0)
-            fig_combined.clear()
+                # Replace the original image.
+                img_ = Image.fromarray((buf1 * 255).astype(np.uint8))
+                img.paste(img_, (0, 0))
 
         # -- Fixed reference frame.
 
