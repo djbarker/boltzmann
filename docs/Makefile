@@ -22,20 +22,8 @@ help:
 # Run the apidoc step to generate the API documentation before calling Sphynx.
 # Note: the paths following ../python/boltzmann are excludes.
 build:
-	$(MAKE) clean
-	sphinx-apidoc -ef \
-		-o source/api \
-		--templatedir=source/_templates \
-		../python/boltzmann \
-		../python/boltzmann/kernel_gen.py \
-		../python/boltzmann/boltzmann.*so
-	$(MAKE) html
+	./build.sh
 
 # See README.md
 deploy:
-	$(MAKE) build
-	cd ..
-	cp -r docs/build/html/* .
-	git add -u
-	git commit -m "Update docs."
-	git push
+	./deploy.sh
