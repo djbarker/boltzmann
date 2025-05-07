@@ -1,16 +1,16 @@
+# Boltzmann
+
 [![test status](https://github.com/djbarker/boltzmann/actions/workflows/python-app.yml/badge.svg)](https://github.com/djbarker/boltzmann/actions/workflows/python-app.yml)
 [![docs](https://img.shields.io/badge/documentation-782bc8)](https://djbarker.github.io/boltzmann/)
 [![gallery](https://img.shields.io/badge/gallery-1a9988)](gallery)
 [![examples](https://img.shields.io/badge/examples-9a9400)](python/examples)
-
-# Boltzmann
 
 A GPU accelerated Python package for running [Lattice-Boltzmann](https://en.wikipedia.org/wiki/Lattice_Boltzmann_methods) simulations.
 
 <p align="center">
     <picture align="center">
         <a href="https://github.com/djbarker/boltzmann/tree/master/gallery">
-            <img src="gallery/banner.png"/>
+            <img src="gallery/images/banner.png"/>
         </a>
     </picture>
     </br>
@@ -89,7 +89,7 @@ This should produce the plot below
 
 <p align="center">
     <picture align="center">
-        <img src="gallery/example_basic.png"/>
+        <img src="gallery/images/example_basic.png"/>
     </picture>
     </br>
     <i>

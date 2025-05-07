@@ -62,7 +62,7 @@ class PerfInfo:
     :py:class:`PerfInfo` objects can be added together (& subtracted) which is useful for measuring long-running performance.
     """
 
-    events: int = field(default=0)  #: The number of events that processed.
+    events: int = field(default=0)  #: The number of events that have been processed.
     micros: int = field(default=0)  #: The number of microseconds taken to process the events.
 
     @property
@@ -201,7 +201,7 @@ def tick() -> PerfTimer:
 
 @contextmanager
 def timed(
-    logger: logging.Logger, message: str, events: int = 1
+    logger: logging.Logger, message: str, events: int = 1, level: int = logging.DEBUG
 ) -> Generator[PerfTimer, None, None]:
     """
     Time the contents of a with-statement, and log the result.
@@ -217,12 +217,12 @@ def timed(
     """
     timer = tick()
     try:
-        logger.debug(f"Starting {message}")
+        logger.log(level, f"Starting {message}")
         yield timer
     finally:
         message = f"Finished {message}: "
         perf = timer.tock(events=events)
-        logger.debug(f"{message} in {perf.seconds:.1f} seconds ({perf.rate} / sec)")
+        logger.log(level, f"{message} in {perf.seconds:.1f} seconds ({perf.rate} / sec)")
 
 
 # TODO: this seems to print "logger" as the name of the logger, why?

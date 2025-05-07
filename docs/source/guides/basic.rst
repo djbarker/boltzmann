@@ -100,9 +100,8 @@ To produce a nice plot we will calculate the `vorticity <https://en.wikipedia.or
 
     import matplotlib.pyplot as plt
 
-    dvydx = np.diff(sim.fluid.vel[..., 1], axis=0)[:, :-1]
-    dvxdy = np.diff(sim.fluid.vel[..., 0], axis=1)[:-1, :]
-    curl = dvydx - dvxdy
+    grad = np.gradient(sim.fluid.vel)
+    curl = grad[1][..., 0] - grad[0][..., 1]
     plt.imshow(curl.T, cmap="RdBu")
     plt.show()
 

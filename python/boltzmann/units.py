@@ -64,7 +64,9 @@ class Domain:
     upper: np.ndarray  #: Upper bound of the domain in each dimension.
     counts: np.ndarray  #: Number of cells in each dimension.
     dx: float  #: Physical extent of each cell.
-    dims: int  #: Number of dimensions. (:python:`== len(counts)`)
+    ndim: int  #: Number of dimensions. (:python:`== len(counts)`)
+
+    _meshgrid_data: tuple[np.ndarray, ...] | None = field(default=None)
 
     @staticmethod
     def make(
@@ -148,7 +150,7 @@ class Domain:
 
         :param dim: The dimension to return the cell positions for.
         """
-        assert dim < self.dims, f"Invalid dim! [{dim=}, {self.dims=}]"
+        assert dim < self.ndim, f"Invalid dim! [{dim=}, {self.ndim=}]"
         return np.linspace(
             self.lower[dim] + self.dx / 2,
             self.upper[dim] - self.dx / 2,
@@ -180,7 +182,7 @@ class Domain:
         """
         Size of the domain in the specified dimension.
         """
-        assert dim < self.dims, f"Invalid dim! [{dim=}, {self.dims=}]"
+        assert dim < self.ndim, f"Invalid dim! [{dim=}, {self.ndim=}]"
         return self.upper[dim] - self.lower[dim]
 
     @property
@@ -215,7 +217,33 @@ class Domain:
             XX, YY = dom.meshgrid()
 
         """
-        return np.meshgrid(*[self.get_dim(i) for i in range(self.dims)], indexing="ij")
+        if self._meshgrid_data is None:
+            self._meshgrid_data = np.meshgrid(
+                *[self.get_dim(i) for i in range(self.ndim)],
+                indexing="ij",
+            )
+        return self._meshgrid_data
+
+    @property
+    def xx(self) -> np.ndarray:
+        """
+        The x component of :py:meth:`meshgrid`.
+        """
+        return self.meshgrid()[0]
+
+    @property
+    def yy(self) -> np.ndarray:
+        """
+        The y component of :py:meth:`meshgrid`.
+        """
+        return self.meshgrid()[1]
+
+    @property
+    def zz(self) -> np.ndarray:
+        """
+        The z component of :py:meth:`meshgrid`.
+        """
+        return self.meshgrid()[2]
 
 
 @dataclass

@@ -66,7 +66,7 @@ impl SourceKernelKey {
 
 /// Long-lived OpenCL context.
 pub struct OpenCLCtx {
-    _device: Device,
+    pub device: Device,
     pub context: Context,
     pub queue: CommandQueue,
     pub update_kernels: HashMap<UpdateKernelKey, Kernel>,
@@ -132,7 +132,7 @@ impl OpenCLCtx {
 
         // Put it all together
         Self {
-            _device: device,
+            device,
             context: context,
             queue: queue,
             update_kernels: ukernels,

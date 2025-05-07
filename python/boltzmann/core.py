@@ -34,9 +34,7 @@ if hasattr(boltzmann.boltzmann, "__all__"):
 
 # ------------------------------------
 
-Device = Literal[
-    "cpu", "gpu"
-]  #: OpenCL device type on which type to run the simulations.
+Device = Literal["cpu", "gpu"]  #: OpenCL device type on which type to run the simulations.
 
 
 class CellFlags:
@@ -55,9 +53,7 @@ class CellFlags:
     # fmt: on
 
 
-def check_lbm_params(
-    Re: float, L: float, tau: float, M_max: float = 0.1, slack: float = 0.0
-):
+def check_lbm_params(Re: float, L: float, tau: float, M_max: float = 0.1, slack: float = 0.0):
     """
     Check if the chosen parameters are likely to be stable or not with BGK collision operator.
     For more information see https://dbarker.uk/lbm_parameterization/.
@@ -128,7 +124,7 @@ def calc_lbm_params_si(
     tau: float | None = None,
     # bounds
     M_max: float = 0.1,
-    tau_max: float = 1.0,
+    tau_max: float = 10.0,
     tau_min: float = 0.5,
     slack: float = 0.0,
 ) -> tuple[float, float]:
@@ -139,6 +135,11 @@ def calc_lbm_params_si(
     Sometimes it is more natural to specify the physical parameters directly rather than via
     Reynold's number.
     Under the hood, however, this function calls :py:meth:`calc_lbm_params_lu`.
+
+    .. note::
+
+        The suffix ``_si`` means the arguments are in SI units.
+        The function still returns the LBM parameters in lattice units.
 
     :param dx: Lattice spacing.
     :param u_si: Characteristic velocity of the system.

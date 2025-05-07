@@ -5,8 +5,9 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use fields::{MemUsage, Scalar};
 // Imports from other crates:
 use ndarray::{arr1, Array1, ArrayView1, ArrayViewD, ArrayViewMutD};
-use numpy::{PyArrayDyn, PyReadonlyArray1, PyReadonlyArrayDyn, PyReadwriteArrayDyn};
+use numpy::{Ix1, PyArray, PyArrayDyn, PyReadonlyArray1, PyReadonlyArrayDyn, PyReadwriteArrayDyn};
 use opencl::{DeviceType, OpenCLCtx};
+use opencl3::device::{CL_DEVICE_TYPE_CPU, CL_DEVICE_TYPE_GPU};
 use pyo3::prelude::*;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
@@ -96,16 +97,6 @@ struct FluidPy {
 
 #[pymethods]
 impl FluidPy {
-    /// The distribution function data.
-    /// You probably do not need to access this directly.
-    /// It is exposed for completeness.
-    #[getter]
-    fn f<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
-        let borrow = this.borrow();
-        let array = &borrow.sim.lock().unwrap().fluid.f.host;
-        unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
-    }
-
     /// The fluid density data.
     #[getter]
     fn rho<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
@@ -142,23 +133,6 @@ struct ScalarPy {
 
 #[pymethods]
 impl ScalarPy {
-    /// The distribution function data.
-    /// You probably do not need to access this directly.
-    /// It is exposed for completeness.
-    #[getter]
-    fn g<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
-        let borrow = this.borrow();
-        let sim = borrow.sim.lock().unwrap();
-        if let Some(tracer) = sim.tracers.get(borrow.name.as_str()) {
-            let array = &tracer.g.host;
-            unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
-        } else {
-            // Just panic here because we shouldn't be able to get the [`ScalarPy`]
-            // object if the [`Simulation`] doesn't have any tracers configured.
-            panic!("No tracers configured")
-        }
-    }
-
     /// The scalar field data.
     #[getter]
     fn val<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArrayDyn<f32>> {
@@ -216,6 +190,17 @@ impl CellsPy {
     #[getter]
     fn size_bytes(&self) -> usize {
         self.sim.lock().unwrap().cells.size_bytes()
+    }
+
+    /// The number of grid cells in each dimension.
+    ///
+    /// :returns: The count in each dimension.
+    #[getter]
+    fn counts<'py>(this: Bound<'py, Self>) -> Bound<'py, PyArray<usize, Ix1>> {
+        let borrow = this.borrow();
+        let sim = borrow.sim.lock().unwrap();
+        let array = &sim.cells.counts;
+        unsafe { PyArray::<usize, Ix1>::borrow_from_array(array, this.into_any()) }
     }
 
     /// The total number of grid cells.
@@ -290,6 +275,18 @@ impl SimulationPy {
         Self {
             sim: Arc::new(Mutex::new(Simulation::new(dev, &counts, q, omega_ns))),
         }
+    }
+
+    #[getter]
+    fn device_info(&self) -> String {
+        let device = &self.sim().opencl.device;
+        let vendor = device.vendor().expect("Error getting OpenCL Vendor");
+        let dev_type = match device.dev_type().expect("Error getting OpenCL Device Type") {
+            CL_DEVICE_TYPE_GPU => "GPU",
+            CL_DEVICE_TYPE_CPU => "CPU",
+            _ => "UNKNOWN",
+        };
+        format!("{} {}", vendor, dev_type)
     }
 
     // #[getter]

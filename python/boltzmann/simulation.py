@@ -5,21 +5,22 @@ It provides automatic progress logging, checkpointing, and simulation resumption
 See :doc:`guides/script <guides/script>` for more information on how to use this module.
 """
 
-from abc import ABC, abstractmethod
 import argparse as ap
 import logging
+import numpy as np
 import os
 import re
 import sys
 import datetime
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Generator, Protocol
 
 from boltzmann.core import Device, Simulation
 from boltzmann.units import Array1dT
-from boltzmann.utils.logger import dotted, tick
+from boltzmann.utils.logger import dotted, tick, timed
 from boltzmann.utils.option import Some, to_opt
 
 
@@ -95,30 +96,47 @@ class CheckpointGater(ABC):
 
 
 @dataclass
+class NoCheckpoints(CheckpointGater):
+    """
+    Disable checkpointing.
+
+    This is useful if you are debugging output generation, for example, and want to repeatedly restart from an existing checkpoint.
+    """
+
+    def allow(self) -> bool:
+        return False
+
+
+@dataclass
 class EveryN(CheckpointGater):
     """
     Allow a checkpoint to be written every N times the :py:meth:`CheckpointGater.allow` method is called.
+
+    Will not write a checkpoint on the first call;
+    there is no point checkpointing if no progress has been made.
     """
 
     interval: int
-    _curr: int = field(default=0)
+    _curr: int = field(default=1)
 
     def __post_init__(self):
         assert self.interval > 0, "Checkpoint Interval must be positive!"
 
     def allow(self) -> bool:
         self._curr = (self._curr + 1) % self.interval
-        return self._curr == 1
+        return self._curr == 0
 
 
 @dataclass
 class EveryT(CheckpointGater):
     """
     Allow a checkpoint to be written at regular time intervals.
+
+    Will start with the current time so will not initially write a checkpoint.
     """
 
     interval: datetime.timedelta
-    _last: datetime.datetime = field(default=datetime.datetime(1970, 1, 1))
+    _last: datetime.datetime = field(default_factory=datetime.datetime.now)
 
     def allow(self) -> bool:
         now = datetime.datetime.now()
@@ -132,8 +150,9 @@ def parse_checkpoints(s: str) -> CheckpointGater:
     """
     Parse a string into a :py:class:`CheckpointGater` object.
 
-    There are only two valid formats:
+    There are only three valid formats:
 
+        * ``"off"`` - which will disable checkpointing.
         * ``"<N>"`` - which will checkpoint every ``N`` iterations.
         * ``"<N>m"``- which will checkpoint every ``N`` minutes.
 
@@ -141,7 +160,9 @@ def parse_checkpoints(s: str) -> CheckpointGater:
     :returns: A :py:class:`CheckpointGater`.
     """
 
-    if (m := re.match(r"^(\d+)$", s)) is not None:
+    if s == "off":
+        return NoCheckpoints()
+    elif (m := re.match(r"^(\d+)$", s)) is not None:
         return EveryN(int(m.group(1)))
     elif (m := re.match(r"^(\d+)m$", s)) is not None:
         return EveryT(datetime.timedelta(minutes=int(m.group(1))))
@@ -190,10 +211,15 @@ def run_sim(
     batch_iters = 2 * int(meta.interval / 2 + 0.5)
 
     # Log simulatin info.
+    device = " ".join(
+        filter(lambda s: s != "", sim.device_info.replace("Corporation", "").strip().split(" "))
+    )
+    dotted(logger, "OpenCL device", device)
     dotted(logger, "Output directory", str(output_dir))
     dotted(logger, "Memory usage", f"{sim.size_bytes // 1_000_000:,d}", "MB")
     dotted(logger, "Iters / output", batch_iters)
     dotted(logger, "Cells", f"{sim.cells.count / 1e6:,.1f}M")
+    dotted(logger, "     ", " x ".join([str(int(i)) for i in sim.cells.counts]))
 
     max_i = meta.count
     sim_i = sim.iteration // batch_iters
@@ -209,22 +235,27 @@ def run_sim(
     timer_tot = tick()
     for i in range(sim_i + 1, max_i):
         timer_sim = tick()
-        sim.iterate(batch_iters)
+        with timed(logger, "simulation iteration batch"):
+            sim.iterate(batch_iters)
+
+        if np.any(~np.isfinite(sim.fluid.vel)):
+            raise ValueError("Non-finite value detected!")
 
         # Call tock() before checkpointing so it's not included in the mlups calculation.
         perf_sim = timer_sim.tock(events=sim.cells.count * batch_iters)
         mlups = perf_sim.events / (1e6 * perf_sim.seconds)
 
         # Caller writes their output(s) here.
-        timer_out = tick()
-        yield i
+        with timed(logger, "writing output") as timer_out:
+            yield i
 
         # Write checkpoint if requested.
         if checkpoints.allow():
             # First write to a temp file, then move into place atomically to avoid corruption.
-            sim.write_checkpoint(str(output_dir / "checkpoint.mpk.tmp"))
-            os.replace(output_dir / "checkpoint.mpk.tmp", output_dir / "checkpoint.mpk")
-            logger.info("Checkpoint written.")
+            with timed(logger, "writing checkpoint"):
+                sim.write_checkpoint(str(output_dir / "checkpoint.mpk.tmp"))
+                os.replace(output_dir / "checkpoint.mpk.tmp", output_dir / "checkpoint.mpk")
+                logger.info("Checkpoint written.")
 
         perf_out = timer_out.tock()
 

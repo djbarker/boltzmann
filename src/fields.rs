@@ -75,11 +75,13 @@ impl Fluid {
     }
 
     /// Read the data back from the OpenCL buffers into our host arrays.
-    pub fn read_to_host(&mut self, opencl: &OpenCLCtx) {
+    pub fn read_to_host(&mut self, opencl: &OpenCLCtx, read_f: bool) {
         let queue = &opencl.queue;
-        let _read_f = self.f.enqueue_read(queue);
-        let _read_r = self.rho.enqueue_read(queue);
-        let _read_v = self.vel.enqueue_read(queue);
+        self.rho.enqueue_read(queue);
+        self.vel.enqueue_read(queue);
+        if read_f {
+            self.f.enqueue_read(queue);
+        }
     }
 
     pub fn equilibrate(&mut self) {
@@ -140,7 +142,7 @@ impl Scalar {
     // Copy data from our host arrays into the OpenCL buffers.
     pub fn write_to_dev(&mut self, opencl: &OpenCLCtx) {
         let queue = &opencl.queue;
-        let _write_g = self.g.enqueue_write(queue, "q");
+        let _write_g = self.g.enqueue_write(queue, "g");
         let _write_C = self.C.enqueue_write(queue, "C");
 
         queue
@@ -149,10 +151,12 @@ impl Scalar {
     }
 
     /// Read the data back from the OpenCL buffers into our host arrays.
-    pub fn read_to_host(&mut self, opencl: &OpenCLCtx) {
+    pub fn read_to_host(&mut self, opencl: &OpenCLCtx, read_g: bool) {
         let queue = &opencl.queue;
-        let _read_g = self.g.enqueue_read(queue);
-        let _read_C = self.C.enqueue_read(queue);
+        self.C.enqueue_read(queue);
+        if read_g {
+            self.g.enqueue_read(queue);
+        }
     }
 
     pub fn equilibrate(&mut self, vel: ArrayViewD<f32>) {

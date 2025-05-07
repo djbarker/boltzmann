@@ -1,8 +1,8 @@
-import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import numpy as np
 
-from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.colors import Colormap
+from matplotlib.colors import LinearSegmentedColormap, Colormap
 from PIL.Image import Image, Resampling, fromarray
 from pathlib import Path
 
@@ -60,6 +60,16 @@ _nodes = [0.0, 0.125, 0.25, 0.375, 0.49, 0.5, 0.51, 0.625, 0.75, 0.875, 1.0]
 InkyBlueRed = LinearSegmentedColormap.from_list("InkyBlueRed", list(zip(_nodes, _colors)))
 InkyBlueRed_r = LinearSegmentedColormap.from_list("InkyBlueRed_r", list(zip(_nodes, _colors[::-1])))
 
+# Register our custom colourmaps.
+mpl.colormaps.register(cmap=OrangeBlue)
+mpl.colormaps.register(cmap=OrangeBlue_r)
+mpl.colormaps.register(cmap=OrangeBlue, name="BlueOrange_r")
+mpl.colormaps.register(cmap=OrangeBlue_r, name="BlueOrange")
+mpl.colormaps.register(cmap=InkyBlueRed)
+mpl.colormaps.register(cmap=InkyBlueRed_r)
+mpl.colormaps.register(cmap=InkyBlueRed, name="InkyRedBlue_r")
+mpl.colormaps.register(cmap=InkyBlueRed_r, name="InkyRedBlue")
+
 
 class PngWriter(object):
     """
@@ -76,9 +86,12 @@ class PngWriter(object):
         cell: np.ndarray,
         data: np.ndarray,
         cmap: str | Colormap | None = None,
-        vmin: float = 0.0,
-        vmax: float = 1.0,
+        vmin: float | None = None,
+        vmax: float | None = None,
     ):
+        vmin = vmin or np.nanmin(data)
+        vmax = vmax or np.nanmax(data)
+
         self.path = path
 
         cell = cell[:, :, None]
@@ -101,7 +114,8 @@ class PngWriter(object):
 
         self.img = fromarray((data * 255).astype(np.uint8))
 
-        ar = data.shape[1] / data.shape[0]
+        # NOTE: We have already tranposed here, so y is in position 0.
+        ar = data.shape[0] / data.shape[1]
         outy = int(outx * ar)
         self.outxy = (outx, outy)
 
@@ -109,5 +123,6 @@ class PngWriter(object):
         return self.img
 
     def __exit__(self, *a, **k):
-        self.img.thumbnail(self.outxy, Resampling.LANCZOS)
+        if self.outxy[0] != self.img.width or self.outxy[1] != self.img.height:
+            self.img.thumbnail(self.outxy, Resampling.LANCZOS)
         self.img.save(self.path)

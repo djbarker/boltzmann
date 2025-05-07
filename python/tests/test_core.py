@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import tempfile
 
 from boltzmann.core import check_lbm_params, calc_lbm_params_lu, calc_lbm_params_si, Simulation
 
@@ -100,3 +101,27 @@ def test_simulation_3():
     sim.set_gravity(np.array([0, 0.1], dtype=np.float32))
     sim.iterate(10)
     assert abs(sim.fluid.vel[..., 1].mean() - 0.1 * 10) < 1e-4
+
+
+def test_simulation_serde():
+    """
+    Check serializing & deserializing works fine.
+    """
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        path = tmpdirname + "/checkpoint.mpk"
+
+        sim1 = Simulation("cpu", [100, 100], 1 / 0.51)
+        trc1 = sim1.add_tracer("tracer", 1 / 0.51)
+        trc1.val[10:20, 30:40] = 1.0
+        sim1.add_boussinesq_coupling(trc1, 0.1, 0, np.array([0, 1], np.float32))
+        sim1.iterate(10)
+
+        # round trip
+        sim1.write_checkpoint(path)
+        sim2 = Simulation.load_checkpoint("cpu", path)
+        trc2 = sim2.get_tracer("tracer")
+
+        assert np.allclose(sim1.fluid.rho, sim2.fluid.rho)
+        assert np.allclose(sim1.fluid.vel, sim2.fluid.vel)
+        assert np.allclose(trc1.val, trc2.val)
