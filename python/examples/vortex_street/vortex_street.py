@@ -89,6 +89,7 @@ def pve(x: np.ndarray) -> np.ndarray:
 
 
 velocity_init_mode: Literal["uniform", "tapered", "stream"] = "stream"
+geometry: Literal["cylinder", "pill"] = "cylinder"
 
 omega_ns = 1 / tau
 omega_ad = 1 / min(0.52, tau)
@@ -107,10 +108,22 @@ else:
     sim.cells.flags[+0, :] |= CellFlags.FIXED_SCALAR_VALUE  # left
     sim.cells.flags[-1, :] |= CellFlags.FIXED_SCALAR_VALUE  # right
 
-    # Cylinder geometry.
     XX, YY = np.meshgrid(domain.x, domain.y, indexing="ij")
-    RR = np.sqrt((XX - cx) ** 2 + (YY - cy) ** 2)
-    sim.cells.flags[RR < (d_si / 2)] = CellFlags.WALL
+
+    match geometry:
+        case "cylinder":
+            RR = np.sqrt((XX - cx) ** 2 + (YY - cy) ** 2)
+            sim.cells.flags[RR < r_si] = CellFlags.WALL
+
+        case "pill":
+            w_si = r_si / 5  # Half pill width [m].
+            mask = (np.abs(XX - cx) < w_si) & (YY < cy + r_si) & (YY > cy - r_si)
+            mask |= np.sqrt((XX - cx) ** 2 + (YY - cy - r_si) ** 2) < w_si
+            mask |= np.sqrt((XX - cx) ** 2 + (YY - cy + r_si) ** 2) < w_si
+            sim.cells.flags[mask] = CellFlags.WALL
+
+        case _:
+            raise ValueError(geometry)
 
     # Use EDT not SDF because we may have more complex shapes than a cylinder.
     WW = 1 - 1 * (sim.cells.flags == CellFlags.WALL)
