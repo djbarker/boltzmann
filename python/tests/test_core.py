@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import tempfile
 
-from boltzmann.core import check_lbm_params, calc_lbm_params_lu, calc_lbm_params_si, Simulation
+from boltzmann.core import check_lbm_params, calc_lbm_params_lu, calc_lbm_params_si, Simulation, bgk
 
 
 def test_check_lbm_params():
@@ -58,7 +58,7 @@ def test_simulation_1():
     """
     Tests construction, that the array shapes and initial values are correct, and that running works.
     """
-    sim = Simulation("cpu", [100, 100], 1 / 0.51)
+    sim = Simulation("cpu", [100, 100], bgk(0.51))
 
     # Check array shapes.
     assert sim.fluid.vel.shape == (100, 100, 2)
@@ -84,8 +84,8 @@ def test_simulation_2():
     Check adding a tracer & conservation.
     """
 
-    sim = Simulation("cpu", [100, 100], 1 / 0.51)
-    tracer = sim.add_tracer("tracer", 1 / 0.51)
+    sim = Simulation("cpu", [100, 100], bgk(0.51))
+    tracer = sim.add_tracer("tracer", bgk(0.51))
     tracer.val[10:20, 30:40] = 1.0
     sim.iterate(10)
 
@@ -97,7 +97,7 @@ def test_simulation_3():
     """
     Check adding a body force works okay.
     """
-    sim = Simulation("cpu", [100, 100], 1)
+    sim = Simulation("cpu", [100, 100], bgk(1.0))
     sim.set_gravity(np.array([0, 0.1], dtype=np.float32))
     sim.iterate(10)
     assert abs(sim.fluid.vel[..., 1].mean() - 0.1 * 10) < 1e-4
@@ -111,8 +111,8 @@ def test_simulation_serde():
     with tempfile.TemporaryDirectory() as tmpdirname:
         path = tmpdirname + "/checkpoint.mpk"
 
-        sim1 = Simulation("cpu", [100, 100], 1 / 0.51)
-        trc1 = sim1.add_tracer("tracer", 1 / 0.51)
+        sim1 = Simulation("cpu", [100, 100], bgk(0.51))
+        trc1 = sim1.add_tracer("tracer", bgk(0.51))
         trc1.val[10:20, 30:40] = 1.0
         sim1.add_boussinesq_coupling(trc1, 0.1, 0, np.array([0, 1], np.float32))
         sim1.iterate(10)
