@@ -1,3 +1,4 @@
+use std::fmt::format;
 // Std imports:
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::usize;
@@ -19,61 +20,27 @@ pub mod simulation;
 pub mod utils;
 pub mod velocities;
 
-#[pyclass]
-struct BGK {
-    tau: f32,
+#[pyclass(name = "Omega")]
+#[derive(Clone, Copy)]
+enum OmegaPy {
+    BGK(f32),
+    TRT(f32, f32),
 }
 
-#[pymethods]
-impl BGK {
-    #[new]
-    pub fn new(tau: f32) -> Self {
-        Self { tau: tau }
-    }
-}
-
-#[pyclass]
-struct TRT {
-    tau_pos: f32,
-    tau_neg: f32,
-}
-
-#[pymethods]
-impl TRT {
-    #[new]
-    pub fn new(tau_pos: f32, tau_neg: f32) -> Self {
-        Self {
-            tau_pos: tau_pos,
-            tau_neg: tau_neg,
+impl OmegaPy {
+    pub fn __repr__(&self) -> String {
+        match self {
+            OmegaPy::BGK(o) => format!("BGK({})", o),
+            OmegaPy::TRT(op, on) => format!("TRT({}, {})", op, on),
         }
     }
-
-    /// Construct a TRT collision operator using a "magic number" of 1/4 to infer the value of `TRT::tau_neg`.
-    /// This number results in the "most stable simulations" according to LBM: P&P section 10.7.2.
-    #[staticmethod]
-    pub fn make(tau_pos: f32) -> TRT {
-        // Go for the "most stable simulations" over accuracy.
-        // See LBM: P&P section 10.7.2
-        let lambda = 0.25;
-        let tau_neg = lambda / (tau_pos - 0.5) + 0.5;
-
-        Self { tau_pos, tau_neg }
-    }
 }
 
-/// Used only to convert from the Python BGK & TRT classes into a rust [`Omega`] object.
-/// :meta:private:
-#[derive(FromPyObject)]
-enum OmegaPy<'a> {
-    BGK(PyRef<'a, BGK>),
-    TRT(PyRef<'a, TRT>),
-}
-
-impl From<OmegaPy<'_>> for Omega {
+impl From<OmegaPy> for Omega {
     fn from(value: OmegaPy) -> Self {
         match value {
-            OmegaPy::BGK(bgk) => Omega::BGK(1.0 / bgk.tau),
-            OmegaPy::TRT(trt) => Omega::TRT(1.0 / trt.tau_pos, 1.0 / trt.tau_neg),
+            OmegaPy::BGK(omega) => Omega::BGK(omega),
+            OmegaPy::TRT(omega_pos, omega_neg) => Omega::TRT(omega_pos, omega_neg),
         }
     }
 }
@@ -434,8 +401,7 @@ impl SimulationPy {
 /// A module for configuring and running lattice Boltzmann simulations from Python.
 #[pymodule]
 fn boltzmann(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<BGK>()?;
-    m.add_class::<TRT>()?;
+    m.add_class::<OmegaPy>()?;
     m.add_class::<SimulationPy>()?;
     m.add_class::<FluidPy>()?;
     m.add_class::<ScalarPy>()?;

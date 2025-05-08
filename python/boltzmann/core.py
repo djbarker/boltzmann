@@ -34,6 +34,32 @@ if hasattr(boltzmann.boltzmann, "__all__"):
 
 # ------------------------------------
 
+
+def bgk(tau: float) -> Omega:
+    """
+    Construct a BGK collision operator.
+
+    Args:
+        tau: The relaxation time in simulation units (i.e. iterations).
+    """
+    return Omega.BGK(1.0 / tau)
+
+
+def trt(tau_pos: float, tau_neg: float | None = None, magic_no: float = 0.25) -> Omega:
+    """
+    Construct a TRT collision operator.
+
+    Args:
+        tau_pos: The relaxation time in simulation units (i.e. iterations).
+        tau_neg: The relaxation time in simulation units (i.e. iterations).
+            If not specified this will be inferred from `magic_no`.
+        magic_no: Used to infer `tau_neg` if not specified.
+            Defaults to 1/4. See LBM P&P section 10.7.2
+    """
+    tau_neg = tau_neg or (magic_no / (tau_pos - 0.5) + 0.5)
+    return Omega.TRT(tau_pos, tau_neg)
+
+
 Device = Literal["cpu", "gpu"]  #: OpenCL device type on which type to run the simulations.
 
 
