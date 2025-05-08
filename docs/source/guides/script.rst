@@ -23,7 +23,7 @@ The methods are explained just below but first, here's an example
 
 .. code-block:: python
 
-    from boltzmann.core import Simulation
+    from boltzmann.core import Simulation, bgk
     from boltzmann.simulation import parse_args, run_sim, IterInfo
     
     # Parse the standard command line arguments.
@@ -34,7 +34,7 @@ The methods are explained just below but first, here's an example
         sim = Simulation.load_checkpoint(args.device, str(args.out_dir / "checkpoint.mpk"))
     else:
         # Create a new simulation & set the initial conditions.
-        sim = Simulation(args.device, [200, 100], 1/0.51)
+        sim = Simulation(args.device, [200, 100], bgk(0.51))
 
         sim.fluid.vel[:, 40:60, 0] = 0.1
         sim.fluid.rho[:] += 0.1 * np.random.uniform(-1, 1, sim.fluid.rho.shape)

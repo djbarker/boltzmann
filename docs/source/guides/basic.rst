@@ -17,17 +17,17 @@ This part constructs the core :py:class:`~boltzmann.core.Simulation` object.
 
 .. code-block:: Python
 
-    from boltzmann.core import Simulation
+    from boltzmann.core import Simulation, bgk
 
     counts = [200, 100]
-    omega = 1 / 0.51
-    sim = Simulation("cpu", counts, omega)
+    tau = 0.51
+    sim = Simulation("cpu", counts, bgk(tau))
 
 When constructing a :py:class:`~boltzmann.core.Simulation` we need to tell it a minimum of three things
 
 - The OpenCL device type to target (Can be either ``"cpu"`` or ``"gpu"``).
 - The size of the grid in each dimension (``counts`` in the example above).
-- A collision rate for the BGK collision operator (``omega`` in the example above).
+- A relaxation time for the BGK collision operator (``tau`` in the example above).
 
 The dimensionality of the simulation is inferred from the length of the passed grid size.
 So ``[200, 100]``, for example, would imply a 2D simulation with 200 cells in the *x*-direction and 100 in the *y*-direction.
@@ -44,8 +44,6 @@ By default the most common values in use are inferred from the dimensionality;
 
 If you want to use a different velocity set you can specify ``q`` manually.
 However, if you specify an unknown combination of D and Q, this will raise an error.
-
-The collision rate ``omega == 1/tau`` is the relaxation parameter of the BGK collision operator used to update the fluid after streaming.
 
 Initial Conditions
 ------------------

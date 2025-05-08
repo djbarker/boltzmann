@@ -3,13 +3,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from boltzmann.core import Simulation
+from boltzmann.core import Simulation, bgk
 
 np.random.seed(42)
 
 # Create the simulation
 tau = 0.51
-sim = Simulation("cpu", [200, 100], 1 / tau)
+sim = Simulation("cpu", [200, 100], bgk(tau))
 
 # Set some initial condition
 sim.fluid.vel[:, 40:60, 0] = 0.1
