@@ -22,12 +22,31 @@ pub enum DeviceType {
     GPU,
 }
 
+impl From<String> for DeviceType {
+    fn from(s: String) -> Self {
+        match s.to_uppercase().as_str() {
+            "CPU" => DeviceType::CPU,
+            "GPU" => DeviceType::GPU,
+            _ => panic!("Invalid device type. Expected either 'cpu' or 'gpu'."),
+        }
+    }
+}
+
 /// The implemented OpenCL kernels differ in whether they update the velocity or not.
-/// [`EqnType::NavierStokes`] does, whereas [`EqnType::AdvectionDiffusion`] does not.
+/// [`Equation::NavierStokes`] does, whereas [`Equation::AdvectionDiffusion`] does not.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub enum EqnType {
+pub enum Equation {
     NavierStokes,
     AdvectionDiffusion,
+}
+
+/// The collision operator to use.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum Collision {
+    // Bhatnar-Gross-Krook
+    BGK,
+    // Two Relaxation-time
+    TRT,
 }
 
 /// Unique identifier for each _update_ kernel.
@@ -35,12 +54,18 @@ pub enum EqnType {
 pub struct UpdateKernelKey {
     pub d: usize,
     pub q: usize,
-    pub eqn: EqnType,
+    pub equation: Equation,
+    pub collision: Collision,
 }
 
 impl UpdateKernelKey {
-    pub fn new(d: usize, q: usize, eqn: EqnType) -> Self {
-        Self { d, q, eqn }
+    pub fn new(d: usize, q: usize, eqn: Equation, op: Collision) -> Self {
+        Self {
+            d,
+            q,
+            equation: eqn,
+            collision: op,
+        }
     }
 }
 
@@ -96,17 +121,21 @@ impl OpenCLCtx {
 
         // Get the available update kernels
         let keys = [
-            (2, 9, EqnType::NavierStokes),
-            (3, 27, EqnType::NavierStokes),
-            (2, 5, EqnType::AdvectionDiffusion),
-            (3, 7, EqnType::AdvectionDiffusion),
+            (2, 9, Equation::NavierStokes, Collision::BGK),
+            (3, 27, Equation::NavierStokes, Collision::BGK),
+            (2, 5, Equation::AdvectionDiffusion, Collision::BGK),
+            (3, 7, Equation::AdvectionDiffusion, Collision::BGK),
         ];
 
         let mut ukernels = HashMap::new();
-        for (d, q, e) in keys {
-            let m = UpdateKernelKey::new(d, q, e);
-            let k = Kernel::create(&program, format!("update_d{}q{}_bgk", d, q).as_str())
-                .expect(format!("Kernel::create failed D{}Q{}", d, q).as_str());
+        for (d, q, e, c) in keys {
+            let c_ = match c {
+                Collision::BGK => "bgk",
+                Collision::TRT => "trt",
+            };
+            let m = UpdateKernelKey::new(d, q, e, c);
+            let k = Kernel::create(&program, format!("update_d{}q{}_{}", d, q, c_).as_str())
+                .expect(format!("Kernel::create failed D{}Q{} {}", d, q, c_).as_str());
             ukernels.insert(m, k);
         }
 
@@ -138,6 +167,12 @@ impl OpenCLCtx {
             update_kernels: ukernels,
             source_kernels: skernels,
         }
+    }
+}
+
+impl From<DeviceType> for OpenCLCtx {
+    fn from(device_type: DeviceType) -> Self {
+        OpenCLCtx::new(device_type)
     }
 }
 

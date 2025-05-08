@@ -1,21 +1,16 @@
-use std::usize;
 // Std imports:
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::usize;
 
-use fields::{MemUsage, Scalar};
 // Imports from other crates:
-use ndarray::{arr1, Array1, ArrayView1, ArrayViewD, ArrayViewMutD};
-use numpy::{Ix1, PyArray, PyArrayDyn, PyReadonlyArray1, PyReadonlyArrayDyn, PyReadwriteArrayDyn};
-use opencl::{DeviceType, OpenCLCtx};
+use numpy::{Ix1, PyArray, PyArrayDyn, PyReadonlyArray1};
+use opencl::DeviceType;
 use opencl3::device::{CL_DEVICE_TYPE_CPU, CL_DEVICE_TYPE_GPU};
 use pyo3::prelude::*;
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 // Imports from this lib:
-use raster::StrideOrder::RowMajor;
-use raster::{counts_to_strides, idx_to_sub, Ix};
-use simulation::{CellType, Simulation};
-use utils::vmod;
+use fields::{MemUsage, Omega, Scalar};
+use simulation::Simulation;
 
 pub mod fields;
 pub mod opencl;
@@ -24,69 +19,63 @@ pub mod simulation;
 pub mod utils;
 pub mod velocities;
 
-/// Calculate both the curl and Q-criterion in 2D.
-///
-/// All quantities are in lattice units.
-///
-/// NOTE: Assumes wall velocity is zero.
-/// TODO: openCL version
-fn calc_curl_qcrit_2d(
-    vel: &ArrayViewD<f32>,
-    cells: &ArrayViewD<i32>,
-    counts: &ArrayView1<impl Into<Ix> + Copy>,
-    curl: &mut ArrayViewMutD<f32>,
-    qcrit: &mut ArrayViewMutD<f32>,
-) {
-    fn is_wall(c: i32) -> f32 {
-        ((c == (CellType::Wall as i32)) as i32) as f32
+#[pyclass]
+struct BGK {
+    tau: f32,
+}
+
+#[pymethods]
+impl BGK {
+    #[new]
+    pub fn new(tau: f32) -> Self {
+        Self { tau: tau }
+    }
+}
+
+#[pyclass]
+struct TRT {
+    tau_pos: f32,
+    tau_neg: f32,
+}
+
+#[pymethods]
+impl TRT {
+    #[new]
+    pub fn new(tau_pos: f32, tau_neg: f32) -> Self {
+        Self {
+            tau_pos: tau_pos,
+            tau_neg: tau_neg,
+        }
     }
 
-    let counts = counts.to_owned().mapv(|x| x.into());
-    let strides = &counts_to_strides(&counts, RowMajor);
+    /// Construct a TRT collision operator using a "magic number" of 1/4 to infer the value of `TRT::tau_neg`.
+    /// This number results in the "most stable simulations" according to LBM: P&P section 10.7.2.
+    #[staticmethod]
+    pub fn make(tau_pos: f32) -> TRT {
+        // Go for the "most stable simulations" over accuracy.
+        // See LBM: P&P section 10.7.2
+        let lambda = 0.25;
+        let tau_neg = lambda / (tau_pos - 0.5) + 0.5;
 
-    let offset = |sub: &Array1<Ix>, off: [Ix; 2]| {
-        let off = arr1(&off);
-        let sub = vmod(sub + off, &counts);
-        [sub[0] as usize, sub[1] as usize]
-    };
-
-    /// Append final index (velocity compoent) to the indices to get the full index into velocity array.
-    fn app(idx: &[usize], val: usize) -> [usize; 3] {
-        // okay because we know it's 2D
-        [idx[0], idx[1], val]
+        Self { tau_pos, tau_neg }
     }
+}
 
-    let curl_ = curl.as_slice_mut().unwrap();
-    let qcrit_ = qcrit.as_slice_mut().unwrap();
+/// Used only to convert from the Python BGK & TRT classes into a rust [`Omega`] object.
+/// :meta:private:
+#[derive(FromPyObject)]
+enum OmegaPy<'a> {
+    BGK(PyRef<'a, BGK>),
+    TRT(PyRef<'a, TRT>),
+}
 
-    (curl_, qcrit_)
-        .into_par_iter()
-        .enumerate()
-        .for_each(|(idx, (c, q))| {
-            let sub = idx_to_sub(idx, &strides, RowMajor);
-
-            let idx_x1 = offset(&sub, [-1, 0]);
-            let idx_x2 = offset(&sub, [1, 0]);
-            let idx_y1 = offset(&sub, [0, -1]);
-            let idx_y2 = offset(&sub, [0, 1]);
-
-            let dxux1: f32 = vel[app(&idx_x1, 0)] * (1.0 - is_wall(cells[idx_x1]));
-            let dxux2: f32 = vel[app(&idx_x2, 0)] * (1.0 - is_wall(cells[idx_x2]));
-            let dxuy1: f32 = vel[app(&idx_x1, 1)] * (1.0 - is_wall(cells[idx_x1]));
-            let dxuy2: f32 = vel[app(&idx_x2, 1)] * (1.0 - is_wall(cells[idx_x2]));
-            let dyux1: f32 = vel[app(&idx_y1, 0)] * (1.0 - is_wall(cells[idx_y1]));
-            let dyux2: f32 = vel[app(&idx_y2, 0)] * (1.0 - is_wall(cells[idx_y2]));
-            let dyuy1: f32 = vel[app(&idx_y1, 1)] * (1.0 - is_wall(cells[idx_y1]));
-            let dyuy2: f32 = vel[app(&idx_y2, 1)] * (1.0 - is_wall(cells[idx_y2]));
-
-            let dxux = (dxux2 - dxux1) / 2.0;
-            let dxuy = (dxuy2 - dxuy1) / 2.0;
-            let dyux = (dyux2 - dyux1) / 2.0;
-            let dyuy = (dyuy2 - dyuy1) / 2.0;
-
-            *c = dxuy - dyux;
-            *q = dxux * dxux + dyuy * dyuy + 2.0 * dxuy * dyux;
-        });
+impl From<OmegaPy<'_>> for Omega {
+    fn from(value: OmegaPy) -> Self {
+        match value {
+            OmegaPy::BGK(bgk) => Omega::BGK(1.0 / bgk.tau),
+            OmegaPy::TRT(trt) => Omega::TRT(1.0 / trt.tau_pos, 1.0 / trt.tau_neg),
+        }
+    }
 }
 
 /// Stores the density and velocity fields, relaxation parameter and a velocity set.
@@ -184,7 +173,7 @@ impl CellsPy {
         unsafe { PyArrayDyn::borrow_from_array(array, this.into_any()) }
     }
 
-    /// The memory usage of the :py:class:`Cells`` object.
+    /// The memory usage of the :py:class:`Cells` object.
     ///
     /// :returns: The total size in bytes.
     #[getter]
@@ -212,39 +201,6 @@ impl CellsPy {
     }
 }
 
-/// :meta private:
-#[pyclass(eq, eq_int, name = "DeviceType")]
-#[derive(PartialEq)]
-enum DeviceTypePy {
-    CPU,
-    GPU,
-}
-
-impl From<String> for DeviceTypePy {
-    fn from(s: String) -> Self {
-        match s.to_uppercase().as_str() {
-            "CPU" => DeviceTypePy::CPU,
-            "GPU" => DeviceTypePy::GPU,
-            _ => panic!("Invalid device type. Expected either 'cpu' or 'gpu'."),
-        }
-    }
-}
-
-impl Into<DeviceType> for DeviceTypePy {
-    fn into(self) -> DeviceType {
-        match self {
-            DeviceTypePy::CPU => DeviceType::CPU,
-            DeviceTypePy::GPU => DeviceType::GPU,
-        }
-    }
-}
-
-impl Into<OpenCLCtx> for DeviceTypePy {
-    fn into(self) -> OpenCLCtx {
-        OpenCLCtx::new(self.into())
-    }
-}
-
 /// The central simulation object which groups together information about the domain (:py:class:`Cells`),
 /// the fluid (:py:class:`Fluid`) and any scalar fields (:py:class:`Scalar`).
 #[pyclass(name = "Simulation")]
@@ -262,8 +218,8 @@ impl SimulationPy {
 #[pymethods]
 impl SimulationPy {
     #[new]
-    #[pyo3(signature = (dev, counts, omega_ns, q=None))]
-    fn new(dev: String, counts: Vec<usize>, omega_ns: f32, q: Option<usize>) -> Self {
+    #[pyo3(signature = (dev, counts, omega, q=None))]
+    fn new(dev: String, counts: Vec<usize>, omega: OmegaPy, q: Option<usize>) -> Self {
         // If q is not provided infer the most common kernels for each dimension.
         let q = q.unwrap_or(match counts.len() {
             1 => 3,
@@ -271,9 +227,11 @@ impl SimulationPy {
             3 => 27,
             _ => panic!("Invalid number of dimensions. Expected either 1, 2 or 3."),
         });
-        let dev = DeviceTypePy::from(dev).into();
+
+        let dev = DeviceType::from(dev).into();
+
         Self {
-            sim: Arc::new(Mutex::new(Simulation::new(dev, &counts, q, omega_ns))),
+            sim: Arc::new(Mutex::new(Simulation::new(dev, &counts, q, omega.into()))),
         }
     }
 
@@ -367,14 +325,14 @@ impl SimulationPy {
     /// This function is idempotent (over the name) and will return the existing tracer if it already exists.
     ///
     /// :param name: The unique name of the tracer.
-    /// :param omega_ad: The relaxation parameter for the advection-diffusion equation.
+    /// :param omega: The relaxation parameter for the advection-diffusion equation.
     /// :param q: The number of discrete velocities to use for the advection-diffusion equation kernel.
     /// :returns: The :py:class:`Scalar` object.
-    #[pyo3(signature = (name, omega_ad, q=None))]
+    #[pyo3(signature = (name, omega, q=None))]
     fn add_tracer<'py>(
         this: Bound<'py, Self>,
         name: String,
-        omega_ad: f32,
+        omega: OmegaPy,
         q: Option<usize>,
     ) -> PyResult<Bound<'py, ScalarPy>> {
         let this = this.borrow_mut();
@@ -391,7 +349,7 @@ impl SimulationPy {
             });
 
             let c = sim.cells.counts.as_slice().unwrap();
-            let tracer = Scalar::new(&sim.opencl, c, q, omega_ad);
+            let tracer = Scalar::new(&sim.opencl, c, q, omega.into());
             sim.add_tracer(&name, tracer);
         }
 
@@ -464,7 +422,7 @@ impl SimulationPy {
     /// :param path: Where to load the checkpoint from.
     #[staticmethod]
     fn load_checkpoint(dev: String, path: String) -> PyResult<SimulationPy> {
-        let dev = DeviceTypePy::from(dev).into();
+        let dev = DeviceType::from(dev).into();
         let sim = Simulation::load_checkpoint(dev, path)?;
         let sim = Self {
             sim: Arc::new(Mutex::new(sim)),
@@ -476,30 +434,12 @@ impl SimulationPy {
 /// A module for configuring and running lattice Boltzmann simulations from Python.
 #[pymodule]
 fn boltzmann(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    #[pyfn(m)]
-    #[pyo3(name = "calc_curl_2d")]
-    fn calc_curl_2d_py<'py>(
-        _py: Python<'py>,
-        vel: PyReadonlyArrayDyn<f32>,
-        cells: PyReadonlyArrayDyn<i32>,
-        counts: PyReadonlyArray1<Ix>,
-        mut curl: PyReadwriteArrayDyn<f32>,
-        mut qcrit: PyReadwriteArrayDyn<f32>,
-    ) {
-        calc_curl_qcrit_2d(
-            &vel.as_array(),
-            &cells.as_array(),
-            &counts.as_array(),
-            &mut curl.as_array_mut(),
-            &mut qcrit.as_array_mut(),
-        );
-    }
-
+    m.add_class::<BGK>()?;
+    m.add_class::<TRT>()?;
     m.add_class::<SimulationPy>()?;
     m.add_class::<FluidPy>()?;
     m.add_class::<ScalarPy>()?;
     m.add_class::<CellsPy>()?;
-    m.add_class::<DeviceTypePy>()?;
 
     Ok(())
 }

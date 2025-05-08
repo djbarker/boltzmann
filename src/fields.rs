@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     opencl::{
-        CtxDeserializer, Data, DataNd, DataNdDeserializer, EqnType, OpenCLCtx, UpdateKernelKey,
+        Collision, CtxDeserializer, Data, DataNd, DataNdDeserializer, Equation, OpenCLCtx,
+        UpdateKernelKey,
     },
     velocities::VelocitySet,
 };
@@ -14,7 +15,8 @@ pub trait MemUsage {
 
 /// Trait for functions we want to be generic over [`Fluid`] / [`Scalar`].
 pub trait Field {
-    fn eqn_type(&self) -> EqnType;
+    fn equation(&self) -> Equation;
+    fn collision(&self) -> Collision;
     fn velocities(&self) -> &VelocitySet;
 }
 
@@ -26,7 +28,24 @@ where
     UpdateKernelKey {
         d: field.velocities().D(),
         q: field.velocities().Q(),
-        eqn: field.eqn_type(),
+        equation: field.equation(),
+        collision: field.collision(),
+    }
+}
+
+/// The collision operator parameters.
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub enum Omega {
+    BGK(f32),
+    TRT(f32, f32),
+}
+
+impl From<Omega> for Collision {
+    fn from(omega: Omega) -> Self {
+        match omega {
+            Omega::BGK(_) => Collision::BGK,
+            Omega::TRT(_, _) => Collision::TRT,
+        }
     }
 }
 
@@ -42,11 +61,11 @@ pub struct Fluid {
     /// therefore we don't allocate the buffers.
     pub acc: Option<DataNd<f32>>,
     pub model: VelocitySet,
-    pub omega: f32,
+    pub omega: Omega,
 }
 
 impl Fluid {
-    pub fn new(opencl: &OpenCLCtx, counts: &[usize], q: usize, omega: f32) -> Self {
+    pub fn new(opencl: &OpenCLCtx, counts: &[usize], q: usize, omega: Omega) -> Self {
         let d = counts.len();
 
         let counts_q = [counts, &[q]].concat();
@@ -96,8 +115,12 @@ impl Fluid {
 }
 
 impl Field for Fluid {
-    fn eqn_type(&self) -> EqnType {
-        EqnType::NavierStokes
+    fn equation(&self) -> Equation {
+        Equation::NavierStokes
+    }
+
+    fn collision(&self) -> Collision {
+        self.omega.into()
     }
 
     fn velocities(&self) -> &VelocitySet {
@@ -121,12 +144,12 @@ pub struct Scalar {
     pub g: DataNd<f32>,
     pub C: DataNd<f32>,
     pub model: VelocitySet,
-    pub omega: f32,
+    pub omega: Omega,
 }
 
 #[allow(non_snake_case)]
 impl Scalar {
-    pub fn new(opencl: &OpenCLCtx, counts: &[usize], q: usize, omega: f32) -> Self {
+    pub fn new(opencl: &OpenCLCtx, counts: &[usize], q: usize, omega: Omega) -> Self {
         let d = counts.len();
 
         let counts_q = [counts, &[q]].concat();
@@ -171,8 +194,12 @@ impl Scalar {
 }
 
 impl Field for Scalar {
-    fn eqn_type(&self) -> EqnType {
-        EqnType::AdvectionDiffusion
+    fn equation(&self) -> Equation {
+        Equation::AdvectionDiffusion
+    }
+
+    fn collision(&self) -> Collision {
+        self.omega.into()
     }
 
     fn velocities(&self) -> &VelocitySet {
@@ -199,7 +226,7 @@ pub(crate) struct FluidDeserializer {
     vel: DataNdDeserializer<f32>,
     acc: Option<DataNdDeserializer<f32>>,
     model: VelocitySet,
-    omega: f32,
+    omega: Omega,
 }
 
 impl CtxDeserializer for FluidDeserializer {
@@ -224,7 +251,7 @@ pub(crate) struct ScalarDeserializer {
     g: DataNdDeserializer<f32>,
     C: DataNdDeserializer<f32>,
     model: VelocitySet,
-    omega: f32,
+    omega: Omega,
 }
 
 impl CtxDeserializer for ScalarDeserializer {

@@ -9,7 +9,7 @@ use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
 use crate::fields::{
-    make_kernel_key, Field, Fluid, FluidDeserializer, MemUsage, Scalar, ScalarDeserializer,
+    make_kernel_key, Field, Fluid, FluidDeserializer, MemUsage, Omega, Scalar, ScalarDeserializer,
 };
 use crate::opencl::{
     AccType, CtxDeserializer, Data1d, Data1dDeserializer, DataNd, DataNdDeserializer,
@@ -176,9 +176,9 @@ impl SimulationDeserializer {
 }
 
 impl Simulation {
-    pub fn new(opencl: OpenCLCtx, counts: &[usize], q: usize, omega_ns: f32) -> Self {
+    pub fn new(opencl: OpenCLCtx, counts: &[usize], q: usize, omega: Omega) -> Self {
         let cells = Cells::new(&opencl, counts);
-        let fluid = Fluid::new(&opencl, counts, q, omega_ns);
+        let fluid = Fluid::new(&opencl, counts, q, omega);
 
         Self {
             opencl: opencl,
@@ -384,11 +384,18 @@ impl Simulation {
             };
 
             unsafe {
-                ExecuteKernel::new(fluid_kernel)
-                    .set_arg(&s.dev)
-                    .set_arg(&even)
-                    .set_arg(&self.fluid.omega)
-                    .set_arg(&mut self.fluid.f.dev)
+                let mut exec = ExecuteKernel::new(fluid_kernel);
+
+                exec.set_arg(&s.dev).set_arg(&even);
+
+                match self.fluid.omega {
+                    Omega::BGK(omega) => exec.set_arg(&omega),
+                    Omega::TRT(omega_pos, omega_neg) => {
+                        exec.set_arg(&omega_pos).set_arg(&omega_neg)
+                    }
+                };
+
+                exec.set_arg(&mut self.fluid.f.dev)
                     .set_arg(&mut self.fluid.rho.dev)
                     .set_arg(&mut self.fluid.vel.dev)
                     .set_arg(&mut acc.dev)
@@ -402,11 +409,18 @@ impl Simulation {
 
             for (_, tracer) in self.tracers.iter_mut() {
                 unsafe {
-                    ExecuteKernel::new(get_kernel(&self.opencl, tracer))
-                        .set_arg(&s.dev)
-                        .set_arg(&even)
-                        .set_arg(&tracer.omega)
-                        .set_arg(&mut tracer.g.dev)
+                    let mut exec = ExecuteKernel::new(get_kernel(&self.opencl, tracer));
+
+                    exec.set_arg(&s.dev).set_arg(&even);
+
+                    match tracer.omega {
+                        Omega::BGK(omega) => exec.set_arg(&omega),
+                        Omega::TRT(omega_pos, omega_neg) => {
+                            exec.set_arg(&omega_pos).set_arg(&omega_neg)
+                        }
+                    };
+
+                    exec.set_arg(&mut tracer.g.dev)
                         .set_arg(&mut tracer.C.dev)
                         .set_arg(&self.fluid.vel.dev)
                         .set_arg(&self.cells.flags.dev)
