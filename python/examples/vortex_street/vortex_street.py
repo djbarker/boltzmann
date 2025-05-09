@@ -9,7 +9,7 @@ from scipy.ndimage import distance_transform_edt, maximum_filter, minimum_filter
 from typing import Literal
 
 from boltzmann.core import CellFlags, calc_lbm_params_si
-from boltzmann.core import Simulation  # type: ignore
+from boltzmann.core import Simulation, bgk, trt  # type: ignore
 from boltzmann.simulation import IterInfo, parse_args, run_sim
 from boltzmann.units import Domain, Scales
 from boltzmann.utils.logger import basic_config, timed, dotted
@@ -28,16 +28,16 @@ x_si = y_si * aspect_ratio
 
 d_si = 0.1 * y_si  # Cylinder diameter [m].
 r_si = d_si / 2.0  # Cylinder radius [m].
-Re = 1000  # Reynolds number [1]
+Re = 10000  # Reynolds number [1]
 nu_si = 1e-4  # kinematic viscosity [m^2/s]
-L = 2000  # Cell count in the y direction [1]
+L = 4000  # Cell count in the y direction [1]
 
 # implied params
 u_si = Re * nu_si / d_si  # => flow velocity [m/s]
 dx = y_si / L  # => spatial resolution [m]
 
 # calc LBM params
-(tau, u) = calc_lbm_params_si(dx, u_si, d_si, nu_si, M_max=0.1)
+(tau, u) = calc_lbm_params_si(dx, u_si, d_si, nu_si, M_max=0.1, bgk=False)
 dt = (u / u_si) * dx
 
 dotted(logger, "Reynolds number", Re)
@@ -59,7 +59,7 @@ out_dt_si = dt * n
 meta = IterInfo.make(
     dt=dt,
     dt_output=out_dt_si,
-    count=800,
+    count=2000,
 )
 
 # Domain geometry.
@@ -73,9 +73,8 @@ cy = 0.0
 
 # Color scheme constants.
 l_si = d_si / 10  # Characteristic length scale for color normalization.
-vmax_vmag = 1.8 * u_si
-vmax_curl = 0.8 * u_si / l_si
-vmax_qcrit = 0.2 * (u_si / l_si) ** 2
+vmax_vmag = 2.0 * u_si
+vmax_curl = 0.5 * u_si / l_si
 vmax_conc = 1.00
 
 # %% Initialize arrays
@@ -100,7 +99,7 @@ args = parse_args(out_dir=f"out_re{Re}")
 if args.resume:
     sim = Simulation.load_checkpoint(args.device, str(args.out_dir / "checkpoint.mpk"))
 else:
-    sim = Simulation(args.device, domain.counts, omega_ns=omega_ns)
+    sim = Simulation(args.device, domain.counts, trt(omega_ns))
 
     # Fixed velocity & tracer in- & out-flow.
     sim.cells.flags[+0, :] = CellFlags.FIXED_FLUID  # left
@@ -139,7 +138,7 @@ else:
 
         case "stream":
             stream = domain.yy / domain.dx
-            stream *= 1 - np.exp(-((DD / (y_si / 10)) ** 2))
+            stream *= 1 - np.exp(-((DD / (y_si / 25)) ** 2))
             sim.fluid.vel[..., 0] = +u_si * np.gradient(stream, axis=1)
             sim.fluid.vel[..., 1] = -u_si * np.gradient(stream, axis=0)
 
@@ -206,7 +205,7 @@ for iter in run_sim(sim, meta, args.out_dir, args.checkpoints):
             write_png(
                 args.out_dir / f"density_{iter:06d}.png",
                 sim.fluid.rho,
-                f"Density\nτ = {tau_:7.2f}",
+                f"Density\nτ = {tau_:.2f}",
                 "light",
                 cmap="InkyBlueRed",
                 vmin=0.95,
@@ -216,7 +215,7 @@ for iter in run_sim(sim, meta, args.out_dir, args.checkpoints):
         write_png(
             args.out_dir / f"curl_{iter:06d}.png",
             curl_,
-            "Vorticity",
+            "",
             "dark",
             cmap="OrangeBlue",
             vmin=-vmax_curl,
@@ -331,7 +330,7 @@ for iter in run_sim(sim, meta, args.out_dir, args.checkpoints):
             "smart",
             f"vmag_comov_{iter:06d}.png",
             vmin=0,
-            vmax=vmax_vmag * 0.6,
+            vmax=vmax_vmag * 0.75,
         )
 
 
