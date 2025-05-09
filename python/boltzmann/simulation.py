@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Generator, Protocol
 
-from boltzmann.core import Device, Simulation
+from boltzmann.core import Device, Simulation, Omega
 from boltzmann.units import Array1dT
 from boltzmann.utils.logger import dotted, tick, timed
 from boltzmann.utils.option import Some, to_opt
@@ -369,7 +369,7 @@ class SimulationScript:
     def __init__(
         self,
         counts: Array1dT,
-        omega_ns: float,
+        omega: Omega,
         meta: IterInfo,
         output_dir: str | Path,
         q: int | None = None,
@@ -380,7 +380,7 @@ class SimulationScript:
         if args.resume:
             sim = Simulation.load_checkpoint(args.device, str(args.out_dir / "checkpoint.mpk"))
         else:
-            sim = Simulation(args.device, counts, omega_ns, q=q)
+            sim = Simulation(args.device, counts, omega, q=q)
 
         self.args = args
         self.sim = sim
