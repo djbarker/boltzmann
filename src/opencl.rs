@@ -122,6 +122,7 @@ impl OpenCLCtx {
         // Get the available update kernels
         let keys = [
             (2, 9, Equation::NavierStokes, Collision::BGK),
+            (2, 9, Equation::NavierStokes, Collision::TRT),
             (3, 27, Equation::NavierStokes, Collision::BGK),
             (2, 5, Equation::AdvectionDiffusion, Collision::BGK),
             (3, 7, Equation::AdvectionDiffusion, Collision::BGK),
