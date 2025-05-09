@@ -79,7 +79,9 @@ class CellFlags:
     # fmt: on
 
 
-def check_lbm_params(Re: float, L: float, tau: float, M_max: float = 0.1, slack: float = 0.0):
+def check_lbm_params(
+    Re: float, L: float, tau: float, M_max: float = 0.1, slack: float = 0.0, bgk: bool = True
+):
     """
     Check if the chosen parameters are likely to be stable or not with BGK collision operator.
     For more information see https://dbarker.uk/lbm_parameterization/.
@@ -90,6 +92,7 @@ def check_lbm_params(Re: float, L: float, tau: float, M_max: float = 0.1, slack:
     :param M_max: Maximum Mach number of the system.
     :param slack: Extra margin on the checks. Must be in range (-1, inf).
                   Values < 0 imply stricter checks, wheras > 0 imply more relaxed checks.
+    :param bgk: Perform the bgk stability check or not.
     """
 
     frac = slack + 1.0
@@ -101,7 +104,7 @@ def check_lbm_params(Re: float, L: float, tau: float, M_max: float = 0.1, slack:
     L_stab = (Re / frac) / 24
 
     eps = 1e-8
-    assert L + eps > L_stab, f"BGK stability condition violated. {L=} < {L_stab}"
+    assert (not bgk) or (L + eps > L_stab), f"BGK stability condition violated. {L=} < {L_stab}"
     assert tau < tau_mach + eps, f"Mach condition violated. {tau=} > {tau_mach}"
 
 
@@ -115,6 +118,7 @@ def calc_lbm_params_lu(
     tau_max: float = 1.0,
     tau_min: float = 0.5,
     slack: float = 0.0,
+    bgk: bool = True,
 ) -> tuple[float, float]:
     """
     Choose the values of tau and u which maximize simulation speed & verify stability.
@@ -127,13 +131,14 @@ def calc_lbm_params_lu(
     :param tau_max: Hard cap on the value of tau allowed.
     :param tau_min: Hard floor on the value of tau allowed.
     :param slack: See :py:meth:`check_lbm_params`.
+    :param bgk: Perform the bgk stability check or not.
     """
 
     if tau is None:
         tau = sqrt(3) * M_max * L / Re + 0.5  # Maximum permissible by Mach condition
         tau = min(max(tau, tau_min), tau_max)  # Hard bounds on tau
 
-    check_lbm_params(Re, L, tau, M_max, slack)
+    check_lbm_params(Re, L, tau, M_max, slack, bgk)
 
     nu = (tau - 0.5) / 3
     u = Re * nu / L
@@ -153,6 +158,7 @@ def calc_lbm_params_si(
     tau_max: float = 10.0,
     tau_min: float = 0.5,
     slack: float = 0.0,
+    bgk: bool = True,
 ) -> tuple[float, float]:
     """
     Choose the values of tau and u which maximize simulation speed & verify stability.
@@ -176,12 +182,13 @@ def calc_lbm_params_si(
     :param tau_max: Hard cap on the value of tau allowed.
     :param tau_min: Hard floor on the value of tau allowed.
     :param slack: See :py:meth:`check_lbm_params`.
+    :param bgk: Perform the bgk stability check or not.
     """
 
     Re = u_si * L_si / nu_si
     L = L_si / dx
     tau, u = calc_lbm_params_lu(
-        Re, L, tau=tau, M_max=M_max, tau_min=tau_min, tau_max=tau_max, slack=slack
+        Re, L, tau=tau, M_max=M_max, tau_min=tau_min, tau_max=tau_max, slack=slack, bgk=bgk
     )
 
     # sanity check:
