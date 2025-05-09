@@ -616,3 +616,131 @@ kernel void update_d3q27_bgk(__constant int *s, int even, float omega,
   vel[ii * 3 + 1] = vy;
   vel[ii * 3 + 2] = vz;
 }
+
+kernel void update_d2q9_trt(
+        __constant int *s, int even, float omega_pos, float omega_neg, global float *f, global float *rho, global float *vel, global float *acc, int use_acc, global int *cell
+    ) {
+           const int qs[9][2] = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, -1}, {1, -1}, {-1, 1}};
+
+   const size_t ix = get_global_id(0);
+   const size_t iy = get_global_id(1);
+
+
+   if (ix >= s[0] || iy >= s[1]) return;
+
+   const size_t ii = ix*s[1] + iy;
+
+       const int c = cell[ii];
+       const bool wall = (c & 1);
+       const bool fixed = (c & 6);
+
+       if (wall) {
+           // wall => do nothing
+           return;
+       }
+
+
+       int off[9];
+
+       #pragma unroll
+       for (int i = 0; i < 9; i++) {
+           const int ix_ = (ix + qs[i][0] + s[0]) % s[0];
+   const int iy_ = (iy + qs[i][1] + s[1]) % s[1];
+
+           off[i] = (ix_*s[1] + iy_) * 9;
+       }
+
+   float f_[9];
+   if (even) {
+       f_[0] = f[off[0] + 0];
+       f_[1] = f[off[2] + 1];
+       f_[2] = f[off[1] + 2];
+       f_[3] = f[off[4] + 3];
+       f_[4] = f[off[3] + 4];
+       f_[5] = f[off[6] + 5];
+       f_[6] = f[off[5] + 6];
+       f_[7] = f[off[8] + 7];
+       f_[8] = f[off[7] + 8];
+   } else {
+       f_[0] = f[off[0] + 0];
+       f_[1] = f[off[0] + 2];
+       f_[2] = f[off[0] + 1];
+       f_[3] = f[off[0] + 4];
+       f_[4] = f[off[0] + 3];
+       f_[5] = f[off[0] + 6];
+       f_[6] = f[off[0] + 5];
+       f_[7] = f[off[0] + 8];
+       f_[8] = f[off[0] + 7];
+   }
+
+   // clang-format off
+   float r = f_[0] + f_[1] + f_[2] + f_[3] + f_[4] + f_[5] + f_[6] + f_[7] + f_[8];
+   float vx = (f_[1] - f_[2] + f_[5] - f_[6] + f_[7] - f_[8]) / r;
+   float vy = (f_[3] - f_[4] + f_[5] - f_[6] - f_[7] + f_[8]) / r;
+   // clang-format on
+   if (use_acc) {
+       vx += acc[ii * 2 + 0] / omega_pos;
+       vy += acc[ii * 2 + 1] / omega_pos;
+   }if (fixed) {
+       omega_pos = 1.0;
+       omega_neg = 1.0;
+       r = rho[ii];
+       vx = vel[ii*2 + 0];
+       vy = vel[ii*2 + 1];
+   }
+
+   const float vv = vx * vx + vy * vy;
+
+
+  float fpos;
+  float fneg;
+
+   // clang-format off
+   fpos = omega_pos * (r * (0.44444444444444442 - 0.66666666666666663*vv) - (f_[0] + f_[0]) * 0.5);
+   fneg = omega_neg * (r * (0) - (f_[0] - f_[0]) * 0.5);
+   f_[0] += fpos + fneg;
+   fpos = omega_pos * (r * (-1.0/6.0*vv + (1.0/2.0)*pow(vx, 2) + 1.0/9.0) - (f_[1] + f_[2]) * 0.5);
+   fneg = omega_neg * (r * ((1.0/3.0)*vx) - (f_[1] - f_[2]) * 0.5);
+   f_[1] += fpos + fneg;
+   f_[2] += fpos - fneg;
+   fpos = omega_pos * (r * (-1.0/6.0*vv + (1.0/2.0)*pow(vy, 2) + 1.0/9.0) - (f_[3] + f_[4]) * 0.5);
+   fneg = omega_neg * (r * ((1.0/3.0)*vy) - (f_[3] - f_[4]) * 0.5);
+   f_[3] += fpos + fneg;
+   f_[4] += fpos - fneg;
+   fpos = omega_pos * (r * (-1.0/24.0*vv + (1.0/8.0)*pow(vx + vy, 2) + 1.0/36.0) - (f_[5] + f_[6]) * 0.5);
+   fneg = omega_neg * (r * ((1.0/12.0)*vx + (1.0/12.0)*vy) - (f_[5] - f_[6]) * 0.5);
+   f_[5] += fpos + fneg;
+   f_[6] += fpos - fneg;
+   fpos = omega_pos * (r * (-1.0/24.0*vv + (1.0/8.0)*pow(vx - vy, 2) + 1.0/36.0) - (f_[7] + f_[8]) * 0.5);
+   fneg = omega_neg * (r * ((1.0/12.0)*vx - 1.0/12.0*vy) - (f_[7] - f_[8]) * 0.5);
+   f_[7] += fpos + fneg;
+   f_[8] += fpos - fneg;
+   // clang-format on
+
+   if (even) {
+       f[off[0] + 0] = f_[0];
+       f[off[2] + 1] = f_[2];
+       f[off[1] + 2] = f_[1];
+       f[off[4] + 3] = f_[4];
+       f[off[3] + 4] = f_[3];
+       f[off[6] + 5] = f_[6];
+       f[off[5] + 6] = f_[5];
+       f[off[8] + 7] = f_[8];
+       f[off[7] + 8] = f_[7];
+   } else {
+       f[off[0] + 0] = f_[0];
+       f[off[0] + 1] = f_[1];
+       f[off[0] + 2] = f_[2];
+       f[off[0] + 3] = f_[3];
+       f[off[0] + 4] = f_[4];
+       f[off[0] + 5] = f_[5];
+       f[off[0] + 6] = f_[6];
+       f[off[0] + 7] = f_[7];
+       f[off[0] + 8] = f_[8];
+   }
+
+   rho[ii] = r;
+   vel[ii*2 + 0] = vx;
+   vel[ii*2 + 1] = vy;
+
+    }

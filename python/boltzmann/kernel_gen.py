@@ -199,11 +199,19 @@ class Kernel:
         self.kernel += "// clang-format on\n"
 
     @contextmanager
+    def block(self):
+        """
+        A logical "block" of operations which belong together.
+        This puts a newline after the end of the block to space things out.
+        """
+        yield
+        self.kernel += "\n"
+
+    @contextmanager
     def if_(self, condition: str) -> Generator[Kernel, None, None]:
         """
         Contents will be wrapped in an in if-statement.
         """
-
         self.kernel += f"if ({condition}) {{\n"
         inner = Kernel(self.indent + 1)
         yield inner
@@ -226,7 +234,7 @@ class Kernel:
 
     def __iadd__(self, rhs: str) -> "Kernel":
         if self.is_if:
-            self.kernel += "\n"
+            self.kernel += "\n\n"
             self.is_if = False
         self.kernel += rhs + "\n"
         return self
@@ -239,7 +247,11 @@ def _dot(x: list[sp.Expr], f: list[sp.Expr | int]) -> sp.Expr:
     return sp.simplify(sp.Add(*[sp.Mul(xx, ff) for xx, ff in zip(x, f)]))
 
 
-def gen_kernel_AA_v1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]) -> str:
+def gen_kernel_AA_v1(
+    model: VelocitySet,
+    kernel_type: Literal["fluid", "scalar"],
+    omega_type: Literal["bgk", "trt"],
+) -> str:
     """
     This is a pretty basic transcoding of my hand-written AA-pattern+BKG kernel for D2Q9 which is
     generic over the velocity set.
@@ -350,14 +362,18 @@ def gen_kernel_AA_v1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]
     if kernel_type == "fluid":
         with kernel.if_("use_acc") as inner:
             for axis in axes:
-                inner += f"v{axis.name} += acc[ii * {ndim} + {axis.idx}] / omega;"
+                omega = "omega" if omega_type == "bgk" else "omega_pos"
+                inner += f"v{axis.name} += acc[ii * {ndim} + {axis.idx}] / {omega};"
 
     # update values if fixed
     with kernel.if_("fixed") as inner:
-        inner += f"""
-        omega = 1.0;
-        r = {val_name}[ii];
-        """.strip()
+        if omega_type == "bgk":
+            inner += "omega = 1.0;"
+        else:
+            inner += "omega_pos = 1.0;"
+            inner += "omega_neg = 1.0;"
+
+        inner += f"r = {val_name}[ii];".strip()
 
         for axis in axes:
             inner += f"v{axis.name} = vel[ii*{ndim} + {axis.idx}];"
@@ -365,27 +381,56 @@ def gen_kernel_AA_v1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]
     # calculate equilibrium & collide
     vv = " + ".join([f"v{axis.name} * v{axis.name}" for axis in axes])
     kernel += f"const float vv = {vv};\n\n"
-    # IDEA: we can use sympy to simply this!
-    with kernel.no_format():
-        for i in range(nvel):
-            uq = _dot(v_, [model.qs[i][a.idx] for a in axes])
-            feq = model.ws[i] * (1 + 3 * uq + 0.5 * (9 * (uq * uq) - 3 * sp.Symbol("vv")))
-            feq = sp.simplify(feq, rational=True)
-            feq = ccode(feq)
-            feq = f"r * ({feq})"
-            kernel += f"f_[{i}] += omega * ({feq} - f_[{i}]);"
+
+    if omega_type == "trt":
+        # temporary variables needed to store intermediate calculations
+        with kernel.block():
+            kernel += "float fpos;"
+            kernel += "float fneg;"
+
+    vv = sp.Symbol("vv")
+    with kernel.block():
+        with kernel.no_format():
+            for i in range(nvel):
+                if omega_type == "bgk":
+                    uq = _dot(v_, model.qs[i])
+                    feq = model.ws[i] * (1 + 3 * uq + 0.5 * (9 * (uq * uq) - 3 * vv))
+                    feq = ccode(sp.simplify(feq, rational=True))
+                    feq = f"r * ({feq})"
+                    kernel += f"f_[{i}] += omega * ({feq} - f_[{i}]);"
+
+                if omega_type == "trt":
+                    j = model.js[i]
+                    if j < i:
+                        continue
+                    uq_i = _dot(v_, model.qs[i])
+                    uq_j = _dot(v_, model.qs[j])
+                    feq_i = model.ws[i] * (1 + 3 * uq_i + 0.5 * (9 * (uq_i * uq_i) - 3 * vv))
+                    feq_j = model.ws[j] * (1 + 3 * uq_j + 0.5 * (9 * (uq_j * uq_j) - 3 * vv))
+                    feq_pos = (feq_i + feq_j) * 0.5
+                    feq_neg = (feq_i - feq_j) * 0.5
+                    feq_pos = "r * ({})".format(ccode(sp.simplify(feq_pos, rational=True)))
+                    feq_neg = "r * ({})".format(ccode(sp.simplify(feq_neg, rational=True)))
+                    f_pos = f"(f_[{i}] + f_[{j}]) * 0.5"
+                    f_neg = f"(f_[{i}] - f_[{j}]) * 0.5"
+                    kernel += f"fpos = omega_pos * ({feq_pos} - {f_pos});"
+                    kernel += f"fneg = omega_neg * ({feq_neg} - {f_neg});"
+                    kernel += f"f_[{i}] += fpos + fneg;"
+                    if j != i:  # i.e. zero velocity
+                        kernel += f"f_[{j}] += fpos - fneg;"
 
     # write back
     writes_even = ""
     writes_odd = ""
     for i in range(nvel):
-        writes_even += f"f[off[{model.js[i]}] + {i}] = f_[{model.js[i]}];"
-        writes_odd += f"f[off[0] + {i}] = f_[{i}];"
+        writes_even += f"f[off[{model.js[i]}] + {i}] = f_[{model.js[i]}];\n"
+        writes_odd += f"f[off[0] + {i}] = f_[{i}];\n"
 
-    with kernel.if_("even") as inner:
-        inner += writes_even
-    with kernel.else_() as inner:
-        inner += writes_odd
+    with kernel.block():
+        with kernel.if_("even") as inner:
+            inner += writes_even
+        with kernel.else_() as inner:
+            inner += writes_odd
 
     # update macroscopic variables
     kernel += f"{val_name}[ii] = r;"
@@ -394,14 +439,19 @@ def gen_kernel_AA_v1(model: VelocitySet, kernel_type: Literal["fluid", "scalar"]
             kernel += f"vel[ii*{ndim} + {axis.idx}] = v{axis.name};"
 
     # now finally wrap it in the function call
+    if omega_type == "bgk":
+        omega_args = "float omega"
+    elif omega_type == "trt":
+        omega_args = "float omega_pos, float omega_neg"
+
     if kernel_type == "fluid":
-        args = "__constant int *s, int even, float omega, global float *f, global float *rho, global float *vel, global float *acc, int use_acc, global int *cell"
+        args = f"__constant int *s, int even, {omega_args}, global float *f, global float *rho, global float *vel, global float *acc, int use_acc, global int *cell"
     else:
-        args = "__constant int *s, int even, float omega, global float *f, global float *val, global float *vel, global int *cell"
+        args = f"__constant int *s, int even, {omega_args}, global float *f, global float *val, global float *vel, global int *cell"
 
     kernel.kernel = dedent(
         f"""
-    kernel void update_d{ndim}q{nvel}_bgk(
+    kernel void update_d{ndim}q{nvel}_{omega_type}(
         {args}
     ) {{
         {indent(kernel.kernel, "   ")}
