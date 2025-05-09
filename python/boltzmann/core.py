@@ -54,10 +54,10 @@ def trt(tau_pos: float, tau_neg: float | None = None, magic_no: float = 0.25) ->
         tau_neg: The relaxation time in simulation units (i.e. iterations).
             If not specified this will be inferred from `magic_no`.
         magic_no: Used to infer `tau_neg` if not specified.
-            Defaults to 1/4. See LBM P&P section 10.7.2
+            Defaults to 1/4. See Lattice Boltzmann Principles & Practice, Krueger et al, Section 10.7.2
     """
     tau_neg = tau_neg or (magic_no / (tau_pos - 0.5) + 0.5)
-    return Omega.TRT(tau_pos, tau_neg)
+    return Omega.TRT(1.0 / tau_pos, 1.0 / tau_neg)
 
 
 Device = Literal["cpu", "gpu"]  #: OpenCL device type on which type to run the simulations.
