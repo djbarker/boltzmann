@@ -1,4 +1,3 @@
-use std::fmt::format;
 // Std imports:
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::usize;
@@ -27,11 +26,12 @@ enum OmegaPy {
     TRT(f32, f32),
 }
 
+#[pymethods]
 impl OmegaPy {
     pub fn __repr__(&self) -> String {
         match self {
-            OmegaPy::BGK(o) => format!("BGK({})", o),
-            OmegaPy::TRT(op, on) => format!("TRT({}, {})", op, on),
+            OmegaPy::BGK(o) => format!("Omega.BGK({})", o),
+            OmegaPy::TRT(op, on) => format!("Omega.TRT({}, {})", op, on),
         }
     }
 }
