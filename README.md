@@ -29,6 +29,7 @@ A GPU accelerated Python package for running [Lattice-Boltzmann](https://en.wiki
 - 📏 Utilities to map from physical to simulation units.
 - 🎨 [Advection-diffusion](https://en.wikipedia.org/wiki/Convection%E2%80%93diffusion_equation) kernels for tracers.
 - 🔥 Coupling of tracers to fluid via the [Boussinesq approximation](https://en.wikipedia.org/wiki/Boussinesq_approximation_(buoyancy)).
+- 💥 Choice of BGK or TRT collision operators.
 - 🔎 Utilities to output `.vti` files for analysis in [ParaView](https://www.paraview.org/)
 
 ## Get Started
