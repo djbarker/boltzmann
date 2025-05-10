@@ -16,6 +16,8 @@ from math import sqrt
 
 
 __all__ = [
+    "bgk",
+    "trt",
     "Device",
     "CellFlags",
     "calc_lbm_params_lu",
