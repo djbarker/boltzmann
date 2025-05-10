@@ -90,8 +90,8 @@ def pve(x: np.ndarray) -> np.ndarray:
 velocity_init_mode: Literal["uniform", "tapered", "stream"] = "stream"
 geometry: Literal["cylinder", "pill"] = "cylinder"
 
-omega_ns = 1 / tau
-omega_ad = 1 / min(0.52, tau)
+tau_ns = tau
+tau_ad = min(0.52, tau)
 
 args = parse_args(out_dir=f"out_re{Re}")
 
@@ -99,7 +99,7 @@ args = parse_args(out_dir=f"out_re{Re}")
 if args.resume:
     sim = Simulation.load_checkpoint(args.device, str(args.out_dir / "checkpoint.mpk"))
 else:
-    sim = Simulation(args.device, domain.counts, trt(omega_ns))
+    sim = Simulation(args.device, domain.counts, trt(tau_ns, 0.52))
 
     # Fixed velocity & tracer in- & out-flow.
     sim.cells.flags[+0, :] = CellFlags.FIXED_FLUID  # left
