@@ -678,10 +678,13 @@ kernel void update_d2q9_trt(
    float vx = (f_[1] - f_[2] + f_[5] - f_[6] + f_[7] - f_[8]) / r;
    float vy = (f_[3] - f_[4] + f_[5] - f_[6] - f_[7] + f_[8]) / r;
    // clang-format on
+   
    if (use_acc) {
        vx += acc[ii * 2 + 0] / omega_pos;
        vy += acc[ii * 2 + 1] / omega_pos;
-   }if (fixed) {
+   }
+   
+   if (fixed) {
        omega_pos = 1.0;
        omega_neg = 1.0;
        r = rho[ii];
@@ -689,8 +692,7 @@ kernel void update_d2q9_trt(
        vy = vel[ii*2 + 1];
    }
 
-   const float vv = vx * vx + vy * vy;
-
+  const float vv = vx * vx + vy * vy;
 
   float fpos;
   float fneg;
