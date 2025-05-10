@@ -60,7 +60,7 @@ If the steps above all worked you should now be able to use the module.
 Setting up a minimal simulation is very simple.
 This example demonstrates running a small 2D simulation on the CPU and showing the result with [`matplotlib`](https://matplotlib.org/).
 
-https://github.com/djbarker/boltzmann/blob/master/python/examples/basic.py
+https://github.com/djbarker/boltzmann/blob/999d8b2557ab94f2ed5151ec678b43af87a8565d/python/examples/basic.py
 
 This should produce the plot below
 
