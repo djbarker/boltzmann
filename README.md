@@ -59,31 +59,7 @@ If the steps above all worked you should now be able to use the module.
 Setting up a minimal simulation is very simple.
 This example demonstrates running a small 2D simulation on the CPU and showing the result with [`matplotlib`](https://matplotlib.org/).
 
-```python
-import numpy as np
-import matplotlib.pyplot as plt
-
-from boltzmann.core import Simulation, bgk
-
-np.random.seed(42)
-
-# Create the simulation
-tau = 0.51
-sim = Simulation("cpu", [200, 100], bgk(tau))
-
-# Set some initial condition
-sim.fluid.vel[:, 40:60, 0] = 0.1
-sim.fluid.rho[:] += 0.1 * np.random.uniform(-1, 1, sim.fluid.rho.shape)
-
-# Run it
-sim.iterate(3000)
-
-# Plot it
-grad = np.gradient(sim.fluid.vel)
-curl = grad[1][..., 0] - grad[0][..., 1]
-plt.imshow(curl.T, cmap="RdBu")
-plt.show()
-```
+https://github.com/djbarker/boltzmann/blob/master/python/examples/basic.py
 
 This should produce the plot below
 
